@@ -6,12 +6,14 @@ import { Home } from './views/home.js';
 import { PatientPage } from './views/patient.js';
 import { ImportPage } from './views/import.js';
 import { SettingsPage } from './views/settings.js';
+import { QuestionnairesPage } from './views/questionnaires.js';
 
 function parseRoute(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'paciente' && parts[1]) return { name: 'patient', id: parts[1] };
   if (parts[0] === 'importar') return { name: 'import' };
   if (parts[0] === 'config') return { name: 'config' };
+  if (parts[0] === 'questionarios') return { name: 'questionnaires' };
   return { name: 'home' };
 }
 
@@ -34,6 +36,7 @@ function App() {
   if (route.name === 'patient') page = html`<${PatientPage} key=${route.id} id=${route.id} />`;
   else if (route.name === 'import') page = html`<${ImportPage} />`;
   else if (route.name === 'config') page = html`<${SettingsPage} />`;
+  else if (route.name === 'questionnaires') page = html`<${QuestionnairesPage} />`;
   else page = html`<${Home} />`;
 
   return html`
@@ -41,7 +44,7 @@ function App() {
       <a class="brand" href="#/">🥗 Consultório Nutri</a>
       <nav>
         <a href="#/" class=${route.name === 'home' || route.name === 'patient' ? 'active' : ''}>Pacientes</a>
-        <span class="nav-soon" title="Disponível na Fase 4">Questionários</span>
+        <a href="#/questionarios" class=${route.name === 'questionnaires' ? 'active' : ''}>Questionários</a>
         <a href="#/importar" class=${route.name === 'import' ? 'active' : ''}>Importar Nutrium</a>
         <a href="#/config" class=${route.name === 'config' ? 'active' : ''}>⚙️ Configurações</a>
       </nav>

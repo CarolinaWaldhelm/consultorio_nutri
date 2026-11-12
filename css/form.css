@@ -1,0 +1,18 @@
+/* Formulário do paciente (q.html): pensado para celular. */
+.form-page { background: var(--bg); }
+.form-wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
+.form-hero { text-align: center; margin: 8px 0 18px; }
+.form-hero h1 { font-size: 1.45rem; }
+.form-q { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.form-q-label { font-weight: 600; margin-bottom: 10px; display: block; }
+.scale { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.scale button { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 12px 0; font-size: 1.05rem; font-weight: 600; cursor: pointer; min-height: 48px; }
+.scale button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.scale-legend { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .8rem; margin-top: 6px; }
+.choices { display: flex; flex-direction: column; gap: 8px; }
+.choices button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 12px 14px; cursor: pointer; min-height: 48px; }
+.choices button.on { border-color: var(--primary); background: var(--primary-soft); font-weight: 600; }
+.form-q textarea { min-height: 96px; }
+.form-submit { width: 100%; padding: 14px; font-size: 1.05rem; margin-top: 6px; }
+.form-done { text-align: center; padding: 48px 16px; }
+.form-done .big { font-size: 3rem; }

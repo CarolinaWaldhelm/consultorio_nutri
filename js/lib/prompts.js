@@ -10,7 +10,7 @@ function patientLine(patient) {
 }
 
 /** Histórico em texto: anamneses (da mais antiga para a mais recente) e evolução do peso. */
-export function historyText({ patient, consultations, measurements, appointments }) {
+export function historyText({ patient, consultations, measurements, appointments, responses = [], questionnaires = [] }) {
   const out = [];
   const today = todayISO();
   const chronological = [...consultations].sort((a, b) => a.date.localeCompare(b.date));
@@ -40,6 +40,20 @@ export function historyText({ patient, consultations, measurements, appointments
     out.push('');
     out.push('EVOLUÇÃO DO PESO (kg):');
     out.push(weights.slice(-15).map((m) => `${fmtDate(m.date)}: ${m.value}`).join(' | '));
+  }
+  if (responses.length) {
+    const qById = new Map(questionnaires.map((q) => [q.id, q]));
+    out.push('');
+    out.push(`RESPOSTAS DOS QUESTIONÁRIOS SEMANAIS (${Math.min(responses.length, 12)} mais recentes, da mais antiga para a mais recente):`);
+    for (const r of [...responses].sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)).slice(-12)) {
+      const q = qById.get(r.questionnaire_id);
+      out.push(`--- ${fmtDate(r.submitted_at.slice(0, 10))} ---`);
+      for (const question of q?.questions || []) {
+        const v = r.answers?.[question.id];
+        if (v == null || v === '') continue;
+        out.push(`${question.label}: ${v}${question.type === 'scale' ? ` (escala ${question.min} a ${question.max})` : ''}`);
+      }
+    }
   }
   const height = measurements.filter((m) => m.metric === 'altura').sort((a, b) => b.date.localeCompare(a.date))[0];
   if (height) out.push(`ALTURA: ${height.value} cm`);

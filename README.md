@@ -14,9 +14,9 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 | 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, histórico de anamneses, resumo pré-consulta (IA modo B) | ✅ Pronta |
 | 2 | Medições (texto, foto via IA, tabela), gráficos, motor de cálculos, histórico de cálculos | ✅ Pronta |
 | 3 | Google Agenda e alerta de 50 dias | ✅ Pronta |
-| 4 | Questionários e WhatsApp | Próxima |
+| 4 | Questionários e WhatsApp | ✅ Pronta |
 | 5 | IA modo B (já antecipada nas Fases 1 e 2) | ✅ |
-| 6 | Exames, PDF, insights, backup | — |
+| 6 | Exames, PDF, insights, backup | Próxima |
 
 ## Configuração (feita uma vez)
 
@@ -46,7 +46,8 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 - Para rodar localmente: `python3 -m http.server` na pasta do projeto e abrir `http://localhost:8000`.
 
 ```
-index.html            página única
+index.html            sistema (com login)
+q.html                formulário do paciente (sem login, pelo link do WhatsApp)
 css/style.css         estilos
 js/app.js             rotas (#/, #/paciente/:id, #/importar) e login
 js/config.js          endereço e chave pública do Supabase

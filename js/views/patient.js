@@ -9,6 +9,7 @@ import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
 import { SummaryCard } from './summary.js';
 import { BodyCard, MeasurementModal } from './body.js';
 import { CalcCard } from './calc.js';
+import { QuestionnaireCard } from './patientq.js';
 
 export function PatientPage({ id }) {
   const [data, setData] = useState(null);
@@ -20,16 +21,19 @@ export function PatientPage({ id }) {
 
   async function load() {
     try {
-      const [patient, consultations, appointments, measurements, calculations, settingsRows] = await Promise.all([
+      const [patient, consultations, appointments, measurements, calculations, settingsRows, responses, sends, questionnaires] = await Promise.all([
         run(supabase.from('patients').select('*').eq('id', id).single()),
         run(supabase.from('consultations').select('*').eq('patient_id', id).order('date', { ascending: false }).order('created_at', { ascending: false })),
         run(supabase.from('nutrium_appointments').select('*').eq('patient_id', id).order('date', { ascending: false })),
         run(supabase.from('measurements').select('*').eq('patient_id', id).order('date', { ascending: false })),
         run(supabase.from('calculations').select('*').eq('patient_id', id).order('created_at', { ascending: false })),
         run(supabase.from('app_settings').select('*')),
+        run(supabase.from('questionnaire_responses').select('*').eq('patient_id', id).order('submitted_at', { ascending: false })),
+        run(supabase.from('questionnaire_sends').select('*').eq('patient_id', id).order('created_at', { ascending: false })),
+        run(supabase.from('questionnaires').select('*')),
       ]);
       const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
-      setData({ patient, consultations, appointments, measurements, calculations, settings });
+      setData({ patient, consultations, appointments, measurements, calculations, settings, responses, sends, questionnaires });
     } catch (err) {
       setError(err);
     }
@@ -112,6 +116,13 @@ export function PatientPage({ id }) {
         onSaved=${(row) => setData((d) => ({ ...d, calculations: [row, ...d.calculations] }))}
         onDeleted=${(cid) => setData((d) => ({ ...d, calculations: d.calculations.filter((c) => c.id !== cid) }))}
         onSettingsSaved=${(settings) => setData((d) => ({ ...d, settings }))}
+      />
+      <${QuestionnaireCard}
+        patient=${patient}
+        responses=${data.responses}
+        sends=${data.sends}
+        questionnaires=${data.questionnaires}
+        onToggle=${(v) => setData((d) => ({ ...d, patient: { ...d.patient, questionnaires_active: v } }))}
       />
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />

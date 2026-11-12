@@ -2,6 +2,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
+import { planSends, consultSoonIds, DEFAULT_FREQUENCY } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 
 const ALERT_DAYS = 50;
@@ -27,6 +28,7 @@ export function Home() {
   const [newFor, setNewFor] = useState(null); // { name, email } para o cadastro rápido
   const [linking, setLinking] = useState(null); // evento a vincular
   const [filter, setFilter] = useState('ativos');
+  const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
 
   const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
 
@@ -41,7 +43,16 @@ export function Home() {
     }
   }
 
-  useEffect(() => { loadPatients(); refreshAgenda(); }, []);
+  useEffect(() => {
+    loadPatients();
+    refreshAgenda();
+    Promise.all([
+      run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
+      run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
+      run(supabase.from('app_settings').select('*').eq('key', 'questionnaire_frequency_days')),
+    ]).then(([sends, defs, freq]) => setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(freq[0]?.value) || DEFAULT_FREQUENCY }))
+      .catch(() => setQdata(null));
+  }, []);
 
   const today = todayISO();
 
@@ -71,11 +82,22 @@ export function Home() {
     return ids;
   }, [patients, agenda]);
 
+  // Última atividade: consulta ou resposta de questionário.
+  const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
   const overdue = useMemo(() => (patients || [])
-    .filter((p) => p.status === 'ativo' && p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS)
+    .filter((p) => p.status === 'ativo' && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
     .filter((p) => !scheduled.has(p.id))
     .filter((p) => !p.snooze_until || p.snooze_until <= today)
-    .sort((a, b) => a.last_consult.localeCompare(b.last_consult)), [patients, scheduled]);
+    .sort((a, b) => lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
+
+  const toSend = useMemo(() => {
+    if (!qdata?.hasDefault || !patients) return null;
+    const pairs = agenda.state === 'ok'
+      ? consultationEvents(agenda.events, ...Object.values(windowDays(7))).map((ev) => [ev.start, matchEvent(ev, patients).patient?.id]).filter(([, id]) => id)
+      : [];
+    const plan = planSends({ patients, sends: qdata.sends, soonIds: consultSoonIds(patients, pairs), frequency: qdata.frequency });
+    return { due: plan.due.length, reminders: plan.reminders.length };
+  }, [qdata, patients, agenda]);
 
   const list = useMemo(() => {
     const nq = norm(q);
@@ -110,6 +132,12 @@ export function Home() {
         <p>Comece importando a planilha do Nutrium. Ela traz todos os pacientes, as consultas e os pesos.</p>
         <a class="btn btn-primary" href="#/importar">Importar planilha do Nutrium</a>
       </div>`}
+
+    ${!q && toSend && (toSend.due > 0 || toSend.reminders > 0) && html`
+      <section class="card home-banner">
+        <span>📨 <strong>${toSend.due}</strong> questionário(s) para enviar hoje${toSend.reminders ? html` · <strong>${toSend.reminders}</strong> lembrete(s)` : ''}</span>
+        <a class="btn btn-primary btn-sm" href="#/questionarios">Abrir envios de hoje</a>
+      </section>`}
 
     ${!q && html`
       <section class="card">
@@ -152,13 +180,13 @@ export function Home() {
       <section class="card">
         <h2 class="card-title">⏰ Sem retorno há mais de ${ALERT_DAYS} dias <span class="muted small">(${overdue.length}, sem consulta marcada)</span></h2>
         <table class="table">
-          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias</th><th></th></tr></thead>
+          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem contato</th><th></th></tr></thead>
           <tbody>
             ${overdue.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
-                <td>${fmtDate(p.last_consult)}</td>
-                <td class="text-warn">${daysBetween(p.last_consult, today)}</td>
+                <td>${fmtDate(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtDate(p.last_response)}</div>` : ''}</td>
+                <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
                 <td class="row-actions">
                   <button class="btn btn-sm" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
                   <button class="btn btn-sm btn-ghost" title="Para de receber questionários e sai da lista de ativos" onClick=${() => updatePatient(p.id, { status: 'inativo', questionnaires_active: false, inactive_reason: null })}>Marcar como inativo</button>

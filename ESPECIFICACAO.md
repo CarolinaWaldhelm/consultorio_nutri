@@ -294,6 +294,11 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 | Pausa manual por paciente | na ficha ou na aba Questionários |
 | Link vence | quando é respondido ou quando o próximo questionário é enviado |
 
+- Modelos já enviados ficam somente leitura; o botão "Nova versão a partir deste" copia as perguntas para um novo
+  modelo. Há um modelo de exemplo pronto ("Começar pelo exemplo"), editável antes de salvar.
+- Lembrete: um por envio. A mensagem do envio e a do lembrete são editáveis em "Mensagem e frequência",
+  com os marcadores **[Nome]** (primeiro nome) e **[Link]**.
+
 ### 4.3 Envio semiautomático pelo WhatsApp (número pessoal)
 
 - Aba **Questionários → "Envios de hoje"**: lista de quem deve receber, com `[Enviar]`.
@@ -304,10 +309,14 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 
 ### 4.4 Link e resposta sem login
 
-- Cada envio gera um código aleatório e impossível de adivinhar (ex.: `/q/k7Xp2mQ9...`), ligado no banco a:
+- Cada envio gera um código aleatório de 128 bits (link `…/q.html?t=CÓDIGO`), ligado no banco a:
   paciente, modelo e data de envio.
 - O formulário abre com "Olá, [primeiro nome]!" e não mostra nenhum outro dado.
 - A resposta cai direto no histórico do paciente.
+- O paciente só consegue usar duas funções do banco: `get_questionnaire(token)` (lê o próprio questionário)
+  e `submit_questionnaire(token, respostas)` (responde uma vez). As tabelas continuam fechadas para quem não está logado.
+- Ao enviar um novo questionário, o link anterior ainda sem resposta vence.
+- As respostas entram no pedido de resumo pré-consulta (as 12 mais recentes) e contam como atividade no alerta de 50 dias.
 
 ### 4.5 Log de disparos e respostas
 

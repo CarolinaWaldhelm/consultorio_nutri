@@ -226,3 +226,16 @@ textarea { resize: vertical; min-height: 44px; }
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .pick-list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .pick-list .btn { justify-content: flex-start; }
+
+/* Questionários */
+.tabs { margin-bottom: 16px; flex-wrap: wrap; }
+.q-edit { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+.q-edit-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.q-scale { display: grid; grid-template-columns: 90px 90px 1fr 1fr; gap: 8px; align-items: center; }
+.q-scale label { display: flex; align-items: center; gap: 6px; }
+.q-options { display: flex; flex-direction: column; gap: 6px; }
+.q-option { display: flex; gap: 6px; }
+.q-history { margin-top: 12px; }
+.q-history summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
+.home-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--primary-soft); border-color: transparent; }
+@container (max-width: 600px) { .q-scale { grid-template-columns: 1fr 1fr; } }
