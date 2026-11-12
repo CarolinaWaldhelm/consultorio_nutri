@@ -5,11 +5,13 @@ import { Login } from './views/login.js';
 import { Home } from './views/home.js';
 import { PatientPage } from './views/patient.js';
 import { ImportPage } from './views/import.js';
+import { SettingsPage } from './views/settings.js';
 
 function parseRoute(hash) {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'paciente' && parts[1]) return { name: 'patient', id: parts[1] };
   if (parts[0] === 'importar') return { name: 'import' };
+  if (parts[0] === 'config') return { name: 'config' };
   return { name: 'home' };
 }
 
@@ -31,15 +33,17 @@ function App() {
   let page;
   if (route.name === 'patient') page = html`<${PatientPage} key=${route.id} id=${route.id} />`;
   else if (route.name === 'import') page = html`<${ImportPage} />`;
+  else if (route.name === 'config') page = html`<${SettingsPage} />`;
   else page = html`<${Home} />`;
 
   return html`
     <div class="topbar">
       <a class="brand" href="#/">🥗 Consultório Nutri</a>
       <nav>
-        <a href="#/" class=${route.name !== 'import' ? 'active' : ''}>Pacientes</a>
+        <a href="#/" class=${route.name === 'home' || route.name === 'patient' ? 'active' : ''}>Pacientes</a>
         <span class="nav-soon" title="Disponível na Fase 4">Questionários</span>
         <a href="#/importar" class=${route.name === 'import' ? 'active' : ''}>Importar Nutrium</a>
+        <a href="#/config" class=${route.name === 'config' ? 'active' : ''}>⚙️ Configurações</a>
       </nav>
       <button class="btn btn-ghost btn-sm" onClick=${() => supabase.auth.signOut()}>Sair</button>
     </div>

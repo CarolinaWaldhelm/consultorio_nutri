@@ -160,7 +160,7 @@ textarea { resize: vertical; min-height: 44px; }
 .drawer-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 /* Com o painel aberto, a página inteira abre espaço à direita (em vez de espremer os cartões). */
 @media (min-width: 1000px) {
-  body.drawer-open .container { margin-right: var(--drawer-w); margin-left: auto; max-width: min(1100px, calc(100vw - var(--drawer-w))); }
+  body.drawer-open main.container { padding-right: calc(var(--drawer-w) + 24px); max-width: calc(1100px + var(--drawer-w)); }
 }
 .card { container-type: inline-size; }
 
@@ -223,3 +223,6 @@ textarea { resize: vertical; min-height: 44px; }
 .macros td, .macros th { text-align: right; }
 .macros td:first-child, .macros th:first-child { text-align: left; }
 .link-btn { border: 0; background: none; padding: 0; color: var(--primary); text-decoration: underline; cursor: pointer; font-size: inherit; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pick-list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.pick-list .btn { justify-content: flex-start; }

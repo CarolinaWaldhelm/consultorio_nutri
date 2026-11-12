@@ -1,8 +1,10 @@
 import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits } from '../lib/util.js';
+import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
+import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 
+const ALERT_DAYS = 50;
 const WEEKDAY = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 function dayLabel(iso) {
   const n = daysBetween(todayISO(), iso);
@@ -11,24 +13,69 @@ function dayLabel(iso) {
   const d = new Date(iso + 'T12:00:00');
   return `${WEEKDAY[d.getDay()]} ${fmtDate(iso).slice(0, 5)}`;
 }
+function plusDays(iso, n) {
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 export function Home() {
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);
+  const [agenda, setAgenda] = useState({ state: 'loading', events: [] }); // loading | ok | off | error
   const [q, setQ] = useState('');
-  const [showNew, setShowNew] = useState(false);
+  const [newFor, setNewFor] = useState(null); // { name, email } para o cadastro rápido
+  const [linking, setLinking] = useState(null); // evento a vincular
   const [filter, setFilter] = useState('ativos');
 
-  useEffect(() => {
-    run(supabase.from('patient_overview').select('*').order('name'))
-      .then(setPatients)
-      .catch(setError);
-  }, []);
+  const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
+
+  async function refreshAgenda(force = false) {
+    setAgenda((a) => ({ ...a, state: 'loading' }));
+    try {
+      const events = await loadAgenda({ force });
+      if (events == null) setAgenda({ state: 'off', events: [] });
+      else setAgenda({ state: 'ok', events });
+    } catch (err) {
+      setAgenda({ state: 'error', events: [], error: err });
+    }
+  }
+
+  useEffect(() => { loadPatients(); refreshAgenda(); }, []);
 
   const today = todayISO();
-  const upcoming = useMemo(() => (patients || [])
-    .filter((p) => p.next_consult && daysBetween(today, p.next_consult) <= 7)
-    .sort((a, b) => (a.next_consult + (a.next_time || '')).localeCompare(b.next_consult + (b.next_time || ''))), [patients]);
+
+  // Próximas consultas: agenda do Google (ou planilha do Nutrium, se a agenda não estiver conectada).
+  const upcoming = useMemo(() => {
+    if (!patients) return [];
+    if (agenda.state === 'ok') {
+      const { from, to } = windowDays(7);
+      return consultationEvents(agenda.events, from, to).map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
+    }
+    return patients
+      .filter((p) => p.next_consult && daysBetween(today, p.next_consult) <= 7)
+      .sort((a, b) => (a.next_consult + (a.next_time || '')).localeCompare(b.next_consult + (b.next_time || '')))
+      .map((p) => ({ uid: p.id, start: p.next_consult, time: p.next_time, patientName: p.name, patient: p, attendees: [] }));
+  }, [patients, agenda]);
+
+  // Pacientes com consulta marcada (agenda dos próximos 60 dias ou planilha), para o alerta de 50 dias.
+  const scheduled = useMemo(() => {
+    const ids = new Set((patients || []).filter((p) => p.next_consult).map((p) => p.id));
+    if (agenda.state === 'ok' && patients) {
+      const { from, to } = windowDays(60);
+      for (const ev of consultationEvents(agenda.events, from, to)) {
+        const m = matchEvent(ev, patients);
+        if (m.patient) ids.add(m.patient.id);
+      }
+    }
+    return ids;
+  }, [patients, agenda]);
+
+  const overdue = useMemo(() => (patients || [])
+    .filter((p) => p.status === 'ativo' && p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS)
+    .filter((p) => !scheduled.has(p.id))
+    .filter((p) => !p.snooze_until || p.snooze_until <= today)
+    .sort((a, b) => a.last_consult.localeCompare(b.last_consult)), [patients, scheduled]);
 
   const list = useMemo(() => {
     const nq = norm(q);
@@ -38,13 +85,18 @@ export function Home() {
       .sort((a, b) => (b.last_consult || '').localeCompare(a.last_consult || '') || a.name.localeCompare(b.name));
   }, [patients, q, filter]);
 
+  async function updatePatient(id, patch) {
+    await run(supabase.from('patients').update(patch).eq('id', id));
+    await loadPatients();
+  }
+
   if (error) return html`<${ErrorBox} error=${error} />`;
   if (!patients) return html`<${Loading} />`;
 
   return html`
     <div class="page-head">
       <h1>Pacientes</h1>
-      <button class="btn btn-primary" onClick=${() => setShowNew(true)}>+ Cadastro rápido</button>
+      <button class="btn btn-primary" onClick=${() => setNewFor({ name: q })}>+ Cadastro rápido</button>
     </div>
 
     <div class="search">
@@ -59,21 +111,62 @@ export function Home() {
         <a class="btn btn-primary" href="#/importar">Importar planilha do Nutrium</a>
       </div>`}
 
-    ${!q && upcoming.length > 0 && html`
+    ${!q && html`
       <section class="card">
-        <h2 class="card-title">📅 Próximas consultas <span class="muted small">(pela planilha do Nutrium — a agenda do Google entra na Fase 3)</span></h2>
+        <div class="card-title-row">
+          <h2 class="card-title">📅 Próximas consultas
+            <span class="muted small">${agenda.state === 'ok' ? '(Google Agenda, próximos 7 dias)' : '(pela planilha do Nutrium)'}</span>
+          </h2>
+          ${agenda.state === 'ok' && html`<button class="btn btn-sm btn-ghost" onClick=${() => refreshAgenda(true)}>↻ Atualizar</button>`}
+          ${agenda.state === 'loading' && html`<span class="muted small">Lendo a agenda…</span>`}
+        </div>
+        ${agenda.state === 'off' && html`<div class="alert">A agenda do Google ainda não está conectada. <a href="#/config">Conectar agora</a></div>`}
+        ${agenda.state === 'error' && html`<div class="alert alert-error">Não consegui ler a agenda do Google: ${agenda.error?.message || agenda.error}. Mostrando as consultas da planilha do Nutrium. <a href="#/config">Ver configurações</a></div>`}
+        ${upcoming.length === 0 && agenda.state !== 'loading' && html`<p class="muted">Nenhuma consulta nos próximos 7 dias.</p>`}
+        ${upcoming.length > 0 && html`
+          <table class="table">
+            <thead><tr><th>Quando</th><th>Paciente</th><th>Última consulta</th><th>Dias passados</th></tr></thead>
+            <tbody>
+              ${upcoming.map((ev) => ev.patient
+                ? html`
+                  <tr class="row-link" onClick=${() => go('/paciente/' + ev.patient.id)}>
+                    <td><strong>${dayLabel(ev.start)}</strong> ${ev.time || ''}</td>
+                    <td>${ev.patient.name}</td>
+                    <td>${ev.patient.last_consult ? fmtDate(ev.patient.last_consult) : html`<span class="badge badge-blue">Primeira consulta</span>`}</td>
+                    <td>${daysAgoLabel(ev.patient.last_consult)}</td>
+                  </tr>`
+                : html`
+                  <tr>
+                    <td><strong>${dayLabel(ev.start)}</strong> ${ev.time || ''}</td>
+                    <td>${ev.patientName} <span class="badge badge-warn">⚠️ não vinculado</span></td>
+                    <td colspan="2">
+                      <button class="btn btn-sm" onClick=${() => setLinking(ev)}>🔗 Vincular a paciente</button>
+                      <button class="btn btn-sm" onClick=${() => setNewFor({ name: ev.patientName, emails: ev.attendees })}>➕ Criar cadastro</button>
+                    </td>
+                  </tr>`)}
+            </tbody>
+          </table>`}
+      </section>`}
+
+    ${!q && overdue.length > 0 && html`
+      <section class="card">
+        <h2 class="card-title">⏰ Sem retorno há mais de ${ALERT_DAYS} dias <span class="muted small">(${overdue.length}, sem consulta marcada)</span></h2>
         <table class="table">
-          <thead><tr><th>Quando</th><th>Paciente</th><th>Última consulta</th><th>Dias passados</th></tr></thead>
+          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias</th><th></th></tr></thead>
           <tbody>
-            ${upcoming.map((p) => html`
-              <tr class="row-link" onClick=${() => go('/paciente/' + p.id)}>
-                <td><strong>${dayLabel(p.next_consult)}</strong> ${p.next_time || ''}</td>
-                <td>${p.name}</td>
-                <td>${p.last_consult ? fmtDate(p.last_consult) : html`<span class="badge badge-blue">Primeira consulta</span>`}</td>
-                <td>${daysAgoLabel(p.last_consult)}</td>
+            ${overdue.map((p) => html`
+              <tr>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td>${fmtDate(p.last_consult)}</td>
+                <td class="text-warn">${daysBetween(p.last_consult, today)}</td>
+                <td class="row-actions">
+                  <button class="btn btn-sm" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
+                  <button class="btn btn-sm btn-ghost" title="Para de receber questionários e sai da lista de ativos" onClick=${() => updatePatient(p.id, { status: 'inativo', questionnaires_active: false, inactive_reason: null })}>Marcar como inativo</button>
+                </td>
               </tr>`)}
           </tbody>
         </table>
+        <p class="muted small">Se o paciente marcar consulta (na agenda ou no Nutrium), ele sai deste alerta sozinho.</p>
       </section>`}
 
     ${patients.length > 0 && html`
@@ -87,7 +180,7 @@ export function Home() {
         </div>
         ${list.length === 0 && html`
           <p class="muted">Nenhum paciente encontrado.
-            ${q && html` <button class="btn btn-sm" onClick=${() => setShowNew(true)}>Cadastrar “${q}”</button>`}
+            ${q && html` <button class="btn btn-sm" onClick=${() => setNewFor({ name: q })}>Cadastrar “${q}”</button>`}
           </p>`}
         ${list.length > 0 && html`
           <table class="table">
@@ -101,17 +194,59 @@ export function Home() {
                     ${p.status === 'inativo' && html` <span class="badge">inativo</span>`}
                   </td>
                   <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
-                  <td class=${p.last_consult && daysBetween(p.last_consult, today) > 50 ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>
+                  <td class=${p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>
                   <td class="hide-sm">${p.next_consult ? fmtDate(p.next_consult) : ''}</td>
                 </tr>`)}
             </tbody>
           </table>`}
       </section>`}
 
-    ${showNew && html`<${NewPatientModal} initialName=${q} onClose=${() => setShowNew(false)} />`}`;
+    ${newFor && html`<${NewPatientModal} initialName=${newFor.name} emails=${newFor.emails || []} onClose=${() => setNewFor(null)} />`}
+    ${linking && html`
+      <${LinkModal}
+        event=${linking}
+        patients=${patients}
+        onClose=${() => setLinking(null)}
+        onLinked=${async () => { setLinking(null); await loadPatients(); }}
+      />`}`;
 }
 
-function NewPatientModal({ initialName, onClose }) {
+/** Vincula um evento da agenda a um paciente: guarda o e-mail do convidado e o nome do título no cadastro. */
+function LinkModal({ event, patients, onClose, onLinked }) {
+  const [q, setQ] = useState(event.patientName.split(' ')[0] || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const nq = norm(q);
+  const options = patients.filter((p) => !nq || p.name_norm.includes(nq)).slice(0, 30);
+
+  async function link(p) {
+    setBusy(true);
+    try {
+      await run(supabase.from('patients').update({
+        emails: unique([...(p.emails || []), ...event.attendees.filter((m) => !(p.emails || []).includes(m))]).slice(0, 10),
+        aliases: unique([...(p.aliases || []), norm(event.patientName)]),
+      }).eq('id', p.id));
+      onLinked();
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  }
+
+  return html`
+    <${Modal} title="Vincular consulta a um paciente" onClose=${onClose}>
+      <p>Na agenda: <strong>${event.patientName}</strong>${event.attendees.length ? html` <span class="muted small">(${event.attendees.join(', ')})</span>` : ''}</p>
+      <p class="muted small">Escolha quem é. Nas próximas vezes, o sistema reconhece sozinho.</p>
+      <input placeholder="Buscar paciente…" value=${q} onInput=${(e) => setQ(e.target.value)} autofocus />
+      <ul class="pick-list">
+        ${options.map((p) => html`<li><button class="btn btn-block" disabled=${busy} onClick=${() => link(p)}>${p.name}${p.birth_date ? html` <span class="muted small">· nasc. ${fmtDate(p.birth_date)}</span>` : ''}</button></li>`)}
+        ${options.length === 0 && html`<li class="muted">Nenhum paciente com esse nome.</li>`}
+      </ul>
+      <${ErrorBox} error=${error} />
+    <//>`;
+}
+
+function NewPatientModal({ initialName, emails = [], onClose }) {
   const [form, setForm] = useState({ name: initialName || '', birth_date: '', phone: '', sex: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -129,6 +264,9 @@ function NewPatientModal({ initialName, onClose }) {
         birth_date: form.birth_date || null,
         phone: onlyDigits(form.phone) ? form.phone.trim() : null,
         sex: form.sex || null,
+        email_primary: emails[0] || null,
+        emails,
+        aliases: initialName && norm(initialName) !== norm(name) ? [norm(initialName)] : [],
       }).select('id'));
       go('/paciente/' + row.id);
     } catch (err) {
@@ -154,7 +292,8 @@ function NewPatientModal({ initialName, onClose }) {
         <${Field} label="Telefone (WhatsApp)" hint="Com DDD. Ex.: 11 98765-4321">
           <input type="tel" value=${form.phone} onInput=${set('phone')} placeholder="11 98765-4321" />
         <//>
-        <p class="muted small">O e-mail e os demais dados chegam na próxima importação da planilha do Nutrium.</p>
+        ${emails.length > 0 && html`<p class="muted small">E-mail da agenda: ${emails.join(', ')}</p>`}
+        <p class="muted small">Os demais dados chegam na próxima importação da planilha do Nutrium.</p>
         <${ErrorBox} error=${error} />
         <div class="actions">
           <button type="button" class="btn" onClick=${onClose}>Cancelar</button>

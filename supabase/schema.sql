@@ -27,6 +27,10 @@ create table if not exists public.patients (
 create index if not exists patients_name_norm_idx on public.patients (name_norm);
 -- 'importacao' = inativado automaticamente pela regra dos 150 dias (volta a ativo se marcar consulta)
 alter table public.patients add column if not exists inactive_reason text;
+-- Outros nomes com que o paciente aparece na agenda (sem acento/minúsculo), para o vínculo com o Google Agenda
+alter table public.patients add column if not exists aliases text[] not null default '{}';
+-- "Lembrar depois" no alerta de 50 dias sem retorno
+alter table public.patients add column if not exists snooze_until date;
 
 -- ---------- Consultas registradas no software (com anamnese) ----------
 create table if not exists public.consultations (
@@ -127,7 +131,8 @@ select
   p.id, p.code, p.name, p.phone, p.birth_date, p.status, p.questionnaires_active,
   greatest(c.last_date, a.last_date) as last_consult,
   n.date       as next_consult,
-  n.start_time as next_time
+  n.start_time as next_time,
+  p.email_primary, p.emails, p.aliases, p.snooze_until, p.name_norm
 from public.patients p
 left join lateral (
   select max(date) as last_date from public.consultations
@@ -143,6 +148,37 @@ left join lateral (
   order by date, start_time
   limit 1
 ) n on true;
+
+-- ---------- Google Agenda (endereço secreto iCal) ----------
+-- O navegador não pode ler a agenda do Google diretamente; o banco busca e devolve o texto.
+-- O endereço fica em app_settings (chave calendar_ics_url) e só endereços do Google são aceitos.
+create extension if not exists http with schema extensions;
+
+create or replace function public.fetch_calendar() returns text
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  u text;
+  r extensions.http_response;
+begin
+  if auth.role() is distinct from 'authenticated' then
+    raise exception 'Acesso negado';
+  end if;
+  select value #>> '{}' into u from public.app_settings where key = 'calendar_ics_url';
+  if u is null or u = '' then
+    return null;
+  end if;
+  if u !~ '^https://calendar\.google\.com/calendar/ical/' then
+    raise exception 'Endereço de agenda inválido: use o "Endereço secreto no formato iCal" do Google Agenda';
+  end if;
+  perform extensions.http_set_curlopt('CURLOPT_TIMEOUT_MS', '20000');
+  r := extensions.http_get(u);
+  if r.status <> 200 then
+    raise exception 'O Google Agenda respondeu com erro % (confira o endereço)', r.status;
+  end if;
+  return r.content;
+end $$;
+revoke all on function public.fetch_calendar() from public, anon;
+grant execute on function public.fetch_calendar() to authenticated;
 
 -- ---------- Acesso: só usuária logada ----------
 alter table public.patients             enable row level security;

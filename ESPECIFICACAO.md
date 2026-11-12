@@ -47,9 +47,12 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    | 10:30 | João Santos | Primeira consulta | – |
 
    Eventos não vinculados aparecem com ⚠️ e as ações `[Vincular a paciente]` `[Criar cadastro]`.
-3. **Pacientes sem retorno há mais de 50 dias.** Contam como atualização: uma consulta **ou** uma resposta
-   de questionário. Ações: `[Marcar como inativo / pausar questionários]`, `[Manter ativo]`,
-   `[Registrar nova consulta]`.
+   Vincular guarda no cadastro o e-mail do convidado e o nome do título (coluna `aliases`), e nas próximas
+   vezes o vínculo é automático. Sem agenda conectada, a lista usa as consultas futuras da planilha do Nutrium.
+3. **Pacientes sem retorno há mais de 50 dias**, ativos e **sem consulta marcada** (na agenda, nos próximos
+   60 dias, ou na planilha). Contam como atualização: uma consulta **ou** (Fase 4) uma resposta de questionário.
+   Ações: `[Lembrar em 7 dias]` (some do alerta por 7 dias, coluna `snooze_until`) e
+   `[Marcar como inativo]` (para os questionários e sai da lista de ativos). O nome abre a ficha.
 4. **Botão `[Importar planilha do Nutrium]`** (ver §8).
 5. **Botão `[+ Cadastro rápido]`:** nome, data de nascimento e telefone.
 
@@ -393,17 +396,17 @@ O .csv tem problema de acentuação.
 
 ## 9. Google Agenda
 
-- Leitura pelo **endereço secreto no formato iCal** da agenda (Google Agenda → Configurações da agenda →
-  "Endereço secreto no formato iCal"). Não precisa de Google Cloud. Somente leitura.
-- *A verificar:* se o iCal traz o e-mail do convidado. Se não trouxer, o vínculo é feito só pelo nome.
-- Só considera eventos cujo título começa com **"Consulta de nutrição - "**.
-- Vínculo com o paciente: 1º pelo **e-mail do convidado**, 2º pelo **nome no título**, 3º "não vinculado"
-  na home.
-- Reagendamentos e cancelamentos são feitos no Nutrium e refletidos na agenda. O sistema sempre usa o
-  estado atual da agenda para as próximas consultas e para a pausa de 3 dias.
+- Conexão em **⚙️ Configurações**: a nutricionista cola o **endereço secreto no formato iCal** da agenda
+  (Google Agenda → Configurações → a agenda → "Integrar agenda"). Fica em `app_settings` (`calendar_ics_url`).
+- O navegador não pode ler a agenda do Google direto. Quem busca é o banco: função `fetch_calendar()` com a
+  extensão `http` do Supabase, só para usuária logada e só para endereços `https://calendar.google.com/calendar/ical/…`.
+- Só considera eventos cujo título começa com **"Consulta de nutrição - "** e que não estão cancelados.
+- Vínculo com o paciente: 1º pelo **e-mail do convidado**, 2º pelo **nome no título** (ou nome alternativo salvo),
+  3º "não vinculado" na home. O e-mail da dona da agenda (organizador, ou que aparece em muitas consultas) nunca
+  é usado no vínculo.
+- Reagendamentos e cancelamentos são feitos no Nutrium e refletidos na agenda. A home lê a agenda ao abrir
+  (guarda por 5 minutos) e tem o botão `[↻ Atualizar]`.
 - O telefone **não** vem pela agenda.
-
----
 
 ## 10. IA no modo B: como funciona na tela
 
