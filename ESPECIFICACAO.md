@@ -155,7 +155,9 @@ Em todos os casos, aparece uma tela de revisão com os valores antes de salvar.
 
 **Visualização:**
 
-- Gráfico de evolução de cada medida. Meses sem dado não quebram a linha.
+- Gráfico de evolução de cada medida com pelo menos 2 registros. Meses sem dado não quebram a linha.
+- Histórico de medições por data e origem, com opção de apagar um registro.
+- Salvar uma medida na mesma data substitui o valor anterior daquela data.
 - `[📄 Gerar PDF dos gráficos]` para enviar ao paciente.
 - `[Relatório de evolução por IA]`: só quando ela pedir (modo B).
 
@@ -198,8 +200,8 @@ motivo, e ela pode trocar com um clique.
   como alternativa. Em obesidade, avisar que a bioimpedância pode ser menos precisa.
 - Harris-Benedict (com ou sem peso ajustado) sempre disponível para escolha manual.
 
-**Fator de atividade (IA, modo B):** a IA lê o texto de atividade e escolhe um nível da escala, com a
-justificativa. A nutricionista confirma ou troca.
+**Fator de atividade (IA, modo B):** botão que copia um pedido com o relato de atividade mais recente; a IA
+responde com o nível e a justificativa, e a nutricionista clica no nível na tela. Sem escolha, não há resultado.
 
 | Nível | Fator |
 |---|---|
@@ -224,6 +226,8 @@ justificativa. A nutricionista confirma ou troca.
 - **O déficit e o superávit nunca são sugeridos por IA.**
 - Alerta se a meta ficar abaixo da TMB.
 - **Histórico de cálculos:** cada cálculo é salvo com data, entradas, fórmula, fator, objetivo, ajuste e resultado.
+- Peso, altura e massa magra vêm preenchidos (os mais recentes) e podem ser ajustados só para aquele cálculo.
+- O ajuste de cada objetivo pode ser salvo como novo padrão (tabela `app_settings`, chave `adjust_defaults`).
 
 ### 3.7 Exames laboratoriais (final da ficha)
 
@@ -423,10 +427,10 @@ leitura de exames, relatório de evolução e quadro de insights.
 | Fase | Entrega | Já dá para usar? |
 |---|---|---|
 | 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, iniciar consulta, histórico de anamneses, resumo pré-consulta e pergunta sobre o histórico (modo B) | Sim: substitui as anotações |
-| 2 | Medições, gráficos, motor de cálculos, histórico de cálculos | Sim: cálculos rápidos |
+| 2 | Medições (texto, foto via IA modo B, tabela), gráficos, motor de cálculos com sugestão de fator pela IA, histórico de cálculos | Sim: cálculos rápidos |
 | 3 | Google Agenda na home, alerta de 50 dias | Sim |
 | 4 | Questionários: modelos, links, envios de hoje, reenvios, log, gráficos na ficha | Sim |
-| 5 | IA modo B: fator de atividade, leitura de bioimpedância | Sim |
+| 5 | (IA modo B já antecipada nas Fases 1 e 2) | – |
 | 6 | Exames laboratoriais, PDF dos gráficos, relatório por IA, quadro de insights, backup automático | Sim |
 
 ---

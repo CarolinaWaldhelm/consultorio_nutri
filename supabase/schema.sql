@@ -77,6 +77,32 @@ create table if not exists public.ai_notes (
 );
 create index if not exists ai_notes_patient_idx on public.ai_notes (patient_id, kind, created_at desc);
 
+-- ---------- Histórico do motor de cálculos ----------
+create table if not exists public.calculations (
+  id              uuid primary key default gen_random_uuid(),
+  patient_id      uuid not null references public.patients (id) on delete cascade,
+  date            date not null default (now() at time zone 'America/Sao_Paulo')::date,
+  inputs          jsonb not null,          -- sexo, idade, peso, altura, massa magra usados
+  formula         text not null,
+  tmb             numeric not null,
+  activity_level  text not null,
+  activity_factor numeric not null,
+  get_kcal        numeric not null,
+  objective       text,
+  adjust_pct      numeric not null default 0,
+  target_kcal     numeric not null,
+  notes           text,
+  created_at      timestamptz not null default now()
+);
+create index if not exists calculations_patient_idx on public.calculations (patient_id, created_at desc);
+
+-- ---------- Configurações (ex.: percentuais padrão por objetivo) ----------
+create table if not exists public.app_settings (
+  key         text primary key,
+  value       jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
@@ -122,19 +148,26 @@ alter table public.consultations        enable row level security;
 alter table public.nutrium_appointments enable row level security;
 alter table public.measurements         enable row level security;
 alter table public.ai_notes             enable row level security;
+alter table public.calculations enable row level security;
+alter table public.app_settings enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
 drop policy if exists "dona" on public.nutrium_appointments;
 drop policy if exists "dona" on public.measurements;
 drop policy if exists "dona" on public.ai_notes;
+drop policy if exists "dona" on public.calculations;
+drop policy if exists "dona" on public.app_settings;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
 create policy "dona" on public.measurements         for all to authenticated using (true) with check (true);
 create policy "dona" on public.ai_notes             for all to authenticated using (true) with check (true);
+create policy "dona" on public.calculations         for all to authenticated using (true) with check (true);
+create policy "dona" on public.app_settings         for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
-  public.nutrium_appointments, public.measurements, public.ai_notes to authenticated;
+  public.nutrium_appointments, public.measurements, public.ai_notes,
+  public.calculations, public.app_settings to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

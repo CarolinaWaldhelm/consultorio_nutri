@@ -12,10 +12,10 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 | Fase | O que entrega | Situação |
 |---|---|---|
 | 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, histórico de anamneses, resumo pré-consulta (IA modo B) | ✅ Pronta |
-| 2 | Medições, gráficos, motor de cálculos | Próxima |
-| 3 | Google Agenda e alerta de 50 dias | — |
+| 2 | Medições (texto, foto via IA, tabela), gráficos, motor de cálculos, histórico de cálculos | ✅ Pronta |
+| 3 | Google Agenda e alerta de 50 dias | Próxima |
 | 4 | Questionários e WhatsApp | — |
-| 5 | IA modo B: fator de atividade, leitura de bioimpedância | — |
+| 5 | IA modo B (já antecipada nas Fases 1 e 2) | ✅ |
 | 6 | Exames, PDF, insights, backup | — |
 
 ## Configuração (feita uma vez)
@@ -42,6 +42,7 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 - Site estático, sem etapa de build: HTML + módulos JavaScript ([Preact](https://preactjs.com/) + `htm` via CDN).
 - Banco, login e regras de acesso: Supabase (`supabase/schema.sql`, idempotente).
 - Leitura da planilha do Nutrium: [SheetJS](https://sheetjs.com/), carregado só na tela de importação.
+- Gráficos: [Chart.js](https://www.chartjs.org/) 4.4.1, carregado só quando há gráfico.
 - Para rodar localmente: `python3 -m http.server` na pasta do projeto e abrir `http://localhost:8000`.
 
 ```

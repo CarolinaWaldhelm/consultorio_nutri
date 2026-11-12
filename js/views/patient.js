@@ -7,6 +7,8 @@ import {
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
 import { SummaryCard } from './summary.js';
+import { BodyCard, MeasurementModal } from './body.js';
+import { CalcCard } from './calc.js';
 
 export function PatientPage({ id }) {
   const [data, setData] = useState(null);
@@ -14,16 +16,20 @@ export function PatientPage({ id }) {
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [measuring, setMeasuring] = useState(false);
 
   async function load() {
     try {
-      const [patient, consultations, appointments, measurements] = await Promise.all([
+      const [patient, consultations, appointments, measurements, calculations, settingsRows] = await Promise.all([
         run(supabase.from('patients').select('*').eq('id', id).single()),
         run(supabase.from('consultations').select('*').eq('patient_id', id).order('date', { ascending: false }).order('created_at', { ascending: false })),
         run(supabase.from('nutrium_appointments').select('*').eq('patient_id', id).order('date', { ascending: false })),
         run(supabase.from('measurements').select('*').eq('patient_id', id).order('date', { ascending: false })),
+        run(supabase.from('calculations').select('*').eq('patient_id', id).order('created_at', { ascending: false })),
+        run(supabase.from('app_settings').select('*')),
       ]);
-      setData({ patient, consultations, appointments, measurements });
+      const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
+      setData({ patient, consultations, appointments, measurements, calculations, settings });
     } catch (err) {
       setError(err);
     }
@@ -90,7 +96,23 @@ export function PatientPage({ id }) {
         onEdit=${() => setEditing(true)}
       />
       <${SummaryCard} data=${data} />
-      <${CurrentMeasures} measurements=${measurements} age=${ageFrom(patient.birth_date)} />
+      <${BodyCard}
+        measurements=${measurements}
+        age=${ageFrom(patient.birth_date)}
+        onAdd=${() => setMeasuring(true)}
+        onDeleted=${(ids) => setData((d) => ({ ...d, measurements: d.measurements.filter((m) => !ids.includes(m.id)) }))}
+      />
+      <${CalcCard}
+        key=${calcKey(data)}
+        patient=${patient}
+        measurements=${measurements}
+        consultations=${consultations}
+        calculations=${data.calculations}
+        settings=${data.settings}
+        onSaved=${(row) => setData((d) => ({ ...d, calculations: [row, ...d.calculations] }))}
+        onDeleted=${(cid) => setData((d) => ({ ...d, calculations: d.calculations.filter((c) => c.id !== cid) }))}
+        onSettingsSaved=${(settings) => setData((d) => ({ ...d, settings }))}
+      />
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
     </div>
@@ -105,6 +127,20 @@ export function PatientPage({ id }) {
         onSaved=${replaceConsultation}
         onDeleted=${(cid) => { setOpenId(null); setData((d) => ({ ...d, consultations: d.consultations.filter((c) => c.id !== cid) })); }}
         onClose=${() => setOpenId(null)}
+      />`}
+
+    ${measuring && html`
+      <${MeasurementModal}
+        patientId=${id}
+        onClose=${() => setMeasuring(false)}
+        onSaved=${(rows, metrics, date) => {
+          setMeasuring(false);
+          setData((d) => ({
+            ...d,
+            measurements: [...rows, ...d.measurements.filter((m) => !(m.source === 'consulta' && m.date === date && metrics.includes(m.metric)))]
+              .sort((a, b) => b.date.localeCompare(a.date)),
+          }));
+        }}
       />`}
 
     ${creating && html`
@@ -159,25 +195,11 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onP
     </section>`;
 }
 
-function CurrentMeasures({ measurements, age }) {
-  const weight = latestOf(measurements, 'peso');
-  const height = latestOf(measurements, 'altura');
-  const bmi = weight && height ? weight.value / (height.value / 100) ** 2 : null;
-  return html`
-    <section class="card">
-      <h2 class="card-title">⚖️ Medidas atuais</h2>
-      ${!weight && !height && html`<p class="muted">Nenhuma medida ainda. Elas chegam pela importação do Nutrium (peso e altura).</p>`}
-      ${(weight || height) && html`
-        <div class="stats">
-          ${weight && html`<div class="stat"><div class="stat-label">Peso</div><div class="stat-value">${fmtNum(weight.value)} kg</div><div class="stat-sub">${fmtDate(weight.date)} · ${SOURCE_LABEL[weight.source]}</div></div>`}
-          ${height && html`<div class="stat"><div class="stat-label">Altura</div><div class="stat-value">${fmtNum(height.value)} cm</div><div class="stat-sub">${fmtDate(height.date)} · ${SOURCE_LABEL[height.source]}</div></div>`}
-          ${bmi && html`<div class="stat"><div class="stat-label">IMC</div><div class="stat-value">${fmtNum(bmi, 1)}</div><div class="stat-sub">${classifyBMI(bmi, age)}${age >= 60 ? ' (idoso)' : ''}</div></div>`}
-        </div>
-        <p class="muted small">Gráficos de evolução e motor de cálculos chegam na Fase 2.</p>`}
-    </section>`;
+// O motor de cálculos é recriado quando mudam as medidas usadas como entrada ou o cadastro (sexo, nascimento).
+function calcKey({ patient, measurements }) {
+  const ids = measurements.filter((m) => ['peso', 'altura', 'massa_magra'].includes(m.metric)).map((m) => m.id).join(',');
+  return `${patient.sex}|${patient.birth_date}|${ids}`;
 }
-
-const fmtNum = (n, d = 1) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: d });
 
 function History({ consultations, openId, onOpen }) {
   const [expanded, setExpanded] = useState(null);

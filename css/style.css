@@ -181,3 +181,35 @@ textarea { resize: vertical; min-height: 44px; }
 .summary-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .checkbox-line { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .checkbox-line input { width: auto; margin-top: 4px; }
+
+/* Composição corporal */
+.charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 14px; }
+.chart-card { margin: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 8px; }
+.chart-card figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 6px; }
+.chart-title { font-weight: 600; }
+.chart-last { font-weight: 700; }
+.chart-delta { color: var(--muted); font-size: .8rem; }
+.chart-box { position: relative; height: 170px; }
+.measure-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.measure-group-title { font-weight: 700; font-size: .85rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+.measure-row { display: grid; grid-template-columns: 1fr 80px 40px; align-items: center; gap: 6px; padding: 3px 0; }
+.measure-row input { padding: 5px 8px; text-align: right; }
+.measure-row.filled input { border-color: var(--primary); background: var(--primary-soft); }
+
+/* Motor de cálculos */
+.calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.calc-step { font-weight: 700; margin: 14px 0 8px; color: var(--primary-dark); }
+.calc-grid > div > .calc-step:first-child { margin-top: 0; }
+.calc-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0 10px; }
+.calc-inputs .field { margin-bottom: 8px; }
+.quote { background: #f7f9f7; border-left: 3px solid var(--primary); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; white-space: pre-wrap; }
+.adjust-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.adjust-row input { width: 70px; display: inline-block; margin: 0 4px; text-align: right; }
+.formulas tr { cursor: pointer; }
+.formulas tr.selected td { background: var(--primary-soft); }
+.formulas td.num { text-align: right; white-space: nowrap; font-weight: 600; }
+.formulas input { width: auto; }
+.stat-main { background: var(--primary-soft); }
+.stat-main .stat-value { color: var(--primary-dark); }
+.table-scroll { overflow-x: auto; }
+@media (max-width: 900px) { .calc-grid { grid-template-columns: 1fr; } }
