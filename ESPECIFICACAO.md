@@ -233,7 +233,8 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 - **Peso de referência**, sugerido pelo IMC e editável (botões "usar peso atual" e "usar peso ajustado"):
   - Eutrofia ou baixo peso: peso atual.
   - Sobrepeso ou obesidade: peso ajustado = peso ideal + 0,25 × (peso atual − peso ideal); peso ideal = IMC 22 × altura².
-  - Hoje o peso de referência é usado **só nos macros**. A TMB continua nas fórmulas da tabela acima.
+  - O peso de referência é usado **só nos macros** (decisão da nutricionista). As fórmulas de TMB mantêm os pesos
+    que cada uma usa (peso atual; peso ajustado só na "Harris-Benedict com peso ajustado"; massa magra na Katch-McArdle).
 - **Distribuição:** proteína em g/kg do peso de referência, lipídios em % do VET (meta calórica), carboidratos
   completam o VET (1 g de proteína ou carboidrato = 4 kcal; 1 g de lipídio = 9 kcal).
 - **Padrão inicial por objetivo** (editável e salvável como padrão, chave `macro_defaults`):
