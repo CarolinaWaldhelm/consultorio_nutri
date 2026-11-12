@@ -11,11 +11,11 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 
 | Fase | O que entrega | Situação |
 |---|---|---|
-| 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, histórico de anamneses | ✅ Pronta |
+| 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, histórico de anamneses, resumo pré-consulta (IA modo B) | ✅ Pronta |
 | 2 | Medições, gráficos, motor de cálculos | Próxima |
 | 3 | Google Agenda e alerta de 50 dias | — |
 | 4 | Questionários e WhatsApp | — |
-| 5 | IA (modo B) | — |
+| 5 | IA modo B: fator de atividade, leitura de bioimpedância | — |
 | 6 | Exames, PDF, insights, backup | — |
 
 ## Configuração (feita uma vez)

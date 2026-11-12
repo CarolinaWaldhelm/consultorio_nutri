@@ -63,8 +63,10 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 - Data da última consulta e dias decorridos.
 - Status dos questionários: **ativo / pausado** (alternável aqui).
 - Botões:
-  - `[▶ Iniciar consulta]`: cria o registro da consulta com a data do dia e o tipo (inicial, se não há
+  - `[▶ Iniciar consulta de hoje]`: cria o registro da consulta com a data do dia e o tipo (inicial, se não há
     consulta anterior; retorno, nos demais casos) e abre o painel de anotações.
+  - `[➕ Registrar consulta em outra data]`: cria uma consulta **separada** numa data escolhida (para lançar
+    consultas antigas). O tipo é sugerido pela data e pode ser trocado.
   - `[📋 Painel de anotações]`
   - `[➕ Medição / Bioimpedância]`
   - `[📄 Exames laboratoriais]`
@@ -72,7 +74,10 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 ### 3.2 Painel lateral de anotações (drawer)
 
 Fica aberto durante o atendimento e permite navegar pela ficha ao fundo sem perder o que está sendo digitado.
-O texto é salvo automaticamente enquanto ela digita.
+- Botões `[💾 Salvar]` (no topo), `[💾 Salvar e fechar]` e `[➕ Outra consulta]` (no final). Além disso, o texto
+  também é salvo sozinho enquanto ela digita.
+- O campo "Data desta consulta" muda a data **da mesma consulta** (pede confirmação e não deixa usar uma data
+  que já tem outra consulta). Para uma consulta diferente, usa-se `[➕ Outra consulta]`.
 
 **A. Anamnese inicial**
 
@@ -109,7 +114,9 @@ O texto é salvo automaticamente enquanto ela digita.
   - o resumo do período;
   - pontos de atenção e problemas que ficaram para trás;
   - perguntas sugeridas para a consulta.
-- O resultado colado fica salvo na ficha, com a data.
+- O resultado colado fica salvo na ficha, com a data (tabela `ai_notes`). O mais recente aparece aberto e os
+  anteriores ficam em "Ver resumos anteriores".
+- *Antecipado da Fase 5 para a Fase 1, a pedido da nutricionista.*
 - **Pergunta sobre o histórico:** campo de pergunta livre (ex.: "Qual meta de água combinamos na consulta 3?").
   O sistema monta o pedido com o histórico e a pergunta.
 
@@ -407,11 +414,11 @@ leitura de exames, relatório de evolução e quadro de insights.
 
 | Fase | Entrega | Já dá para usar? |
 |---|---|---|
-| 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, iniciar consulta, histórico de anamneses | Sim: substitui as anotações |
+| 1 | Login, cadastro rápido, importação do Nutrium, ficha, painel de anotações, iniciar consulta, histórico de anamneses, resumo pré-consulta e pergunta sobre o histórico (modo B) | Sim: substitui as anotações |
 | 2 | Medições, gráficos, motor de cálculos, histórico de cálculos | Sim: cálculos rápidos |
 | 3 | Google Agenda na home, alerta de 50 dias | Sim |
 | 4 | Questionários: modelos, links, envios de hoje, reenvios, log, gráficos na ficha | Sim |
-| 5 | IA modo B: resumo pré-consulta, pergunta sobre o histórico, fator de atividade, leitura de bioimpedância | Sim |
+| 5 | IA modo B: fator de atividade, leitura de bioimpedância | Sim |
 | 6 | Exames laboratoriais, PDF dos gráficos, relatório por IA, quadro de insights, backup automático | Sim |
 
 ---

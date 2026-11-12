@@ -44,9 +44,10 @@ export function ObjectivePicker({ value, onChange }) {
     </div>`;
 }
 
-export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted, onClose }) {
+export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved, onDeleted, onClose, onNew }) {
   const [c, setC] = useState(consultation);
   const [status, setStatus] = useState('saved'); // saved | dirty | saving | error
+  const [savedAt, setSavedAt] = useState(null);
   const [error, setError] = useState(null);
   const pending = useRef(null);
   const timer = useRef(null);
@@ -63,6 +64,7 @@ export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted,
         date: next.date, type: next.type, objective: next.objective, anamnesis: next.anamnesis,
       }).eq('id', next.id));
       setStatus('saved');
+      setSavedAt(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       setError(null);
       onSaved(next);
     } catch (err) {
@@ -83,9 +85,28 @@ export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted,
 
   const setField = (k) => (v) => change({ anamnesis: { ...c.anamnesis, [k]: v } });
 
+  async function saveNow() {
+    await save(pending.current || c);
+  }
+
   async function close() {
     if (pending.current) await save(pending.current);
     onClose();
+  }
+
+  async function newOne() {
+    if (pending.current) await save(pending.current);
+    onNew();
+  }
+
+  function changeDate(value) {
+    if (!value || value === c.date) return;
+    if (otherDates.includes(value)) {
+      alert(`Já existe outra consulta registrada em ${fmtDate(value)}. Abra essa consulta pelo histórico de anamneses.`);
+      return;
+    }
+    if (!confirm(`Mudar a data DESTA consulta de ${fmtDate(c.date)} para ${fmtDate(value)}?\n\nPara registrar uma consulta diferente, use "➕ Outra consulta".`)) return;
+    change({ date: value });
   }
 
   // Salva antes de sair da página.
@@ -103,7 +124,7 @@ export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted,
     onDeleted(c.id);
   }
 
-  const label = { saved: 'Salvo ✓', dirty: 'Editando…', saving: 'Salvando…', error: 'Erro ao salvar' }[status];
+  const label = { saved: savedAt ? `Salvo ✓ às ${savedAt}` : 'Salvo ✓', dirty: 'Editando…', saving: 'Salvando…', error: 'Erro ao salvar' }[status];
 
   return html`
     <aside class="drawer" aria-label="Painel de anotações">
@@ -112,10 +133,16 @@ export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted,
           <div class="drawer-title">📋 ${patientName}</div>
           <div class=${'save-status ' + status}>${label}</div>
         </div>
-        <button class="icon-btn" onClick=${close} aria-label="Fechar painel">✕</button>
+        <div class="drawer-head-actions">
+          <button class="btn btn-primary btn-sm" onClick=${saveNow} disabled=${status === 'saving'}>💾 Salvar</button>
+          <button class="icon-btn" onClick=${close} aria-label="Fechar painel">✕</button>
+        </div>
       </header>
       <div class="drawer-meta">
-        <input type="date" value=${c.date} onChange=${(e) => e.target.value && change({ date: e.target.value })} />
+        <label class="drawer-date">
+          <span class="field-hint">Data desta consulta</span>
+          <input type="date" value=${c.date} onChange=${(e) => { changeDate(e.target.value); e.target.value = c.date; }} />
+        </label>
         <div class="seg">
           ${['inicial', 'retorno'].map((t) => html`
             <button class=${c.type === t ? 'on' : ''} onClick=${() => change({ type: t })}>${TYPE_LABEL[t]}</button>`)}
@@ -132,9 +159,12 @@ export function AnamnesisDrawer({ consultation, patientName, onSaved, onDeleted,
               ${hint && html`<span class="field-hint">${hint}</span>`}
             </label>`)}
         <div class="drawer-foot">
-          <span class="muted small">Consulta de ${fmtDate(c.date)} · salva automaticamente</span>
+          <button class="btn btn-primary" onClick=${async () => { await saveNow(); onClose(); }}>💾 Salvar e fechar</button>
+          <button class="btn" onClick=${newOne}>➕ Outra consulta</button>
+          <span class="spacer"></span>
           <button class="btn btn-sm btn-danger-ghost" onClick=${remove}>Apagar consulta</button>
         </div>
+        <p class="muted small">Consulta de ${fmtDate(c.date)}. Além do botão Salvar, o texto também é salvo sozinho enquanto você digita.</p>
       </div>
     </aside>`;
 }

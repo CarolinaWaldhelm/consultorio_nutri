@@ -6,12 +6,14 @@ import {
 } from '../lib/util.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
+import { SummaryCard } from './summary.js';
 
 export function PatientPage({ id }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   async function load() {
     try {
@@ -39,25 +41,34 @@ export function PatientPage({ id }) {
     .filter(Boolean).sort().pop() || null;
   const open = consultations.find((c) => c.id === openId);
 
-  async function startConsultation() {
-    const existingToday = consultations.find((c) => c.date === today);
-    if (existingToday) { setOpenId(existingToday.id); return; }
-    const isFirst = consultations.length === 0 && pastAppts.length === 0;
-    const previous = consultations[0];
+  // Primeira consulta = nenhuma consulta anterior a essa data (no software ou no Nutrium).
+  const typeFor = (date) =>
+    consultations.some((c) => c.date < date) || appointments.some((a) => a.date < date) ? 'retorno' : 'inicial';
+
+  async function createConsultation(date, type) {
+    const same = consultations.find((c) => c.date === date);
+    if (same) { setOpenId(same.id); setCreating(false); return; }
+    const previous = consultations.filter((c) => c.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
     try {
       const [row] = await run(supabase.from('consultations').insert({
         patient_id: id,
-        date: today,
-        type: isFirst ? 'inicial' : 'retorno',
+        date,
+        type,
         objective: previous?.objective ?? null,
         anamnesis: {},
       }).select('*'));
-      setData({ ...data, consultations: [row, ...consultations] });
+      setData((d) => ({
+        ...d,
+        consultations: [row, ...d.consultations].sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)),
+      }));
+      setCreating(false);
       setOpenId(row.id);
     } catch (err) {
-      alert('Não foi possível iniciar a consulta: ' + (err.message || err));
+      alert('Não foi possível criar a consulta: ' + (err.message || err));
     }
   }
+
+  const startConsultation = () => createConsultation(today, typeFor(today));
 
   const replaceConsultation = (next) => setData((d) => ({
     ...d,
@@ -74,9 +85,11 @@ export function PatientPage({ id }) {
         nextAppt=${futureAppts[0]}
         hasConsultations=${consultations.length > 0}
         onStart=${startConsultation}
+        onPast=${() => { setOpenId(null); setCreating(true); }}
         onOpenNotes=${() => setOpenId(consultations[0]?.id)}
         onEdit=${() => setEditing(true)}
       />
+      <${SummaryCard} data=${data} />
       <${CurrentMeasures} measurements=${measurements} age=${ageFrom(patient.birth_date)} />
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
@@ -87,9 +100,19 @@ export function PatientPage({ id }) {
         key=${open.id}
         consultation=${open}
         patientName=${patient.name}
+        otherDates=${consultations.filter((c) => c.id !== open.id).map((c) => c.date)}
+        onNew=${() => { setOpenId(null); setCreating(true); }}
         onSaved=${replaceConsultation}
         onDeleted=${(cid) => { setOpenId(null); setData((d) => ({ ...d, consultations: d.consultations.filter((c) => c.id !== cid) })); }}
         onClose=${() => setOpenId(null)}
+      />`}
+
+    ${creating && html`
+      <${NewConsultationModal}
+        typeFor=${typeFor}
+        existingDates=${consultations.map((c) => c.date)}
+        onCreate=${createConsultation}
+        onClose=${() => setCreating(false)}
       />`}
 
     ${editing && html`
@@ -100,7 +123,7 @@ export function PatientPage({ id }) {
       />`}`;
 }
 
-function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onOpenNotes, onEdit }) {
+function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onPast, onOpenNotes, onEdit }) {
   const age = ageFrom(patient.birth_date);
   return html`
     <section class="card patient-head">
@@ -128,7 +151,8 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onO
         </div>
       </div>
       <div class="patient-actions">
-        <button class="btn btn-primary" onClick=${onStart}>▶ Iniciar consulta</button>
+        <button class="btn btn-primary" onClick=${onStart}>▶ Iniciar consulta de hoje</button>
+        <button class="btn" onClick=${onPast}>➕ Registrar consulta em outra data</button>
         ${hasConsultations && html`<button class="btn" onClick=${onOpenNotes}>📋 Painel de anotações</button>`}
         <button class="btn btn-ghost" onClick=${onEdit}>✏️ Editar cadastro</button>
       </div>
@@ -278,6 +302,50 @@ function EditPatientModal({ patient, onClose, onSaved }) {
           <span class="spacer"></span>
           <button type="button" class="btn" onClick=${onClose}>Cancelar</button>
           <button class="btn btn-primary" disabled=${busy}>${busy ? 'Salvando…' : 'Salvar'}</button>
+        </div>
+      </form>
+    <//>`;
+}
+
+function NewConsultationModal({ typeFor, existingDates, onCreate, onClose }) {
+  const [date, setDate] = useState(todayISO());
+  const [type, setType] = useState(typeFor(todayISO()));
+  const [busy, setBusy] = useState(false);
+  const exists = existingDates.includes(date);
+
+  function pick(value) {
+    setDate(value);
+    if (value) setType(typeFor(value));
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!date) return;
+    setBusy(true);
+    await onCreate(date, type);
+    setBusy(false);
+  }
+
+  return html`
+    <${Modal} title="Registrar consulta" onClose=${onClose}>
+      <form onSubmit=${submit}>
+        <p class="muted">Use para lançar consultas que já aconteceram, cada uma na sua data. Cada consulta fica
+          separada no histórico de anamneses.</p>
+        <div class="grid-2">
+          <${Field} label="Data da consulta">
+            <input type="date" required max=${todayISO()} value=${date} onInput=${(e) => pick(e.target.value)} />
+          <//>
+          <${Field} label="Tipo">
+            <select value=${type} onChange=${(e) => setType(e.target.value)}>
+              <option value="inicial">Primeira consulta</option>
+              <option value="retorno">Retorno</option>
+            </select>
+          <//>
+        </div>
+        ${exists && html`<div class="alert">Já existe uma consulta nessa data. Ao continuar, ela será aberta para edição.</div>`}
+        <div class="actions">
+          <button type="button" class="btn" onClick=${onClose}>Cancelar</button>
+          <button class="btn btn-primary" disabled=${busy || !date}>${exists ? 'Abrir consulta' : 'Criar e abrir anotações'}</button>
         </div>
       </form>
     <//>`;

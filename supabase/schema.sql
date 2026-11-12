@@ -1,5 +1,5 @@
 -- =====================================================================
--- Consultório Nutri — estrutura do banco de dados (Fase 1)
+-- Consultório Nutri — estrutura do banco de dados
 --
 -- Como usar: Supabase → SQL Editor → New query → colar este arquivo
 -- inteiro → Run. Pode ser executado mais de uma vez sem perder dados.
@@ -65,6 +65,16 @@ create table if not exists public.measurements (
 );
 create index if not exists measurements_patient_idx on public.measurements (patient_id, metric, date desc);
 
+-- ---------- Resumos e anotações vindos da IA (modo B: colados pela nutricionista) ----------
+create table if not exists public.ai_notes (
+  id          uuid primary key default gen_random_uuid(),
+  patient_id  uuid not null references public.patients (id) on delete cascade,
+  kind        text not null default 'resumo',
+  content     text not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists ai_notes_patient_idx on public.ai_notes (patient_id, kind, created_at desc);
+
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
@@ -109,17 +119,20 @@ alter table public.patients             enable row level security;
 alter table public.consultations        enable row level security;
 alter table public.nutrium_appointments enable row level security;
 alter table public.measurements         enable row level security;
+alter table public.ai_notes             enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
 drop policy if exists "dona" on public.nutrium_appointments;
 drop policy if exists "dona" on public.measurements;
+drop policy if exists "dona" on public.ai_notes;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
 create policy "dona" on public.measurements         for all to authenticated using (true) with check (true);
+create policy "dona" on public.ai_notes             for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
-  public.nutrium_appointments, public.measurements to authenticated;
+  public.nutrium_appointments, public.measurements, public.ai_notes to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

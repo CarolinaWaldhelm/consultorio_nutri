@@ -175,3 +175,7 @@ textarea { resize: vertical; min-height: 44px; }
   .patient-actions { width: 100%; }
   .table td, .table th { padding: 8px 6px; }
 }
+.drawer-head-actions { display: flex; align-items: center; gap: 6px; }
+.drawer-date { display: flex; flex-direction: column; gap: 2px; }
+.summary-note { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 12px; background: #fbfcfb; }
+.summary-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
