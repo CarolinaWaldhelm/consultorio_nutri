@@ -32,7 +32,7 @@ Menu principal:
 
 Não existe aba "Gráficos": todos os gráficos ficam dentro da ficha de cada paciente.
 
-Login: e-mail da nutricionista com link de acesso ("magic link"). Só o e-mail dela é autorizado.
+Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase. O cadastro de novas contas fica desligado, então só ela entra.
 
 ---
 
@@ -379,7 +379,7 @@ leitura de exames, relatório de evolução e quadro de insights.
 
 ## 11. Segurança e LGPD
 
-- Acesso só com o e-mail autorizado (link de acesso).
+- Acesso só com o e-mail e a senha dela (novos cadastros desligados no Supabase).
 - Sem camadas extras de criptografia, por decisão da usuária (uso pessoal).
 - Banco com regras de acesso: o paciente só consegue gravar a resposta do próprio link, sem ler nada.
 - Pedidos para a IA sem dados pessoais (código do paciente).

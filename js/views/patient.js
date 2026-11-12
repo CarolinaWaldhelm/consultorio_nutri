@@ -1,0 +1,284 @@
+import { html, useState, useEffect } from '../lib/preact.js';
+import { supabase, run } from '../lib/db.js';
+import {
+  fmtDate, daysAgoLabel, ageFrom, todayISO, patientCode, latestOf, classifyBMI, norm, onlyDigits,
+  SEX_LABEL, SOURCE_LABEL, OBJECTIVE_LABEL, unique,
+} from '../lib/util.js';
+import { Modal, Field, ErrorBox, Loading, go } from './common.js';
+import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
+
+export function PatientPage({ id }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const [editing, setEditing] = useState(false);
+
+  async function load() {
+    try {
+      const [patient, consultations, appointments, measurements] = await Promise.all([
+        run(supabase.from('patients').select('*').eq('id', id).single()),
+        run(supabase.from('consultations').select('*').eq('patient_id', id).order('date', { ascending: false }).order('created_at', { ascending: false })),
+        run(supabase.from('nutrium_appointments').select('*').eq('patient_id', id).order('date', { ascending: false })),
+        run(supabase.from('measurements').select('*').eq('patient_id', id).order('date', { ascending: false })),
+      ]);
+      setData({ patient, consultations, appointments, measurements });
+    } catch (err) {
+      setError(err);
+    }
+  }
+  useEffect(() => { load(); }, [id]);
+
+  if (error) return html`<${ErrorBox} error=${error} />`;
+  if (!data) return html`<${Loading} />`;
+
+  const { patient, consultations, appointments, measurements } = data;
+  const today = todayISO();
+  const pastAppts = appointments.filter((a) => a.date < today);
+  const futureAppts = appointments.filter((a) => a.date >= today).reverse();
+  const lastConsult = [consultations.find((c) => c.date <= today)?.date, pastAppts[0]?.date]
+    .filter(Boolean).sort().pop() || null;
+  const open = consultations.find((c) => c.id === openId);
+
+  async function startConsultation() {
+    const existingToday = consultations.find((c) => c.date === today);
+    if (existingToday) { setOpenId(existingToday.id); return; }
+    const isFirst = consultations.length === 0 && pastAppts.length === 0;
+    const previous = consultations[0];
+    try {
+      const [row] = await run(supabase.from('consultations').insert({
+        patient_id: id,
+        date: today,
+        type: isFirst ? 'inicial' : 'retorno',
+        objective: previous?.objective ?? null,
+        anamnesis: {},
+      }).select('*'));
+      setData({ ...data, consultations: [row, ...consultations] });
+      setOpenId(row.id);
+    } catch (err) {
+      alert('Não foi possível iniciar a consulta: ' + (err.message || err));
+    }
+  }
+
+  const replaceConsultation = (next) => setData((d) => ({
+    ...d,
+    consultations: d.consultations.map((c) => (c.id === next.id ? next : c))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at)),
+  }));
+
+  return html`
+    <div class=${openId ? 'with-drawer' : ''}>
+      <a class="back" href="#/">← Pacientes</a>
+      <${Header}
+        patient=${patient}
+        lastConsult=${lastConsult}
+        nextAppt=${futureAppts[0]}
+        hasConsultations=${consultations.length > 0}
+        onStart=${startConsultation}
+        onOpenNotes=${() => setOpenId(consultations[0]?.id)}
+        onEdit=${() => setEditing(true)}
+      />
+      <${CurrentMeasures} measurements=${measurements} age=${ageFrom(patient.birth_date)} />
+      <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
+      <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
+    </div>
+
+    ${open && html`
+      <${AnamnesisDrawer}
+        key=${open.id}
+        consultation=${open}
+        patientName=${patient.name}
+        onSaved=${replaceConsultation}
+        onDeleted=${(cid) => { setOpenId(null); setData((d) => ({ ...d, consultations: d.consultations.filter((c) => c.id !== cid) })); }}
+        onClose=${() => setOpenId(null)}
+      />`}
+
+    ${editing && html`
+      <${EditPatientModal}
+        patient=${patient}
+        onClose=${() => setEditing(false)}
+        onSaved=${(p) => { setData({ ...data, patient: p }); setEditing(false); }}
+      />`}`;
+}
+
+function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onOpenNotes, onEdit }) {
+  const age = ageFrom(patient.birth_date);
+  return html`
+    <section class="card patient-head">
+      <div class="patient-id">
+        <h1>${patient.name}</h1>
+        <div class="muted">
+          ${patientCode(patient.code)}
+          ${age != null && html` · ${age} anos`}
+          ${patient.birth_date && html` · nasc. ${fmtDate(patient.birth_date)}`}
+          ${patient.sex && html` · ${SEX_LABEL[patient.sex]}`}
+        </div>
+        <div class="patient-contact">
+          ${patient.phone
+            ? html`<span>📞 ${patient.phone}</span>`
+            : html`<button class="badge badge-warn as-link" onClick=${onEdit}>📞 Adicionar telefone</button>`}
+          ${patient.email_primary && !patient.email_primary.endsWith('@patients.nutrium.com') && html`<span>✉️ ${patient.email_primary}</span>`}
+        </div>
+        <div class="patient-status">
+          <span><strong>Última consulta:</strong> ${lastConsult ? `${fmtDate(lastConsult)} (${daysAgoLabel(lastConsult).toLowerCase()})` : 'nenhuma'}</span>
+          ${nextAppt && html`<span><strong>Próxima:</strong> ${fmtDate(nextAppt.date)} ${nextAppt.start_time || ''}</span>`}
+          ${patient.status === 'inativo' && html`<span class="badge">Inativo</span>`}
+          <span class=${'badge ' + (patient.questionnaires_active ? 'badge-green' : '')}>
+            Questionários: ${patient.questionnaires_active ? 'ativos' : 'pausados'}
+          </span>
+        </div>
+      </div>
+      <div class="patient-actions">
+        <button class="btn btn-primary" onClick=${onStart}>▶ Iniciar consulta</button>
+        ${hasConsultations && html`<button class="btn" onClick=${onOpenNotes}>📋 Painel de anotações</button>`}
+        <button class="btn btn-ghost" onClick=${onEdit}>✏️ Editar cadastro</button>
+      </div>
+    </section>`;
+}
+
+function CurrentMeasures({ measurements, age }) {
+  const weight = latestOf(measurements, 'peso');
+  const height = latestOf(measurements, 'altura');
+  const bmi = weight && height ? weight.value / (height.value / 100) ** 2 : null;
+  return html`
+    <section class="card">
+      <h2 class="card-title">⚖️ Medidas atuais</h2>
+      ${!weight && !height && html`<p class="muted">Nenhuma medida ainda. Elas chegam pela importação do Nutrium (peso e altura).</p>`}
+      ${(weight || height) && html`
+        <div class="stats">
+          ${weight && html`<div class="stat"><div class="stat-label">Peso</div><div class="stat-value">${fmtNum(weight.value)} kg</div><div class="stat-sub">${fmtDate(weight.date)} · ${SOURCE_LABEL[weight.source]}</div></div>`}
+          ${height && html`<div class="stat"><div class="stat-label">Altura</div><div class="stat-value">${fmtNum(height.value)} cm</div><div class="stat-sub">${fmtDate(height.date)} · ${SOURCE_LABEL[height.source]}</div></div>`}
+          ${bmi && html`<div class="stat"><div class="stat-label">IMC</div><div class="stat-value">${fmtNum(bmi, 1)}</div><div class="stat-sub">${classifyBMI(bmi, age)}${age >= 60 ? ' (idoso)' : ''}</div></div>`}
+        </div>
+        <p class="muted small">Gráficos de evolução e motor de cálculos chegam na Fase 2.</p>`}
+    </section>`;
+}
+
+const fmtNum = (n, d = 1) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: d });
+
+function History({ consultations, openId, onOpen }) {
+  const [expanded, setExpanded] = useState(null);
+  return html`
+    <section class="card">
+      <h2 class="card-title">🗂️ Histórico de anamneses</h2>
+      ${consultations.length === 0 && html`<p class="muted">Nenhuma consulta registrada no software ainda. Use “Iniciar consulta”.</p>`}
+      <ul class="history">
+        ${consultations.map((c) => {
+          const isOpen = expanded === c.id;
+          const filled = FIELDS[c.type].filter(([k]) => (k === '@objetivo' ? c.objective : c.anamnesis[k]?.trim()));
+          return html`
+            <li class=${'history-item' + (openId === c.id ? ' editing' : '')}>
+              <div class="history-row" onClick=${() => setExpanded(isOpen ? null : c.id)}>
+                <span>${isOpen ? '▾' : '▸'} <strong>${fmtDate(c.date)}</strong> · ${TYPE_LABEL[c.type]}</span>
+                <span class="muted small">${filled.length} campo(s) preenchido(s)</span>
+              </div>
+              ${isOpen && html`
+                <div class="history-body">
+                  ${filled.length === 0 && html`<p class="muted">Sem anotações.</p>`}
+                  ${filled.map(([k, label]) => k === '@objetivo'
+                    ? html`<div class="qa"><div class="qa-q">Objetivo</div><div class="qa-a">${OBJECTIVE_LABEL[c.objective]}</div></div>`
+                    : html`<div class="qa"><div class="qa-q">${label}</div><div class="qa-a">${c.anamnesis[k]}</div></div>`)}
+                  <button class="btn btn-sm" onClick=${() => onOpen(c.id)}>✏️ Editar no painel</button>
+                </div>`}
+            </li>`;
+        })}
+      </ul>
+    </section>`;
+}
+
+function NutriumAppointments({ past, future }) {
+  if (!past.length && !future.length) return null;
+  return html`
+    <section class="card">
+      <h2 class="card-title">📆 Consultas no Nutrium</h2>
+      ${future.length > 0 && html`<p><strong>Agendadas:</strong> ${future.map((a) => `${fmtDate(a.date)} ${a.start_time || ''}`).join(' · ')}</p>`}
+      ${past.length > 0 && html`<p class="muted"><strong>Anteriores (${past.length}):</strong> ${past.map((a) => fmtDate(a.date)).join(' · ')}</p>`}
+    </section>`;
+}
+
+function EditPatientModal({ patient, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: patient.name || '',
+    birth_date: patient.birth_date || '',
+    sex: patient.sex || '',
+    phone: patient.phone || '',
+    email_primary: patient.email_primary || '',
+    status: patient.status,
+    questionnaires_active: patient.questionnaires_active,
+    notes: patient.notes || '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const name = form.name.trim().replace(/\s+/g, ' ');
+      const email = form.email_primary.trim().toLowerCase() || null;
+      const [row] = await run(supabase.from('patients').update({
+        ...form,
+        name,
+        name_norm: norm(name),
+        birth_date: form.birth_date || null,
+        sex: form.sex || null,
+        phone: onlyDigits(form.phone) ? form.phone.trim() : null,
+        email_primary: email,
+        emails: unique([email, ...(patient.emails || [])]),
+        notes: form.notes || null,
+      }).eq('id', patient.id).select('*'));
+      onSaved(row);
+    } catch (err) {
+      setError(err);
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!confirm(`Apagar ${patient.name} e TODO o histórico (consultas, anotações, medidas)? Isso não pode ser desfeito.`)) return;
+    await run(supabase.from('patients').delete().eq('id', patient.id));
+    go('/');
+  }
+
+  return html`
+    <${Modal} title="Editar cadastro" onClose=${onClose}>
+      <form onSubmit=${save}>
+        <${Field} label="Nome completo"><input required value=${form.name} onInput=${set('name')} /><//>
+        <div class="grid-2">
+          <${Field} label="Data de nascimento"><input type="date" value=${form.birth_date} onInput=${set('birth_date')} /><//>
+          <${Field} label="Sexo" hint="Usado nas fórmulas de gasto energético">
+            <select value=${form.sex} onChange=${set('sex')}>
+              <option value="">Não informado</option>
+              <option value="F">Feminino</option>
+              <option value="M">Masculino</option>
+            </select>
+          <//>
+        </div>
+        <div class="grid-2">
+          <${Field} label="Telefone (WhatsApp)"><input type="tel" value=${form.phone} onInput=${set('phone')} placeholder="11 98765-4321" /><//>
+          <${Field} label="E-mail principal"><input type="email" value=${form.email_primary} onInput=${set('email_primary')} /><//>
+        </div>
+        <div class="grid-2">
+          <${Field} label="Situação">
+            <select value=${form.status} onChange=${set('status')}>
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          <//>
+          <label class="field checkbox">
+            <input type="checkbox" checked=${form.questionnaires_active} onChange=${set('questionnaires_active')} />
+            <span>Enviar questionários</span>
+          </label>
+        </div>
+        <${Field} label="Observações gerais"><textarea rows="3" value=${form.notes} onInput=${set('notes')}></textarea><//>
+        ${patient.emails?.length > 1 && html`<p class="muted small">Outros e-mails (contas antigas do Nutrium): ${patient.emails.filter((e) => e !== patient.email_primary).join(', ')}</p>`}
+        <${ErrorBox} error=${error} />
+        <div class="actions">
+          <button type="button" class="btn btn-danger-ghost" onClick=${remove}>Apagar paciente</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" onClick=${onClose}>Cancelar</button>
+          <button class="btn btn-primary" disabled=${busy}>${busy ? 'Salvando…' : 'Salvar'}</button>
+        </div>
+      </form>
+    <//>`;
+}
