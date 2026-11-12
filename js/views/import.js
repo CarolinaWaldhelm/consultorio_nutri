@@ -1,7 +1,7 @@
 import { html, useState } from '../lib/preact.js';
 import { supabase, run, chunks } from '../lib/db.js';
-import { fmtDate } from '../lib/util.js';
-import { parseWorkbook, buildPlan, mergeIntoExisting, newPatientRow, childRows } from '../lib/nutrium.js';
+import { fmtDate, todayISO } from '../lib/util.js';
+import { parseWorkbook, buildPlan, mergeIntoExisting, newPatientRow, childRows, ACTIVE_DAYS } from '../lib/nutrium.js';
 import { ErrorBox } from './common.js';
 
 const XLSX_URL = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
@@ -11,6 +11,7 @@ export function ImportPage() {
   const [plan, setPlan] = useState(null);
   const [existing, setExisting] = useState([]);
   const [decisions, setDecisions] = useState({});
+  const [removeOld, setRemoveOld] = useState(true);
   const [progress, setProgress] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -24,9 +25,19 @@ export function ImportPage() {
       const XLSX = await import(XLSX_URL);
       const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
       const parsed = parseWorkbook(XLSX, wb);
-      const ex = await run(supabase.from('patients').select('*'));
+      const [ex, own, notes] = await Promise.all([
+        run(supabase.from('patients').select('*')),
+        run(supabase.from('consultations').select('patient_id')),
+        run(supabase.from('ai_notes').select('patient_id')),
+      ]);
+      // Pacientes com algo escrito pela nutricionista nunca são removidos automaticamente.
+      const keep = new Set([...own, ...notes].map((r) => r.patient_id));
+      const plan = buildPlan(parsed, ex, todayISO());
+      plan.removable = plan.matches.filter((m) => m.old && !keep.has(m.existing.id) && !m.existing.phone);
+      plan.keptOld = plan.matches.filter((m) => m.old && !plan.removable.includes(m));
       setExisting(ex);
-      setPlan(buildPlan(parsed, ex));
+      setPlan(plan);
+      setRemoveOld(true);
       setDecisions({});
       setStage('review');
     } catch (err) {
@@ -45,7 +56,9 @@ export function ImportPage() {
       const updates = new Map();
       const inserts = [];
 
+      const toRemove = removeOld ? new Set(plan.removable.map((m) => m.existing.id)) : new Set();
       for (const m of plan.matches) {
+        if (toRemove.has(m.existing.id)) continue;
         idOf[m.index] = m.existing.id;
         updates.set(m.existing.id, mergeIntoExisting(updates.get(m.existing.id) || m.existing, plan.persons[m.index]));
       }
@@ -75,6 +88,11 @@ export function ImportPage() {
         n += part.length;
       }
 
+      for (const part of chunks([...toRemove], 200)) {
+        setProgress('Removendo pacientes antigos…');
+        await run(supabase.from('patients').delete().in('id', part));
+      }
+
       const rows = childRows(plan, idOf);
       setProgress('Atualizando consultas do Nutrium…');
       await run(supabase.from('nutrium_appointments').delete().gte('date', '1900-01-01'));
@@ -84,7 +102,7 @@ export function ImportPage() {
       await run(supabase.from('measurements').delete().in('source', ['nutrium_app', 'nutrium_prof']));
       for (const part of chunks(rows.measurements)) await run(supabase.from('measurements').insert(part));
 
-      setResult({ created: inserts.length, updated: upd.length, appts: rows.appointments.length, meas: rows.measurements.length });
+      setResult({ created: inserts.length, updated: upd.length, removed: toRemove.size, skipped: plan.skippedOld.length, appts: rows.appointments.length, meas: rows.measurements.length });
       setStage('done');
     } catch (err) {
       setError(err);
@@ -110,12 +128,14 @@ export function ImportPage() {
         </label>
         <p class="muted small">
           O que é importado: cadastro, datas das consultas e <strong>apenas peso e altura</strong>.
+          Pacientes há mais de ${ACTIVE_DAYS} dias sem consulta (nem agendada) ficam de fora.
           Nada do que você anotou no software é apagado.
         </p>
       </section>`}
 
     ${stage === 'review' && plan && html`<${Review}
       plan=${plan} existing=${existing} decisions=${decisions} setDecisions=${setDecisions}
+      removeOld=${removeOld} setRemoveOld=${setRemoveOld}
       onApply=${apply} onCancel=${() => setStage('pick')} />`}
 
     ${stage === 'importing' && html`<section class="card"><p>⏳ ${progress}</p><p class="muted small">Não feche esta página.</p></section>`}
@@ -126,6 +146,8 @@ export function ImportPage() {
         <ul>
           <li>${result.created} paciente(s) novo(s)</li>
           <li>${result.updated} paciente(s) atualizado(s)</li>
+          ${result.skipped > 0 && html`<li>${result.skipped} paciente(s) ignorado(s) por estarem há mais de ${ACTIVE_DAYS} dias sem consulta</li>`}
+          ${result.removed > 0 && html`<li>${result.removed} paciente(s) antigo(s) removido(s) do sistema</li>`}
           <li>${result.appts} consulta(s) do Nutrium</li>
           <li>${result.meas} medição(ões) de peso e altura</li>
         </ul>
@@ -136,9 +158,12 @@ export function ImportPage() {
       </section>`}`;
 }
 
-function Review({ plan, existing, decisions, setDecisions, onApply, onCancel }) {
+function Review({ plan, existing, decisions, setDecisions, removeOld, setRemoveOld, onApply, onCancel }) {
   const firstImport = existing.length === 0;
   const matchedIds = new Set(plan.matches.map((m) => m.existing.id));
+  const skipped = new Set(plan.skippedOld);
+  const nAppts = plan.appointments.filter((a) => !skipped.has(a.index)).length;
+  const nMeas = plan.measurements.filter((m) => !skipped.has(m.index)).length;
   const linkable = existing.filter((x) => !matchedIds.has(x.id)).sort((a, b) => a.name.localeCompare(b.name));
 
   return html`
@@ -146,11 +171,23 @@ function Review({ plan, existing, decisions, setDecisions, onApply, onCancel }) 
       <h2 class="card-title">Resumo da planilha</h2>
       <div class="stats">
         <div class="stat"><div class="stat-label">Pacientes na planilha</div><div class="stat-value">${plan.persons.length}</div></div>
+        <div class="stat"><div class="stat-label">Ignorados (+${ACTIVE_DAYS} dias)</div><div class="stat-value">${plan.skippedOld.length}</div></div>
         <div class="stat"><div class="stat-label">Já cadastrados</div><div class="stat-value">${plan.matches.length}</div></div>
         <div class="stat"><div class="stat-label">${firstImport ? 'Serão criados' : 'Não encontrados'}</div><div class="stat-value">${plan.unmatched.length}</div></div>
-        <div class="stat"><div class="stat-label">Consultas</div><div class="stat-value">${plan.appointments.length}</div></div>
-        <div class="stat"><div class="stat-label">Pesos e alturas</div><div class="stat-value">${plan.measurements.length}</div></div>
+        <div class="stat"><div class="stat-label">Consultas</div><div class="stat-value">${nAppts}</div></div>
+        <div class="stat"><div class="stat-label">Pesos e alturas</div><div class="stat-value">${nMeas}</div></div>
       </div>
+      ${plan.removable.length > 0 && html`
+        <label class="alert checkbox-line">
+          <input type="checkbox" checked=${removeOld} onChange=${(e) => setRemoveOld(e.target.checked)} />
+          <span>
+            <strong>Remover do sistema ${plan.removable.length} paciente(s) antigo(s)</strong> que já estavam cadastrados e estão
+            há mais de ${ACTIVE_DAYS} dias sem consulta. Só entram aqui pacientes sem nenhuma anotação sua
+            (sem consultas registradas, resumos ou telefone). Se voltarem a ser atendidos, entram de novo na próxima importação.
+          </span>
+        </label>`}
+      ${plan.keptOld.length > 0 && html`
+        <p class="muted small">${plan.keptOld.length} paciente(s) antigo(s) com anotações suas continuam no sistema.</p>`}
       ${plan.merges.length > 0 && html`
         <div class="alert">
           <strong>${plan.merges.length} paciente(s) com duas contas no Nutrium</strong> (mesmo nome e nascimento, e-mails diferentes)

@@ -179,3 +179,5 @@ textarea { resize: vertical; min-height: 44px; }
 .drawer-date { display: flex; flex-direction: column; gap: 2px; }
 .summary-note { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 12px; background: #fbfcfb; }
 .summary-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.checkbox-line { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.checkbox-line input { width: auto; margin-top: 4px; }

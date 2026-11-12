@@ -1,6 +1,9 @@
 // Leitura da planilha exportada pelo Nutrium e cruzamento com os pacientes do sistema.
 // Funções puras (sem banco), para poderem ser testadas isoladamente.
-import { norm, unique } from './util.js';
+import { norm, unique, daysBetween } from './util.js';
+
+/** Pacientes sem consulta há mais que isso não entram na importação. */
+export const ACTIVE_DAYS = 150;
 
 const key = (h) => norm(h).replace(/[^a-z0-9]/g, '');
 
@@ -103,8 +106,10 @@ const nameBirthKey = (name, birth) => (birth ? `${norm(name)}|${birth}` : null);
 /**
  * Monta o plano de importação.
  * existing: pacientes do banco (linhas completas da tabela patients).
+ * today: data de hoje (AAAA-MM-DD). Pacientes cuja última atividade (consulta, agendada ou não,
+ * ou data de registro) é mais antiga que ACTIVE_DAYS ficam de fora.
  */
-export function buildPlan(parsed, existing) {
+export function buildPlan(parsed, existing, today) {
   // 1. Uma pessoa por e-mail.
   const byEmail = new Map();
   parsed.profiles.forEach((p, i) => {
@@ -136,7 +141,19 @@ export function buildPlan(parsed, existing) {
   }
   persons.sort((a, b) => norm(a.name).localeCompare(norm(b.name)));
 
-  // 3. Cruzamento com o banco: e-mail → nome + nascimento → revisão manual.
+  // 3. Última atividade de cada pessoa: consulta mais recente (inclusive agendada) ou registro.
+  const personOfEmail = new Map();
+  persons.forEach((p, i) => p.emails.forEach((e) => personOfEmail.set(e, i)));
+  const lastActivity = persons.map((p) => p.registered_at || '');
+  for (const a of parsed.appointments) {
+    const i = personOfEmail.get(a.email);
+    if (i != null && a.date > lastActivity[i]) lastActivity[i] = a.date;
+  }
+  const isOld = (i) => !lastActivity[i] || daysBetween(lastActivity[i], today) > ACTIVE_DAYS;
+
+  // 4. Cruzamento com o banco: e-mail → nome + nascimento → revisão manual.
+  //    Pessoas antigas que não estão no banco são ignoradas.
+  const skippedOld = [];
   const exByEmail = new Map();
   const exByNameBirth = new Map();
   for (const ex of existing) {
@@ -150,13 +167,12 @@ export function buildPlan(parsed, existing) {
     let ex = p.emails.map((e) => exByEmail.get(e)).find(Boolean);
     let how = 'e-mail';
     if (!ex) { ex = exByNameBirth.get(nameBirthKey(p.name, p.birth_date)); how = 'nome + nascimento'; }
-    if (ex) matches.push({ index: i, existing: ex, how });
+    if (ex) matches.push({ index: i, existing: ex, how, old: isOld(i), lastActivity: lastActivity[i] });
+    else if (isOld(i)) skippedOld.push(i);
     else unmatched.push(i);
   });
 
-  // 4. Consultas e medições ligadas a cada pessoa pelo e-mail.
-  const personOfEmail = new Map();
-  persons.forEach((p, i) => p.emails.forEach((e) => personOfEmail.set(e, i)));
+  // 5. Consultas e medições ligadas a cada pessoa pelo e-mail.
   const appointments = [];
   const measurements = [];
   let orphan = 0;
@@ -169,7 +185,7 @@ export function buildPlan(parsed, existing) {
     if (i == null) orphan++; else measurements.push({ ...m, index: i });
   }
 
-  return { persons, matches, unmatched, merges, appointments, measurements, orphan };
+  return { persons, matches, unmatched, skippedOld, merges, appointments, measurements, orphan, lastActivity };
 }
 
 /** Junta os dados do Nutrium a um paciente já existente, sem apagar o que foi preenchido no sistema. */

@@ -354,7 +354,13 @@ O .csv tem problema de acentuação.
 - Mesma pessoa com duas contas (e-mails diferentes): juntar num paciente só. O e-mail da conta com data
   mais recente vira o principal e o antigo fica guardado como secundário.
 - Telefone: o do sistema prevalece (no Nutrium quase sempre está vazio).
-- A importação nunca apaga dados do sistema, só acrescenta ou atualiza.
+- **Pacientes inativos há mais de 150 dias não entram.** A última atividade é a consulta mais recente na aba
+  Consultas (inclusive agendada) ou, sem consultas, a data de registro. Se estiver há mais de 150 dias, o paciente
+  é ignorado na importação.
+- Pacientes antigos (mais de 150 dias) que **já estão no sistema** podem ser removidos na própria importação
+  (caixa marcada por padrão), **desde que não tenham nada escrito pela nutricionista**: nenhuma consulta registrada
+  no software, nenhum resumo e nenhum telefone. Os que têm alguma dessas coisas continuam.
+- Fora isso, a importação nunca apaga dados do sistema, só acrescenta ou atualiza.
 
 ---
 
