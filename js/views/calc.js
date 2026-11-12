@@ -2,7 +2,10 @@
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, ageFrom, todayISO, daysBetween, latestOf, classifyBMI, OBJECTIVES, OBJECTIVE_LABEL, SEX_LABEL } from '../lib/util.js';
-import { ACTIVITY_LEVELS, ACTIVITY, DEFAULT_ADJUST, FORMULAS, allFormulas, recommend, energyPlan, bmi, idealWeight, adjustedWeight } from '../lib/energy.js';
+import {
+  ACTIVITY_LEVELS, ACTIVITY, DEFAULT_ADJUST, FORMULAS, allFormulas, recommend, energyPlan, bmi, idealWeight, adjustedWeight,
+  referenceWeight, DEFAULT_MACROS, PROTEIN_RANGE, macroPlan, macroWarnings,
+} from '../lib/energy.js';
 import { copyText } from '../lib/prompts.js';
 import { ErrorBox } from './common.js';
 import { fmtNum } from './body.js';
@@ -33,6 +36,7 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
   const age = ageFrom(patient.birth_date);
   const today = todayISO();
   const adjustDefaults = { ...DEFAULT_ADJUST, ...(settings?.adjust_defaults || {}) };
+  const macroDefaults = { ...DEFAULT_MACROS, ...(settings?.macro_defaults || {}) };
 
   const w = latestOf(measurements, 'peso');
   const h = latestOf(measurements, 'altura');
@@ -51,6 +55,10 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
   const [objective, setObjective] = useState(lastObjective || lastCalc?.objective || null);
   const [adjust, setAdjust] = useState(String(adjustDefaults[lastObjective || lastCalc?.objective] ?? 0));
   const [chosen, setChosen] = useState(null); // fórmula escolhida manualmente
+  const initialObjective = lastObjective || lastCalc?.objective;
+  const [refWeight, setRefWeight] = useState(null); // null = usar o sugerido pelo IMC
+  const [proteinGkg, setProteinGkg] = useState(String(macroDefaults[initialObjective]?.protein_gkg ?? 1.6).replace('.', ','));
+  const [fatPct, setFatPct] = useState(String(macroDefaults[initialObjective]?.fat_pct ?? 30));
   const [copied, setCopied] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -65,11 +73,28 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
   const factor = level ? ACTIVITY[level].factor : null;
   const adjustPct = Number(String(adjust).replace(',', '.')) || 0;
   const plan = energyPlan({ tmb, factor, adjustPct });
+  const bmiClass = bmiValue ? classifyBMI(bmiValue, age) : '';
+  const suggestedRef = referenceWeight(input.weight, input.height, bmiClass);
+  const ref = refWeight != null ? num(refWeight) : suggestedRef?.value ?? null;
+  const pGkg = num(proteinGkg);
+  const fPct = num(fatPct);
+  const macros = plan ? macroPlan({ target: plan.target, refWeight: ref, proteinGkg: pGkg, fatPct: fPct }) : null;
+  const macroAlerts = macroWarnings(macros, objective);
   const missing = [!sex && 'sexo', age == null && 'data de nascimento', !input.weight && 'peso', !input.height && 'altura'].filter(Boolean);
 
   function pickObjective(k) {
     setObjective(k);
     setAdjust(String(adjustDefaults[k] ?? 0));
+    setProteinGkg(String(macroDefaults[k]?.protein_gkg ?? 1.6).replace('.', ','));
+    setFatPct(String(macroDefaults[k]?.fat_pct ?? 30));
+  }
+
+  async function saveMacroDefaults() {
+    if (!objective || pGkg == null || fPct == null) return;
+    const value = { ...macroDefaults, [objective]: { protein_gkg: pGkg, fat_pct: fPct } };
+    await run(supabase.from('app_settings').upsert({ key: 'macro_defaults', value }));
+    onSettingsSaved({ ...settings, macro_defaults: value });
+    alert(`Padrão de macros de "${OBJECTIVE_LABEL[objective]}" salvo: proteína ${String(pGkg).replace('.', ',')} g/kg · lipídios ${fPct}%`);
   }
 
   async function copyActivity() {
@@ -94,6 +119,16 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
         objective,
         adjust_pct: adjustPct,
         target_kcal: plan.target,
+        macros: macros && {
+          ref_weight: ref,
+          ref_kind: refWeight != null ? 'manual' : suggestedRef?.kind,
+          protein_gkg: pGkg,
+          fat_pct: fPct,
+          protein_g: Math.round(macros.protein.g),
+          fat_g: Math.round(macros.fat.g),
+          carb_g: Math.round(macros.carb.g),
+          carb_pct: Math.round(macros.carb.pct),
+        },
       }).select('*'));
       onSaved(row);
       setSavedMsg(`Cálculo salvo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`);
@@ -197,6 +232,42 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
               <div class="stat stat-main"><div class="stat-label">Meta${objective ? ' · ' + OBJECTIVE_LABEL[objective] : ''} (${adjustPct > 0 ? '+' : ''}${adjustPct}%)</div><div class="stat-value">${kcal(plan.target)}</div></div>
             </div>
             ${plan.belowTmb && html`<div class="alert alert-error">⚠️ A meta ficou abaixo da TMB (${kcal(tmb)}). Revise o ajuste.</div>`}
+
+            <div class="calc-step">6. Macronutrientes</div>
+            <div class="macro-inputs">
+              <label class="field"><span class="field-label">Peso de referência (kg)</span>
+                <input inputmode="decimal" value=${refWeight ?? (suggestedRef ? String(suggestedRef.value).replace('.', ',') : '')} onInput=${(e) => setRefWeight(e.target.value)} />
+              </label>
+              <label class="field"><span class="field-label">Proteína (g/kg)</span>
+                <input inputmode="decimal" value=${proteinGkg} onInput=${(e) => setProteinGkg(e.target.value)} />
+              </label>
+              <label class="field"><span class="field-label">Lipídios (% do VET)</span>
+                <input inputmode="decimal" value=${fatPct} onInput=${(e) => setFatPct(e.target.value)} />
+              </label>
+            </div>
+            <p class="muted small">
+              ${suggestedRef && html`Sugerido pelo IMC: <strong>${suggestedRef.reason}</strong> (${fmtNum(suggestedRef.value)} kg). `}
+              ${input.weight && input.height && html`
+                <button class="link-btn" onClick=${() => setRefWeight(String(input.weight).replace('.', ','))}>usar peso atual (${fmtNum(input.weight)})</button> ·
+                <button class="link-btn" onClick=${() => setRefWeight(String(Math.round(adjustedWeight(input.weight, input.height) * 10) / 10).replace('.', ','))}>usar peso ajustado (${fmtNum(adjustedWeight(input.weight, input.height))})</button>
+                ${refWeight != null && html` · <button class="link-btn" onClick=${() => setRefWeight(null)}>voltar ao sugerido</button>`}`}
+            </p>
+            ${macros && html`
+              <table class="table macros">
+                <thead><tr><th></th><th>g</th><th>g/kg</th><th>kcal</th><th>% VET</th></tr></thead>
+                <tbody>
+                  ${[['Proteínas', macros.protein], ['Lipídios', macros.fat], ['Carboidratos', macros.carb]].map(([l, m]) => html`
+                    <tr><td><strong>${l}</strong></td><td>${fmtNum(m.g, 0)} g</td><td>${fmtNum(m.gkg, 1)}</td><td>${fmtNum(m.kcal, 0)}</td><td>${fmtNum(m.pct, 0)}%</td></tr>`)}
+                </tbody>
+              </table>`}
+            ${macroAlerts.map((t) => html`<div class="alert">⚠️ ${t}</div>`)}
+            <p class="muted small">
+              Faixas: proteína ${objective ? (PROTEIN_RANGE[objective] || []).map((v) => String(v).replace('.', ',')).join('–') : '1,2–2,2'} g/kg ·
+              lipídios 20–35% do VET (0,8–1,2 g/kg) · carboidratos o restante (geralmente 40–60%).
+            </p>
+            ${objective && (pGkg !== macroDefaults[objective]?.protein_gkg || fPct !== macroDefaults[objective]?.fat_pct) && pGkg != null && fPct != null && html`
+              <button class="btn btn-sm btn-ghost" onClick=${saveMacroDefaults}>Salvar proteína ${String(pGkg).replace('.', ',')} g/kg e lipídios ${fPct}% como padrão de “${OBJECTIVE_LABEL[objective]}”</button>`}
+
             <div class="actions" style="justify-content:flex-start">
               <button class="btn btn-primary" onClick=${save} disabled=${busy}>💾 Salvar cálculo no histórico</button>
               ${savedMsg && html`<span class="muted small">✓ ${savedMsg}</span>`}
@@ -208,7 +279,7 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
         <div class="calc-step" style="margin-top:18px">Histórico de cálculos</div>
         <div class="table-scroll">
           <table class="table">
-            <thead><tr><th>Data</th><th>Peso</th><th>Fórmula</th><th>TMB</th><th>Fator</th><th>GET</th><th>Objetivo</th><th>Meta</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>Peso</th><th>Fórmula</th><th>TMB</th><th>Fator</th><th>GET</th><th>Objetivo</th><th>Meta</th><th>P / L / C</th><th></th></tr></thead>
             <tbody>
               ${calculations.map((c) => html`
                 <tr>
@@ -220,6 +291,7 @@ export function CalcCard({ patient, measurements, consultations, calculations, s
                   <td>${kcal(c.get_kcal)}</td>
                   <td>${c.objective ? OBJECTIVE_LABEL[c.objective] : '–'} (${c.adjust_pct > 0 ? '+' : ''}${c.adjust_pct}%)</td>
                   <td><strong>${kcal(c.target_kcal)}</strong></td>
+                  <td class="small">${c.macros ? `${c.macros.protein_g} / ${c.macros.fat_g} / ${c.macros.carb_g} g` : '–'}${c.macros?.ref_weight ? html`<div class="muted">ref. ${fmtNum(c.macros.ref_weight)} kg</div>` : ''}</td>
                   <td><button class="btn btn-sm btn-danger-ghost" onClick=${() => remove(c.id)}>Apagar</button></td>
                 </tr>`)}
             </tbody>

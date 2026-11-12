@@ -55,6 +55,13 @@ export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved
   // Se outra consulta for aberta, troca o conteúdo (salvando a anterior).
   useEffect(() => { setC(consultation); }, [consultation.id]);
 
+  useEffect(() => {
+    document.body.classList.add('drawer-open');
+    return () => document.body.classList.remove('drawer-open');
+  }, []);
+
+  const isEmpty = (x) => !Object.values(x.anamnesis || {}).some((v) => String(v ?? '').trim());
+
   async function save(next) {
     clearTimeout(timer.current);
     pending.current = null;
@@ -90,11 +97,19 @@ export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved
   }
 
   async function close() {
+    const current = pending.current || c;
+    // Consulta aberta e fechada sem nenhuma anotação: não fica no histórico.
+    if (isEmpty(current)) {
+      clearTimeout(timer.current);
+      pending.current = null;
+      try { await run(supabase.from('consultations').delete().eq('id', current.id)); onDeleted(current.id); return; } catch { /* segue fechando */ }
+    }
     if (pending.current) await save(pending.current);
     onClose();
   }
 
   async function newOne() {
+    if (isEmpty(pending.current || c)) { await close(); onNew(); return; }
     if (pending.current) await save(pending.current);
     onNew();
   }
@@ -159,12 +174,12 @@ export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved
               ${hint && html`<span class="field-hint">${hint}</span>`}
             </label>`)}
         <div class="drawer-foot">
-          <button class="btn btn-primary" onClick=${async () => { await saveNow(); onClose(); }}>💾 Salvar e fechar</button>
+          <button class="btn btn-primary" onClick=${async () => { await saveNow(); close(); }}>💾 Salvar e fechar</button>
           <button class="btn" onClick=${newOne}>➕ Outra consulta</button>
           <span class="spacer"></span>
           <button class="btn btn-sm btn-danger-ghost" onClick=${remove}>Apagar consulta</button>
         </div>
-        <p class="muted small">Consulta de ${fmtDate(c.date)}. Além do botão Salvar, o texto também é salvo sozinho enquanto você digita.</p>
+        <p class="muted small">Consulta de ${fmtDate(c.date)}. Além do botão Salvar, o texto também é salvo sozinho enquanto você digita. Se fechar sem escrever nada, a consulta não fica no histórico.</p>
       </div>
     </aside>`;
 }

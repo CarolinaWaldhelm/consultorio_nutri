@@ -85,3 +85,58 @@ export function energyPlan({ tmb, factor, adjustPct }) {
   const target = Math.round(get * (1 + (adjustPct || 0) / 100));
   return { get, target, belowTmb: target < tmb };
 }
+
+// ---------- Peso de referência e macronutrientes ----------
+
+/** Eutrofia/baixo peso: peso atual. Sobrepeso/obesidade: peso ajustado. */
+export function referenceWeight(weight, heightCm, bmiClass) {
+  if (!weight || !heightCm) return null;
+  const heavy = /sobrepeso|obesidade/i.test(bmiClass || '');
+  return heavy
+    ? { value: Math.round(adjustedWeight(weight, heightCm) * 10) / 10, kind: 'ajustado', reason: `${bmiClass}: peso ajustado` }
+    : { value: weight, kind: 'atual', reason: `${bmiClass || 'Eutrofia'}: peso atual` };
+}
+
+/** Padrão inicial por objetivo (editável nas configurações e em cada cálculo). */
+export const DEFAULT_MACROS = {
+  perda_peso: { protein_gkg: 2.0, fat_pct: 30 },
+  ganho_massa: { protein_gkg: 2.0, fat_pct: 25 },
+  recomposicao: { protein_gkg: 1.6, fat_pct: 30 },
+  manutencao: { protein_gkg: 1.6, fat_pct: 30 },
+};
+
+/** Faixas de referência (só para alertas; nada é bloqueado). */
+export const PROTEIN_RANGE = {
+  perda_peso: [1.6, 2.2], ganho_massa: [1.6, 2.2], recomposicao: [1.6, 2.2], manutencao: [1.2, 1.6],
+};
+export const FAT_PCT_RANGE = [20, 35];
+export const FAT_GKG_RANGE = [0.8, 1.2];
+export const CARB_PCT_RANGE = [40, 60];
+
+/** Distribuição: proteína em g/kg do peso de referência, gordura em % do VET, carboidrato completa o VET. */
+export function macroPlan({ target, refWeight, proteinGkg, fatPct }) {
+  if (!target || !refWeight || proteinGkg == null || fatPct == null) return null;
+  const pG = proteinGkg * refWeight;
+  const pK = pG * 4;
+  const fK = (target * fatPct) / 100;
+  const fG = fK / 9;
+  const cK = target - pK - fK;
+  const cG = cK / 4;
+  const pct = (k) => (k / target) * 100;
+  return {
+    protein: { g: pG, gkg: proteinGkg, kcal: pK, pct: pct(pK) },
+    fat: { g: fG, gkg: fG / refWeight, kcal: fK, pct: fatPct },
+    carb: { g: cG, gkg: cG / refWeight, kcal: cK, pct: pct(cK) },
+  };
+}
+
+export function macroWarnings(m, objective) {
+  if (!m) return [];
+  const w = [];
+  const [pmin, pmax] = PROTEIN_RANGE[objective] || [1.2, 2.2];
+  if (m.protein.gkg < pmin || m.protein.gkg > pmax) w.push(`Proteína fora da faixa de ${String(pmin).replace('.', ',')}–${String(pmax).replace('.', ',')} g/kg para este objetivo.`);
+  if (m.fat.pct < FAT_PCT_RANGE[0] || m.fat.pct > FAT_PCT_RANGE[1]) w.push('Lipídios fora da faixa de 20–35% do VET.');
+  if (m.carb.kcal < 0) w.push('Proteína + lipídios passam do VET: não sobra caloria para carboidrato.');
+  else if (m.carb.pct < CARB_PCT_RANGE[0] || m.carb.pct > CARB_PCT_RANGE[1]) w.push('Carboidratos fora da faixa usual de 40–60% do VET.');
+  return w;
+}

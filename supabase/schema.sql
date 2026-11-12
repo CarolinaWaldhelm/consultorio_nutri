@@ -95,6 +95,8 @@ create table if not exists public.calculations (
   created_at      timestamptz not null default now()
 );
 create index if not exists calculations_patient_idx on public.calculations (patient_id, created_at desc);
+-- Macronutrientes do cálculo: peso de referência, g/kg de proteína, % de lipídios e gramas de P/L/C
+alter table public.calculations add column if not exists macros jsonb;
 
 -- ---------- Configurações (ex.: percentuais padrão por objetivo) ----------
 create table if not exists public.app_settings (

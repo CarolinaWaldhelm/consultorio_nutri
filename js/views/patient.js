@@ -83,7 +83,7 @@ export function PatientPage({ id }) {
   }));
 
   return html`
-    <div class=${openId ? 'with-drawer' : ''}>
+    <div>
       <a class="back" href="#/">← Pacientes</a>
       <${Header}
         patient=${patient}

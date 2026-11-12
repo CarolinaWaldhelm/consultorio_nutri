@@ -74,6 +74,8 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 ### 3.2 Painel lateral de anotações (drawer)
 
 Fica aberto durante o atendimento e permite navegar pela ficha ao fundo sem perder o que está sendo digitado.
+Em telas largas, a página abre espaço à direita para o painel. Uma consulta fechada sem nenhuma anotação é
+apagada automaticamente (não fica vazia no histórico).
 - Botões `[💾 Salvar]` (no topo), `[💾 Salvar e fechar]` e `[➕ Outra consulta]` (no final). Além disso, o texto
   também é salvo sozinho enquanto ela digita.
 - O campo "Data desta consulta" muda a data **da mesma consulta** (pede confirmação e não deixa usar uma data
@@ -107,18 +109,15 @@ Fica aberto durante o atendimento e permite navegar pela ficha ao fundo sem perd
 6. **Resumo do mês:** escrito pela nutricionista, no final. Inclui mudanças de medicação, novas doenças
    e adesão ao plano (não há campos separados para isso). Alimenta o resumo pré-consulta.
 
-### 3.3 Resumo pré-consulta e memória (IA, modo B)
+### 3.3 Resumo pré-consulta (IA, modo B)
 
-- `[Gerar pedido de resumo]`: monta o pedido com todas as anamneses, resumos do mês, combinados,
-  respostas de questionários desde a última consulta e a evolução de peso. A IA devolve:
+- Só um botão: `[📋 Copiar pedido de resumo]`. Ele monta o pedido com todas as anamneses, resumos do mês,
+  combinados e a evolução do peso, sem dados pessoais. A IA devolve:
   - o resumo do período;
   - pontos de atenção e problemas que ficaram para trás;
+  - combinados para conferir;
   - perguntas sugeridas para a consulta.
-- O resultado colado fica salvo na ficha, com a data (tabela `ai_notes`). O mais recente aparece aberto e os
-  anteriores ficam em "Ver resumos anteriores".
-- *Antecipado da Fase 5 para a Fase 1, a pedido da nutricionista.*
-- **Pergunta sobre o histórico:** campo de pergunta livre (ex.: "Qual meta de água combinamos na consulta 3?").
-  O sistema monta o pedido com o histórico e a pergunta.
+- A resposta não é colada de volta no sistema (decisão da nutricionista: basta copiar o pedido).
 
 ### 3.4 Questionários
 
@@ -228,6 +227,27 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 - **Histórico de cálculos:** cada cálculo é salvo com data, entradas, fórmula, fator, objetivo, ajuste e resultado.
 - Peso, altura e massa magra vêm preenchidos (os mais recentes) e podem ser ajustados só para aquele cálculo.
 - O ajuste de cada objetivo pode ser salvo como novo padrão (tabela `app_settings`, chave `adjust_defaults`).
+
+**Macronutrientes (passo 6 do motor)**
+
+- **Peso de referência**, sugerido pelo IMC e editável (botões "usar peso atual" e "usar peso ajustado"):
+  - Eutrofia ou baixo peso: peso atual.
+  - Sobrepeso ou obesidade: peso ajustado = peso ideal + 0,25 × (peso atual − peso ideal); peso ideal = IMC 22 × altura².
+  - Hoje o peso de referência é usado **só nos macros**. A TMB continua nas fórmulas da tabela acima.
+- **Distribuição:** proteína em g/kg do peso de referência, lipídios em % do VET (meta calórica), carboidratos
+  completam o VET (1 g de proteína ou carboidrato = 4 kcal; 1 g de lipídio = 9 kcal).
+- **Padrão inicial por objetivo** (editável e salvável como padrão, chave `macro_defaults`):
+
+  | Objetivo | Proteína | Lipídios |
+  |---|---|---|
+  | Perda de peso | 2,0 g/kg | 30% do VET |
+  | Ganho de massa (hipertrofia) | 2,0 g/kg | 25% do VET |
+  | Recomposição corporal | 1,6 g/kg | 30% do VET |
+  | Manutenção | 1,6 g/kg | 30% do VET |
+
+- **Alertas (não bloqueiam):** proteína fora de 1,6–2,2 g/kg (perda de peso, hipertrofia, recomposição) ou
+  1,2–1,6 g/kg (manutenção); lipídios fora de 20–35% do VET; carboidratos fora de 40–60% ou negativos.
+- A tabela mostra g, g/kg, kcal e % do VET de cada macro, e o cálculo salvo guarda os macros (coluna `macros`).
 
 ### 3.7 Exames laboratoriais (final da ficha)
 
