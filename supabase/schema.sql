@@ -25,6 +25,8 @@ create table if not exists public.patients (
   updated_at            timestamptz not null default now()
 );
 create index if not exists patients_name_norm_idx on public.patients (name_norm);
+-- 'importacao' = inativado automaticamente pela regra dos 150 dias (volta a ativo se marcar consulta)
+alter table public.patients add column if not exists inactive_reason text;
 
 -- ---------- Consultas registradas no software (com anamnese) ----------
 create table if not exists public.consultations (

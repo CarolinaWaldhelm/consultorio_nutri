@@ -106,8 +106,8 @@ const nameBirthKey = (name, birth) => (birth ? `${norm(name)}|${birth}` : null);
 /**
  * Monta o plano de importação.
  * existing: pacientes do banco (linhas completas da tabela patients).
- * today: data de hoje (AAAA-MM-DD). Pacientes cuja última atividade (consulta, agendada ou não,
- * ou data de registro) é mais antiga que ACTIVE_DAYS ficam de fora.
+ * today: data de hoje (AAAA-MM-DD). Fica de fora quem está há mais de ACTIVE_DAYS dias da última consulta
+ * e não tem consulta marcada (uma consulta futura conta como atividade). Sem consultas, vale a data de registro.
  */
 export function buildPlan(parsed, existing, today) {
   // 1. Uma pessoa por e-mail.

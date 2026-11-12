@@ -1,6 +1,6 @@
 import { html, useState } from '../lib/preact.js';
 import { supabase, run, chunks } from '../lib/db.js';
-import { fmtDate, todayISO } from '../lib/util.js';
+import { fmtDate, todayISO, daysBetween } from '../lib/util.js';
 import { parseWorkbook, buildPlan, mergeIntoExisting, newPatientRow, childRows, ACTIVE_DAYS } from '../lib/nutrium.js';
 import { ErrorBox } from './common.js';
 
@@ -11,7 +11,6 @@ export function ImportPage() {
   const [plan, setPlan] = useState(null);
   const [existing, setExisting] = useState([]);
   const [decisions, setDecisions] = useState({});
-  const [removeOld, setRemoveOld] = useState(true);
   const [progress, setProgress] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -27,17 +26,22 @@ export function ImportPage() {
       const parsed = parseWorkbook(XLSX, wb);
       const [ex, own, notes] = await Promise.all([
         run(supabase.from('patients').select('*')),
-        run(supabase.from('consultations').select('patient_id')),
+        run(supabase.from('consultations').select('patient_id, date')),
         run(supabase.from('ai_notes').select('patient_id')),
       ]);
-      // Pacientes com algo escrito pela nutricionista nunca são removidos automaticamente.
-      const keep = new Set([...own, ...notes].map((r) => r.patient_id));
-      const plan = buildPlan(parsed, ex, todayISO());
-      plan.removable = plan.matches.filter((m) => m.old && !keep.has(m.existing.id) && !m.existing.phone);
-      plan.keptOld = plan.matches.filter((m) => m.old && !plan.removable.includes(m));
+      const today = todayISO();
+      const plan = buildPlan(parsed, ex, today);
+      // Consulta registrada no software nos últimos 150 dias também conta como atividade.
+      const recentOwn = new Set(own.filter((c) => c.date <= today && daysBetween(c.date, today) <= ACTIVE_DAYS).map((c) => c.patient_id));
+      for (const m of plan.matches) if (recentOwn.has(m.existing.id)) m.old = false;
+      // Antigos: removidos. Os que têm anotações da nutricionista não são apagados: ficam inativos
+      // (fora da lista) e voltam sozinhos se marcarem consulta.
+      const hasNotes = new Set([...own, ...notes].map((r) => r.patient_id));
+      plan.removable = plan.matches.filter((m) => m.old && !hasNotes.has(m.existing.id));
+      plan.toInactivate = plan.matches.filter((m) => m.old && hasNotes.has(m.existing.id));
+      plan.toReactivate = plan.matches.filter((m) => !m.old && m.existing.inactive_reason === 'importacao');
       setExisting(ex);
       setPlan(plan);
-      setRemoveOld(true);
       setDecisions({});
       setStage('review');
     } catch (err) {
@@ -56,11 +60,14 @@ export function ImportPage() {
       const updates = new Map();
       const inserts = [];
 
-      const toRemove = removeOld ? new Set(plan.removable.map((m) => m.existing.id)) : new Set();
+      const toRemove = new Set(plan.removable.map((m) => m.existing.id));
       for (const m of plan.matches) {
         if (toRemove.has(m.existing.id)) continue;
         idOf[m.index] = m.existing.id;
-        updates.set(m.existing.id, mergeIntoExisting(updates.get(m.existing.id) || m.existing, plan.persons[m.index]));
+        const row = mergeIntoExisting(updates.get(m.existing.id) || m.existing, plan.persons[m.index]);
+        if (plan.toInactivate.includes(m)) { row.status = 'inativo'; row.inactive_reason = 'importacao'; }
+        if (plan.toReactivate.includes(m)) { row.status = 'ativo'; row.inactive_reason = null; }
+        updates.set(m.existing.id, row);
       }
       for (const i of plan.unmatched) {
         const choice = decisions[i] || 'new';
@@ -102,7 +109,7 @@ export function ImportPage() {
       await run(supabase.from('measurements').delete().in('source', ['nutrium_app', 'nutrium_prof']));
       for (const part of chunks(rows.measurements)) await run(supabase.from('measurements').insert(part));
 
-      setResult({ created: inserts.length, updated: upd.length, removed: toRemove.size, skipped: plan.skippedOld.length, appts: rows.appointments.length, meas: rows.measurements.length });
+      setResult({ created: inserts.length, updated: upd.length, removed: toRemove.size, inactivated: plan.toInactivate.length, reactivated: plan.toReactivate.length, skipped: plan.skippedOld.length, appts: rows.appointments.length, meas: rows.measurements.length });
       setStage('done');
     } catch (err) {
       setError(err);
@@ -128,14 +135,14 @@ export function ImportPage() {
         </label>
         <p class="muted small">
           O que é importado: cadastro, datas das consultas e <strong>apenas peso e altura</strong>.
-          Pacientes há mais de ${ACTIVE_DAYS} dias sem consulta (nem agendada) ficam de fora.
+          Quem está há mais de ${ACTIVE_DAYS} dias da última consulta <strong>e</strong> não tem consulta marcada fica de fora
+          (e é removido, se já estava no sistema). Se marcar consulta de novo, volta na importação seguinte.
           Nada do que você anotou no software é apagado.
         </p>
       </section>`}
 
     ${stage === 'review' && plan && html`<${Review}
       plan=${plan} existing=${existing} decisions=${decisions} setDecisions=${setDecisions}
-      removeOld=${removeOld} setRemoveOld=${setRemoveOld}
       onApply=${apply} onCancel=${() => setStage('pick')} />`}
 
     ${stage === 'importing' && html`<section class="card"><p>⏳ ${progress}</p><p class="muted small">Não feche esta página.</p></section>`}
@@ -148,6 +155,8 @@ export function ImportPage() {
           <li>${result.updated} paciente(s) atualizado(s)</li>
           ${result.skipped > 0 && html`<li>${result.skipped} paciente(s) ignorado(s) por estarem há mais de ${ACTIVE_DAYS} dias sem consulta</li>`}
           ${result.removed > 0 && html`<li>${result.removed} paciente(s) antigo(s) removido(s) do sistema</li>`}
+          ${result.inactivated > 0 && html`<li>${result.inactivated} paciente(s) antigo(s) com anotações suas marcado(s) como inativo(s)</li>`}
+          ${result.reactivated > 0 && html`<li>${result.reactivated} paciente(s) que voltou(aram) a marcar consulta reativado(s)</li>`}
           <li>${result.appts} consulta(s) do Nutrium</li>
           <li>${result.meas} medição(ões) de peso e altura</li>
         </ul>
@@ -158,7 +167,7 @@ export function ImportPage() {
       </section>`}`;
 }
 
-function Review({ plan, existing, decisions, setDecisions, removeOld, setRemoveOld, onApply, onCancel }) {
+function Review({ plan, existing, decisions, setDecisions, onApply, onCancel }) {
   const firstImport = existing.length === 0;
   const matchedIds = new Set(plan.matches.map((m) => m.existing.id));
   const skipped = new Set(plan.skippedOld);
@@ -177,17 +186,12 @@ function Review({ plan, existing, decisions, setDecisions, removeOld, setRemoveO
         <div class="stat"><div class="stat-label">Consultas</div><div class="stat-value">${nAppts}</div></div>
         <div class="stat"><div class="stat-label">Pesos e alturas</div><div class="stat-value">${nMeas}</div></div>
       </div>
-      ${plan.removable.length > 0 && html`
-        <label class="alert checkbox-line">
-          <input type="checkbox" checked=${removeOld} onChange=${(e) => setRemoveOld(e.target.checked)} />
-          <span>
-            <strong>Remover do sistema ${plan.removable.length} paciente(s) antigo(s)</strong> que já estavam cadastrados e estão
-            há mais de ${ACTIVE_DAYS} dias sem consulta. Só entram aqui pacientes sem nenhuma anotação sua
-            (sem consultas registradas, resumos ou telefone). Se voltarem a ser atendidos, entram de novo na próxima importação.
-          </span>
-        </label>`}
-      ${plan.keptOld.length > 0 && html`
-        <p class="muted small">${plan.keptOld.length} paciente(s) antigo(s) com anotações suas continuam no sistema.</p>`}
+      ${(plan.removable.length > 0 || plan.toInactivate.length > 0 || plan.toReactivate.length > 0) && html`
+        <div class="alert">
+          ${plan.removable.length > 0 && html`<div>🗑️ <strong>${plan.removable.length} paciente(s)</strong> que já estavam no sistema passaram de ${ACTIVE_DAYS} dias sem consulta e sem consulta marcada: serão <strong>removidos</strong>.</div>`}
+          ${plan.toInactivate.length > 0 && html`<div>💤 <strong>${plan.toInactivate.length} paciente(s)</strong> na mesma situação têm anotações suas: não serão apagados, ficam <strong>inativos</strong> (fora da lista) e voltam sozinhos se marcarem consulta.</div>`}
+          ${plan.toReactivate.length > 0 && html`<div>✅ <strong>${plan.toReactivate.length} paciente(s)</strong> inativo(s) marcaram consulta de novo: serão <strong>reativados</strong>.</div>`}
+        </div>`}
       ${plan.merges.length > 0 && html`
         <div class="alert">
           <strong>${plan.merges.length} paciente(s) com duas contas no Nutrium</strong> (mesmo nome e nascimento, e-mails diferentes)

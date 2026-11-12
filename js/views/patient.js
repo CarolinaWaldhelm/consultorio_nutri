@@ -250,6 +250,7 @@ function EditPatientModal({ patient, onClose, onSaved }) {
         email_primary: email,
         emails: unique([email, ...(patient.emails || [])]),
         notes: form.notes || null,
+        inactive_reason: form.status === patient.status ? patient.inactive_reason ?? null : null,
       }).eq('id', patient.id).select('*'));
       onSaved(row);
     } catch (err) {
