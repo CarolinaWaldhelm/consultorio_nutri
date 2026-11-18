@@ -265,3 +265,8 @@ textarea { resize: vertical; min-height: 44px; }
 .meter { height: 10px; background: #eef1ee; border-radius: 999px; overflow: hidden; margin: 6px 0 8px; }
 .meter > div { height: 100%; background: var(--primary); border-radius: 999px; }
 .meter > div.warn { background: var(--warn); }
+.lab-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lab-ok { color: #15803d; }
+.lab-out { color: var(--danger); }
+.labs th.ref, .labs td.ref { white-space: nowrap; }
+.lab-legend { margin-top: 8px; }

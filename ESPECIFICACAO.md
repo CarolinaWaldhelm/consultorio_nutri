@@ -275,7 +275,14 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
 - Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),
   mesmo que um exame antigo seja lançado depois; a lista de exames segue a mesma ordem. Gráficos dos que têm 2+ resultados.
-- Tabelas `lab_exams` e `lab_results`. Os exames entram no resumo pré-consulta e no quadro de insights.
+- **Valores de referência** (base geral para adultos, em `js/lib/labs.js` → `REFERENCES`; lipídios pelos alvos
+  desejáveis da SBC 2017, vitamina D pela SBPC/SBEM; faixas por sexo em TGO, TGP, GGT, creatinina, ácido úrico,
+  hemoglobina, hematócrito, ferritina e ferro). Coluna "Referência" na tabela e na revisão.
+- **Cores:** valor **verde** dentro da faixa, **vermelho com ↑ ou ↓** fora (a seta garante a leitura sem cor).
+  Fica sem cor quando não há referência, quando a faixa depende do sexo e o sexo não está no cadastro, ou quando
+  a unidade é diferente da padrão. Vale sempre a referência do laudo em caso de dúvida.
+- Tabelas `lab_exams` e `lab_results`. Os exames entram no resumo pré-consulta e no quadro de insights, com a
+  referência e a marcação "acima/abaixo da ref.".
 
 ### 3.7.1 Relatório em PDF para o paciente
 

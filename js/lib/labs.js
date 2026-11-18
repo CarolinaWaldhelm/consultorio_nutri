@@ -36,6 +36,71 @@ export const MARKERS = [
 ];
 export const MARKER = Object.fromEntries(MARKERS.map((m) => [m.key, m]));
 
+/**
+ * Valores de referência para adultos: uma BASE geral, compilada de faixas usuais de laboratórios brasileiros
+ * e de diretrizes (lipídios: SBC 2017, alvos desejáveis; vitamina D: SBPC/SBEM). Cada laboratório tem as
+ * suas faixas: em caso de dúvida, vale a do laudo. Faixas por sexo quando costumam ser diferentes.
+ * Formato: { min, max } (qualquer um pode faltar) ou { F: {...}, M: {...} }, e um aviso opcional.
+ */
+export const REFERENCES = {
+  glicemia: { min: 70, max: 99 },
+  hba1c: { max: 5.6 },
+  insulina: { min: 2.6, max: 24.9 },
+  homa_ir: { max: 2.7 },
+  colesterol_total: { max: 189 },
+  hdl: { min: 40 },
+  ldl: { max: 129, note: 'A meta de LDL depende do risco cardiovascular.' },
+  nao_hdl: { max: 159 },
+  triglicerideos: { max: 149 },
+  tgo: { F: { max: 32 }, M: { max: 40 } },
+  tgp: { F: { max: 33 }, M: { max: 41 } },
+  ggt: { F: { max: 36 }, M: { max: 61 } },
+  creatinina: { F: { min: 0.6, max: 1.1 }, M: { min: 0.7, max: 1.3 } },
+  ureia: { min: 15, max: 45 },
+  acido_urico: { F: { min: 2.4, max: 5.7 }, M: { min: 3.4, max: 7.0 } },
+  tsh: { min: 0.4, max: 4.0 },
+  t4_livre: { min: 0.9, max: 1.7 },
+  hemoglobina: { F: { min: 12.0, max: 15.5 }, M: { min: 13.5, max: 17.5 } },
+  hematocrito: { F: { min: 35, max: 45 }, M: { min: 39, max: 50 } },
+  ferritina: { F: { min: 15, max: 150 }, M: { min: 30, max: 400 } },
+  ferro: { F: { min: 50, max: 170 }, M: { min: 65, max: 175 } },
+  vitamina_d: { min: 30, max: 100, note: 'SBPC/SBEM: acima de 20 ng/mL para a população geral saudável; 30 a 60 ng/mL para grupos de risco.' },
+  vitamina_b12: { min: 200, max: 900 },
+  acido_folico: { min: 3.9 },
+  pcr: { max: 5.0, note: 'PCR ultrassensível (risco cardiovascular): abaixo de 1 baixo, 1 a 3 intermediário, acima de 3 alto.' },
+  sodio: { min: 135, max: 145 },
+  potassio: { min: 3.5, max: 5.0 },
+  calcio: { min: 8.5, max: 10.5 },
+  magnesio: { min: 1.6, max: 2.6 },
+  zinco: { min: 70, max: 120 },
+};
+
+const num = (v) => String(v).replace('.', ',');
+const rangeText = (r) => (r.min != null && r.max != null ? `${num(r.min)} a ${num(r.max)}` : r.min != null ? `≥ ${num(r.min)}` : `≤ ${num(r.max)}`);
+
+/** Faixa para o sexo do paciente. Sem sexo e com faixas diferentes: só o texto (sem cor). */
+export function referenceFor(marker, sex) {
+  const ref = REFERENCES[marker];
+  if (!ref) return null;
+  if (ref.F || ref.M) {
+    if (sex === 'F' || sex === 'M') return { ...ref[sex], note: ref.note, text: rangeText(ref[sex]) };
+    return { text: `M ${rangeText(ref.F)} · H ${rangeText(ref.M)}`, note: ref.note, bySex: true };
+  }
+  return { ...ref, text: rangeText(ref) };
+}
+
+/** 'ok' | 'low' | 'high' | null (sem referência, sem sexo definido ou unidade diferente da padrão). */
+export function referenceStatus(marker, value, unit, sex) {
+  const ref = referenceFor(marker, sex);
+  if (!ref || ref.bySex) return null;
+  const def = MARKER[marker];
+  if (def && unit && def.unit && normUnit(unit) !== normUnit(def.unit)) return null;
+  const v = Number(value);
+  if (ref.min != null && v < ref.min) return 'low';
+  if (ref.max != null && v > ref.max) return 'high';
+  return 'ok';
+}
+
 const ALIASES = MARKERS.flatMap((m) => m.aliases.map((a) => ({ alias: norm(a), m }))).sort((a, b) => b.alias.length - a.alias.length);
 const normUnit = (u) => norm(u).replace(/\s+/g, '').replace('μ', 'µ');
 
