@@ -145,6 +145,38 @@ create table if not exists public.questionnaire_responses (
 );
 create index if not exists questionnaire_responses_patient_idx on public.questionnaire_responses (patient_id, submitted_at desc);
 
+-- ---------- Exames laboratoriais ----------
+create table if not exists public.lab_exams (
+  id          uuid primary key default gen_random_uuid(),
+  patient_id  uuid not null references public.patients (id) on delete cascade,
+  date        date not null,
+  file_path   text,            -- laudo original na pasta privada "exames"
+  file_name   text,
+  notes       text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists lab_exams_patient_idx on public.lab_exams (patient_id, date desc);
+
+create table if not exists public.lab_results (
+  id          bigint generated always as identity primary key,
+  exam_id     uuid not null references public.lab_exams (id) on delete cascade,
+  patient_id  uuid not null references public.patients (id) on delete cascade,
+  date        date not null,
+  marker      text not null,   -- chave padronizada (ex.: glicemia, ldl) ou outro_<nome>
+  label       text not null,
+  value       numeric not null,
+  unit        text
+);
+create index if not exists lab_results_patient_idx on public.lab_results (patient_id, marker, date);
+
+-- Pasta privada para os laudos (PDF ou foto), até 10 MB por arquivo; só a usuária logada lê e grava.
+insert into storage.buckets (id, name, public, file_size_limit)
+  values ('exames', 'exames', false, 10485760)
+  on conflict (id) do nothing;
+drop policy if exists "dona exames" on storage.objects;
+create policy "dona exames" on storage.objects for all to authenticated
+  using (bucket_id = 'exames') with check (bucket_id = 'exames');
+
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
@@ -287,6 +319,8 @@ alter table public.app_settings enable row level security;
 alter table public.questionnaires enable row level security;
 alter table public.questionnaire_sends enable row level security;
 alter table public.questionnaire_responses enable row level security;
+alter table public.lab_exams enable row level security;
+alter table public.lab_results enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -298,6 +332,8 @@ drop policy if exists "dona" on public.app_settings;
 drop policy if exists "dona" on public.questionnaires;
 drop policy if exists "dona" on public.questionnaire_sends;
 drop policy if exists "dona" on public.questionnaire_responses;
+drop policy if exists "dona" on public.lab_exams;
+drop policy if exists "dona" on public.lab_results;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -308,10 +344,13 @@ create policy "dona" on public.app_settings         for all to authenticated usi
 create policy "dona" on public.questionnaires       for all to authenticated using (true) with check (true);
 create policy "dona" on public.questionnaire_sends  for all to authenticated using (true) with check (true);
 create policy "dona" on public.questionnaire_responses for all to authenticated using (true) with check (true);
+create policy "dona" on public.lab_exams            for all to authenticated using (true) with check (true);
+create policy "dona" on public.lab_results          for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
-  public.questionnaires, public.questionnaire_sends, public.questionnaire_responses to authenticated;
+  public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
+  public.lab_exams, public.lab_results to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

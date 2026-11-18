@@ -11,7 +11,7 @@ import { MetricChart } from './charts.js';
 export const fmtNum = (n, d = 1) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: d });
 
 /** Uma série por medida: um ponto por data (no mesmo dia vale a origem de maior prioridade). */
-function seriesOf(measurements, key) {
+export function seriesOf(measurements, key) {
   const byDate = new Map();
   for (const m of measurements) {
     if (m.metric !== key) continue;

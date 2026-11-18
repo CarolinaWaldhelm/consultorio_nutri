@@ -16,7 +16,7 @@ questionários pelo WhatsApp, medições, motor de cálculos metabólicos e apoi
 | 3 | Google Agenda e alerta de 50 dias | ✅ Pronta |
 | 4 | Questionários e WhatsApp | ✅ Pronta |
 | 5 | IA modo B (já antecipada nas Fases 1 e 2) | ✅ |
-| 6 | Exames, PDF, insights, backup | Próxima |
+| 6 | Exames, PDF, insights, backup | ✅ Pronta |
 
 ## Configuração (feita uma vez)
 

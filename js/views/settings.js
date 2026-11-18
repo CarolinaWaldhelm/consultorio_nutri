@@ -4,6 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate } from '../lib/util.js';
 import { loadAgenda, clearAgendaCache, consultationEvents, windowDays } from '../lib/agenda.js';
 import { ErrorBox, Loading } from './common.js';
+import { downloadBackup } from '../lib/backup.js';
 
 export function SettingsPage() {
   const [url, setUrl] = useState(null);
@@ -74,5 +75,45 @@ export function SettingsPage() {
                 <ul>${test.next.slice(0, 5).map((e) => html`<li>${fmtDate(e.start)} ${e.time || ''} — ${e.patientName}</li>`)}</ul>`
             : html` Nenhum evento “Consulta de nutrição – …” nos próximos 30 dias. Confira se é a agenda certa.`}
         </div>`}
+    </section>
+    <${BackupSection} />`;
+}
+
+function BackupSection() {
+  const [last, setLast] = useState(undefined);
+  const [busy, setBusy] = useState('');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    run(supabase.from('app_settings').select('*').eq('key', 'last_backup_at')).then((r) => setLast(r[0]?.value || null)).catch(() => setLast(null));
+  }, []);
+
+  async function go() {
+    setError(null);
+    setResult(null);
+    try {
+      const counts = await downloadBackup((t) => setBusy(t));
+      setResult(counts);
+      setLast(new Date().toISOString());
+    } catch (err) {
+      setError(err);
+    }
+    setBusy('');
+  }
+
+  return html`
+    <section class="card">
+      <h2 class="card-title">💾 Backup</h2>
+      <p>O plano gratuito do Supabase não guarda cópias de segurança. Baixe um backup <strong>uma vez por semana</strong>
+        e guarde o arquivo numa pasta do seu Google Drive (ou outro lugar seguro).</p>
+      <p class="muted small">Último backup: ${last === undefined ? '…' : last ? fmtDate(last.slice(0, 10)) : 'nunca'}.
+        O arquivo tem todos os dados (pacientes, consultas, medidas, cálculos, questionários e exames); os laudos anexados
+        continuam no Supabase. O endereço secreto da agenda não vai para o arquivo.</p>
+      <${ErrorBox} error=${error} />
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn btn-primary" disabled=${!!busy} onClick=${go}>${busy ? 'Preparando…' : '⬇️ Baixar backup agora'}</button>
+        ${result && html`<span class="muted small">✓ Backup baixado: ${result.patients} paciente(s), ${result.consultations} consulta(s).</span>`}
+      </div>
     </section>`;
 }

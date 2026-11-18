@@ -3,6 +3,7 @@ import { supabase, run } from '../lib/db.js';
 import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import { planSends, consultSoonIds, DEFAULT_FREQUENCY } from '../lib/questionnaires.js';
+import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 
 const ALERT_DAYS = 50;
@@ -49,8 +50,11 @@ export function Home() {
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
-      run(supabase.from('app_settings').select('*').eq('key', 'questionnaire_frequency_days')),
-    ]).then(([sends, defs, freq]) => setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(freq[0]?.value) || DEFAULT_FREQUENCY }))
+      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'last_backup_at'])),
+    ]).then(([sends, defs, sets]) => {
+      const get = (k) => sets.find((x) => x.key === k)?.value;
+      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, lastBackup: get('last_backup_at') || null });
+    })
       .catch(() => setQdata(null));
   }, []);
 
@@ -132,6 +136,12 @@ export function Home() {
         <p>Comece importando a planilha do Nutrium. Ela traz todos os pacientes, as consultas e os pesos.</p>
         <a class="btn btn-primary" href="#/importar">Importar planilha do Nutrium</a>
       </div>`}
+
+    ${!q && qdata && patients.length > 0 && (!qdata.lastBackup || daysBetween(qdata.lastBackup.slice(0, 10), today) >= BACKUP_EVERY_DAYS) && html`
+      <section class="card home-banner backup-banner">
+        <span>💾 ${qdata.lastBackup ? `Último backup em ${fmtDate(qdata.lastBackup.slice(0, 10))}.` : 'Você ainda não fez nenhum backup.'} Faça o backup semanal dos seus dados.</span>
+        <a class="btn btn-sm" href="#/config">Fazer backup</a>
+      </section>`}
 
     ${!q && toSend && (toSend.due > 0 || toSend.reminders > 0) && html`
       <section class="card home-banner">

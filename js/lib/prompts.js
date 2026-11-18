@@ -10,7 +10,7 @@ function patientLine(patient) {
 }
 
 /** Histórico em texto: anamneses (da mais antiga para a mais recente) e evolução do peso. */
-export function historyText({ patient, consultations, measurements, appointments, responses = [], questionnaires = [] }) {
+export function historyText({ patient, consultations, measurements, appointments, responses = [], questionnaires = [], labResults = [] }) {
   const out = [];
   const today = todayISO();
   const chronological = [...consultations].sort((a, b) => a.date.localeCompare(b.date));
@@ -55,6 +55,7 @@ export function historyText({ patient, consultations, measurements, appointments
       }
     }
   }
+  if (labResults.length) out.push('', labsText(labResults));
   const height = measurements.filter((m) => m.metric === 'altura').sort((a, b) => b.date.localeCompare(a.date))[0];
   if (height) out.push(`ALTURA: ${height.value} cm`);
   return out.join('\n');
@@ -84,6 +85,36 @@ Cite a data da consulta de onde tirou a informação. Se a informação não est
 PERGUNTA: ${question}
 
 ------ HISTÓRICO ------
+${historyText(data)}`;
+}
+
+/** Exames: os 3 registros mais recentes de cada biomarcador. */
+function labsText(labResults) {
+  const by = new Map();
+  for (const r of [...labResults].sort((a, b) => b.date.localeCompare(a.date))) {
+    if (!by.has(r.label)) by.set(r.label, []);
+    if (by.get(r.label).length < 3) by.get(r.label).push(`${fmtDate(r.date)}: ${String(r.value).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}`);
+  }
+  return ['EXAMES LABORATORIAIS (até 3 resultados mais recentes de cada):', ...[...by].map(([l, v]) => `${l}: ${v.join(' | ')}`)].join('\n');
+}
+
+/** Quadro de insights: condutas baseadas em evidência para o perfil do paciente. */
+export function insightsPrompt(data) {
+  return `Você é assistente de uma nutricionista clínica. Com base no perfil e no histórico do paciente abaixo,
+monte um QUADRO DE INSIGHTS para apoiar a decisão dela, em português:
+
+1. **Pontos do perfil que pedem atenção** (doenças, medicações, exames alterados, sintomas, hábitos).
+2. **Condutas nutricionais sugeridas**, em tópicos curtos. Para cada uma, indique a **força da evidência**
+   (diretriz, metanálise, ensaio clínico, consenso) e a **fonte com link** (PubMed, SciELO, diretrizes de
+   SBD, ABESO, SBC, ADA, ESPEN, OMS etc.).
+3. **Interações ou cuidados** com medicações e suplementos citados.
+4. **Exames que valeria acompanhar** e com que frequência.
+5. **Perguntas para investigar** na próxima consulta.
+
+Regras: use apenas fontes reais e verificáveis. Se não tiver certeza de um link, escreva "buscar no PubMed: <termos>"
+em vez de inventar. Não faça prescrição fechada: são sugestões para a nutricionista avaliar.
+
+------ PERFIL E HISTÓRICO ------
 ${historyText(data)}`;
 }
 

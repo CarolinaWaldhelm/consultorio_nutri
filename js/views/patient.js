@@ -12,6 +12,8 @@ import { copyText } from '../lib/prompts.js';
 import { BodyCard, MeasurementModal } from './body.js';
 import { CalcCard } from './calc.js';
 import { QuestionnaireCard } from './patientq.js';
+import { LabsCard } from './labs.js';
+import { ReportModal } from './report.js';
 
 export function PatientPage({ id }) {
   const [data, setData] = useState(null);
@@ -20,10 +22,11 @@ export function PatientPage({ id }) {
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   async function load() {
     try {
-      const [patient, consultations, appointments, measurements, calculations, settingsRows, responses, sends, questionnaires] = await Promise.all([
+      const [patient, consultations, appointments, measurements, calculations, settingsRows, responses, sends, questionnaires, labExams, labResults] = await Promise.all([
         run(supabase.from('patients').select('*').eq('id', id).single()),
         run(supabase.from('consultations').select('*').eq('patient_id', id).order('date', { ascending: false }).order('created_at', { ascending: false })),
         run(supabase.from('nutrium_appointments').select('*').eq('patient_id', id).order('date', { ascending: false })),
@@ -33,9 +36,11 @@ export function PatientPage({ id }) {
         run(supabase.from('questionnaire_responses').select('*').eq('patient_id', id).order('submitted_at', { ascending: false })),
         run(supabase.from('questionnaire_sends').select('*').eq('patient_id', id).order('created_at', { ascending: false })),
         run(supabase.from('questionnaires').select('*')),
+        run(supabase.from('lab_exams').select('*').eq('patient_id', id).order('date', { ascending: false })),
+        run(supabase.from('lab_results').select('*').eq('patient_id', id).order('date', { ascending: false })),
       ]);
       const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
-      setData({ patient, consultations, appointments, measurements, calculations, settings, responses, sends, questionnaires });
+      setData({ patient, consultations, appointments, measurements, calculations, settings, responses, sends, questionnaires, labExams, labResults });
     } catch (err) {
       setError(err);
     }
@@ -112,6 +117,7 @@ export function PatientPage({ id }) {
         copyDate=${noteDates.includes(today) ? today : noteDates[0]}
         onCopyDay=${copyDay}
         onEdit=${() => setEditing(true)}
+        onReport=${() => setReporting(true)}
       />
       <${SummaryCard} data=${data} />
       <${BodyCard}
@@ -139,6 +145,7 @@ export function PatientPage({ id }) {
         onToggle=${(v) => setData((d) => ({ ...d, patient: { ...d.patient, questionnaires_active: v } }))}
       />
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
+      <${LabsCard} patientId=${id} exams=${data.labExams} results=${data.labResults} onChanged=${load} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
     </div>
 
@@ -154,6 +161,8 @@ export function PatientPage({ id }) {
         onDeleted=${(cid) => { setOpenId(null); setData((d) => ({ ...d, consultations: d.consultations.filter((c) => c.id !== cid) })); }}
         onClose=${() => setOpenId(null)}
       />`}
+
+    ${reporting && html`<${ReportModal} data=${data} onClose=${() => setReporting(false)} />`}
 
     ${measuring && html`
       <${MeasurementModal}
@@ -185,7 +194,7 @@ export function PatientPage({ id }) {
       />`}`;
 }
 
-function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onPast, onOpenNotes, onEdit, copyDate, onCopyDay }) {
+function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onPast, onOpenNotes, onEdit, copyDate, onCopyDay, onReport }) {
   const [copied, setCopied] = useState(false);
   const age = ageFrom(patient.birth_date);
   return html`
@@ -222,6 +231,7 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onP
             ${copied ? '✓ Copiado! Cole no Nutrium' : `📋 Copiar anotações de ${copyDate === todayISO() ? 'hoje' : fmtDate(copyDate)}`}
           </button>`}
         ${hasConsultations && html`<button class="btn" onClick=${onOpenNotes}>📋 Painel de anotações</button>`}
+        <button class="btn" onClick=${onReport}>🖨️ Relatório em PDF</button>
         <button class="btn btn-ghost" onClick=${onEdit}>✏️ Editar cadastro</button>
       </div>
     </section>`;

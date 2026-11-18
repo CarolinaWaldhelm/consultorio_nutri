@@ -265,9 +265,21 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 
 ### 3.7 Exames laboratoriais (final da ficha)
 
-- `[📄 Anexar exame (PDF ou foto)]` → modo B → revisão → salvar. O arquivo original fica anexado.
-- Biomarcadores com unidade padronizada e data do exame.
-- Tabela histórica e um gráfico de linha por biomarcador.
+- `[📄 Anexar exame]`: laudo opcional (PDF ou foto, até 10 MB; fotos grandes são reduzidas) → `[Copiar instruções
+  para a IA]` → ela cola na IA com o laudo → cola a resposta ("Nome: valor unidade", "Data: DD/MM/AAAA") →
+  **revisão** (corrige, apaga, acrescenta) → salvar.
+- Lista padrão de ~30 biomarcadores com unidade padrão (glicemia, HbA1c, insulina, perfil lipídico, TGO/TGP/GGT,
+  creatinina, ureia, ácido úrico, TSH/T4L, hemograma básico, ferritina, ferro, vitamina D, B12, ácido fólico, PCR,
+  eletrólitos, zinco). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e triglicerídeos;
+  nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
+- Laudo guardado na pasta privada `exames` do Supabase (só a usuária logada abre, por link temporário).
+- Tabela com um biomarcador por linha e as 6 datas mais recentes nas colunas; gráficos dos que têm 2+ resultados.
+- Tabelas `lab_exams` e `lab_results`. Os exames entram no resumo pré-consulta e no quadro de insights.
+
+### 3.7.1 Relatório em PDF para o paciente
+
+- `[🖨️ Relatório em PDF]` na ficha: escolhe as partes (composição corporal, exames, questionários), uma mensagem
+  opcional e abre a impressão do navegador ("Salvar como PDF"). A página tem só o relatório, em A4.
 
 ### 3.8 Histórico de anamneses
 
@@ -275,10 +287,11 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 
 ### 3.9 Quadro de insights (IA, modo B)
 
-- Monta o pedido com o perfil do paciente (doenças, medicações, objetivo, sexo e idade, sem dados pessoais)
-  pedindo condutas baseadas em evidência, **com o link de cada fonte** (PubMed, diretrizes).
+- Botão `[📚 Copiar pedido de insights]`, no mesmo cartão do resumo pré-consulta. Mesmo histórico, sem dados
+  pessoais, pedindo: pontos de atenção, condutas sugeridas com força da evidência e **fonte com link**, interações
+  com medicações e suplementos, exames para acompanhar e perguntas para a próxima consulta.
+- A IA é instruída a não inventar referências ("buscar no PubMed: termos" quando não tiver certeza).
 - É apoio à decisão e não substitui a conduta da nutricionista.
-- *Detalhes a definir mais adiante.*
 
 ---
 
@@ -461,7 +474,7 @@ leitura de exames, relatório de evolução e quadro de insights.
 | Agenda | Endereço secreto iCal do Google Agenda | Gratuito, sem Google Cloud |
 | WhatsApp | links `wa.me` | Gratuito |
 | IA | modo B (assinatura que ela já tem) | Sem custo extra |
-| Backup | cópia semanal da base, salva no Google Drive da nutricionista + botão `[Baixar backup]` | O plano gratuito do Supabase não faz backup |
+| Backup | botão `[⬇️ Baixar backup agora]` em Configurações (arquivo .json com todas as tabelas, sem o endereço secreto da agenda) + aviso semanal na tela inicial | O plano gratuito do Supabase não faz backup. A cópia automática no Google Drive exigiria Google Cloud (fora, por decisão de custo zero/simplicidade): ela guarda o arquivo numa pasta do Drive |
 
 ---
 
