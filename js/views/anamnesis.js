@@ -27,8 +27,8 @@ export const FIELDS = {
     ['sono', 'Relato de sono'],
     ['atividade_fisica', 'Relato de atividade física', 'Sempre preencher: o motor de cálculos usa o relato mais recente.'],
     ['@objetivo'],
-    ['combinados', 'Combinados / Conduta', 'O que foi alinhado com o paciente: metas, orientações.'],
     ['adesao_plano', 'Adesão ao plano do último mês', 'O que o paciente conseguiu seguir, as dificuldades e o balanço do mês em relação à conduta combinada.'],
+    ['combinados', 'Combinados / Conduta', 'O que foi alinhado com o paciente: metas, orientações.'],
   ],
 };
 

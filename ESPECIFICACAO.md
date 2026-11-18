@@ -110,9 +110,9 @@ apagada automaticamente (não fica vazia no histórico).
 4. Relato de atividade física: sempre preenchido. **É o texto que o motor de cálculos usa**
    (vale o da anamnese mais recente).
 5. Objetivo: mantém o anterior ou altera a seleção.
-6. **Combinados / Conduta**
-7. **Adesão ao plano do último mês:** o que o paciente conseguiu seguir, as dificuldades e o balanço do mês em
+6. **Adesão ao plano do último mês:** o que o paciente conseguiu seguir, as dificuldades e o balanço do mês em
    relação à conduta combinada. Só existe no retorno.
+7. **Combinados / Conduta**
 
 **C. Copiar anotações do dia (para o Nutrium)**
 
