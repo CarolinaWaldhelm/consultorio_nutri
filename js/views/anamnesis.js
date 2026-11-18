@@ -22,12 +22,13 @@ export const FIELDS = {
     ['combinados', 'Combinados / Conduta', 'O que foi alinhado com o paciente: metas, orientações.'],
   ],
   retorno: [
+    ['resumo_mes', 'Resumo do mês', 'Como foi o período: mudanças de medicação, novas doenças, acontecimentos. Alimenta o resumo pré-consulta.'],
     ['intestino_agua', 'Relato sobre intestino e água'],
     ['sono', 'Relato de sono'],
     ['atividade_fisica', 'Relato de atividade física', 'Sempre preencher: o motor de cálculos usa o relato mais recente.'],
     ['@objetivo'],
     ['combinados', 'Combinados / Conduta', 'O que foi alinhado com o paciente: metas, orientações.'],
-    ['resumo_mes', 'Resumo do mês', 'Inclua mudanças de medicação, novas doenças e adesão ao plano. Alimenta o resumo pré-consulta.'],
+    ['adesao_plano', 'Adesão ao plano do último mês', 'O que o paciente conseguiu seguir, as dificuldades e o balanço do mês em relação à conduta combinada.'],
   ],
 };
 
@@ -44,10 +45,11 @@ export function ObjectivePicker({ value, onChange }) {
     </div>`;
 }
 
-export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved, onDeleted, onClose, onNew }) {
+export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved, onDeleted, onClose, onNew, onCopyDay }) {
   const [c, setC] = useState(consultation);
   const [status, setStatus] = useState('saved'); // saved | dirty | saving | error
   const [savedAt, setSavedAt] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
   const pending = useRef(null);
   const timer = useRef(null);
@@ -176,6 +178,10 @@ export function AnamnesisDrawer({ consultation, patientName, otherDates, onSaved
         <div class="drawer-foot">
           <button class="btn btn-primary" onClick=${async () => { await saveNow(); close(); }}>💾 Salvar e fechar</button>
           <button class="btn" onClick=${newOne}>➕ Outra consulta</button>
+          <button class="btn" title="Anamnese, medidas e cálculo deste dia num texto só"
+            onClick=${async () => { if (pending.current) await save(pending.current); if (await onCopyDay(c.date, c)) { setCopied(true); setTimeout(() => setCopied(false), 3000); } }}>
+            ${copied ? '✓ Copiado!' : '📋 Copiar para o Nutrium'}
+          </button>
           <span class="spacer"></span>
           <button class="btn btn-sm btn-danger-ghost" onClick=${remove}>Apagar consulta</button>
         </div>

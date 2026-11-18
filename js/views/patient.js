@@ -7,6 +7,8 @@ import {
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
 import { SummaryCard } from './summary.js';
+import { dayNotesText, datesWithNotes } from '../lib/daynotes.js';
+import { copyText } from '../lib/prompts.js';
 import { BodyCard, MeasurementModal } from './body.js';
 import { CalcCard } from './calc.js';
 import { QuestionnaireCard } from './patientq.js';
@@ -80,6 +82,16 @@ export function PatientPage({ id }) {
 
   const startConsultation = () => createConsultation(today, typeFor(today));
 
+  // Copia tudo o que foi anotado numa data (consulta, medidas, cálculo) para colar no Nutrium.
+  const noteDates = datesWithNotes(data);
+  async function copyDay(date, current) {
+    const d = current ? { ...data, consultations: data.consultations.map((c) => (c.id === current.id ? current : c)) } : data;
+    const text = dayNotesText(d, date);
+    if (await copyText(text)) return true;
+    window.prompt('Não consegui copiar sozinho. Copie o texto abaixo (Ctrl+C):', text);
+    return false;
+  }
+
   const replaceConsultation = (next) => setData((d) => ({
     ...d,
     consultations: d.consultations.map((c) => (c.id === next.id ? next : c))
@@ -97,6 +109,8 @@ export function PatientPage({ id }) {
         onStart=${startConsultation}
         onPast=${() => { setOpenId(null); setCreating(true); }}
         onOpenNotes=${() => setOpenId(consultations[0]?.id)}
+        copyDate=${noteDates.includes(today) ? today : noteDates[0]}
+        onCopyDay=${copyDay}
         onEdit=${() => setEditing(true)}
       />
       <${SummaryCard} data=${data} />
@@ -135,6 +149,7 @@ export function PatientPage({ id }) {
         patientName=${patient.name}
         otherDates=${consultations.filter((c) => c.id !== open.id).map((c) => c.date)}
         onNew=${() => { setOpenId(null); setCreating(true); }}
+        onCopyDay=${copyDay}
         onSaved=${replaceConsultation}
         onDeleted=${(cid) => { setOpenId(null); setData((d) => ({ ...d, consultations: d.consultations.filter((c) => c.id !== cid) })); }}
         onClose=${() => setOpenId(null)}
@@ -170,7 +185,8 @@ export function PatientPage({ id }) {
       />`}`;
 }
 
-function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onPast, onOpenNotes, onEdit }) {
+function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onPast, onOpenNotes, onEdit, copyDate, onCopyDay }) {
+  const [copied, setCopied] = useState(false);
   const age = ageFrom(patient.birth_date);
   return html`
     <section class="card patient-head">
@@ -200,6 +216,11 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onP
       <div class="patient-actions">
         <button class="btn btn-primary" onClick=${onStart}>▶ Iniciar consulta de hoje</button>
         <button class="btn" onClick=${onPast}>➕ Registrar consulta em outra data</button>
+        ${copyDate && html`
+          <button class="btn" title="Anamnese, medidas e cálculo do dia num texto só, para colar no Nutrium"
+            onClick=${async () => { if (await onCopyDay(copyDate)) { setCopied(true); setTimeout(() => setCopied(false), 3000); } }}>
+            ${copied ? '✓ Copiado! Cole no Nutrium' : `📋 Copiar anotações de ${copyDate === todayISO() ? 'hoje' : fmtDate(copyDate)}`}
+          </button>`}
         ${hasConsultations && html`<button class="btn" onClick=${onOpenNotes}>📋 Painel de anotações</button>`}
         <button class="btn btn-ghost" onClick=${onEdit}>✏️ Editar cadastro</button>
       </div>

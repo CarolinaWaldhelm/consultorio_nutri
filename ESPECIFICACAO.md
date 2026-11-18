@@ -101,16 +101,26 @@ apagada automaticamente (não fica vazia no histórico).
 12. Observações sobre exames iniciais (os valores entram na seção de exames, §3.7)
 13. **Combinados / Conduta:** o que foi alinhado com o paciente (metas, orientações)
 
-**B. Anamnese de retorno**
+**B. Anamnese de retorno** (nesta ordem)
 
-1. Relato sobre intestino e água
-2. Relato de sono
-3. Relato de atividade física: sempre preenchido. **É o texto que o motor de cálculos usa**
+1. **Resumo do mês:** escrito pela nutricionista. Como foi o período: mudanças de medicação, novas doenças,
+   acontecimentos. Alimenta o resumo pré-consulta.
+2. Relato sobre intestino e água
+3. Relato de sono
+4. Relato de atividade física: sempre preenchido. **É o texto que o motor de cálculos usa**
    (vale o da anamnese mais recente).
-4. Objetivo: mantém o anterior ou altera a seleção.
-5. **Combinados / Conduta**
-6. **Resumo do mês:** escrito pela nutricionista, no final. Inclui mudanças de medicação, novas doenças
-   e adesão ao plano (não há campos separados para isso). Alimenta o resumo pré-consulta.
+5. Objetivo: mantém o anterior ou altera a seleção.
+6. **Combinados / Conduta**
+7. **Adesão ao plano do último mês:** o que o paciente conseguiu seguir, as dificuldades e o balanço do mês em
+   relação à conduta combinada. Só existe no retorno.
+
+**C. Copiar anotações do dia (para o Nutrium)**
+
+- Botão na ficha (`[📋 Copiar anotações de hoje]`, ou da data mais recente com anotações) e no painel
+  (`[📋 Copiar para o Nutrium]`, da data da consulta aberta).
+- Junta num texto só: tipo e data da consulta, objetivo, todos os campos preenchidos da anamnese, as medidas
+  registradas no dia (com a diferença para o registro anterior) e o último cálculo salvo no dia (dados, TMB,
+  fator, GET, meta e macros). Inclui o nome do paciente: é só para colar no Nutrium, não vai para a IA.
 
 ### 3.3 Resumo pré-consulta (IA, modo B)
 
