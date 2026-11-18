@@ -265,15 +265,16 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 
 ### 3.7 Exames laboratoriais (final da ficha)
 
-- `[📄 Anexar exame]`: laudo opcional (PDF ou foto, até 10 MB; fotos grandes são reduzidas) → `[Copiar instruções
-  para a IA]` → ela cola na IA com o laudo → cola a resposta ("Nome: valor unidade", "Data: DD/MM/AAAA") →
-  **revisão** (corrige, apaga, acrescenta) → salvar.
+- `[📄 Registrar exame]`: `[Copiar instruções para a IA]` → ela cola na IA e anexa o laudo **lá na IA** → cola a
+  resposta ("Nome: valor unidade", "Data: DD/MM/AAAA") → **revisão** (corrige, apaga, acrescenta) → salvar.
+- **O arquivo do laudo não é guardado** (decisão da nutricionista). Fica guardada a resposta da IA (coluna `notes`),
+  com o botão "Ver resposta da IA".
 - Lista padrão de ~30 biomarcadores com unidade padrão (glicemia, HbA1c, insulina, perfil lipídico, TGO/TGP/GGT,
   creatinina, ureia, ácido úrico, TSH/T4L, hemograma básico, ferritina, ferro, vitamina D, B12, ácido fólico, PCR,
   eletrólitos, zinco). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e triglicerídeos;
   nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
-- Laudo guardado na pasta privada `exames` do Supabase (só a usuária logada abre, por link temporário).
-- Tabela com um biomarcador por linha e as 6 datas mais recentes nas colunas; gráficos dos que têm 2+ resultados.
+- Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),
+  mesmo que um exame antigo seja lançado depois; a lista de exames segue a mesma ordem. Gráficos dos que têm 2+ resultados.
 - Tabelas `lab_exams` e `lab_results`. Os exames entram no resumo pré-consulta e no quadro de insights.
 
 ### 3.7.1 Relatório em PDF para o paciente
@@ -468,7 +469,7 @@ leitura de exames, relatório de evolução e quadro de insights.
 
 | Parte | Serviço | Observação |
 |---|---|---|
-| Banco de dados, login e arquivos | Supabase (plano gratuito) — **única conta nova** | 500 MB de dados, 1 GB de arquivos (imagens comprimidas). Pausa após 7 dias sem uso |
+| Banco de dados e login | Supabase (plano gratuito) — **única conta nova** | 500 MB de banco (o sistema guarda só texto; nenhum arquivo). Pausa após 7 dias sem uso. O uso aparece em ⚙️ Configurações → "Espaço usado" (função `db_usage()`) |
 | Site | GitHub Pages (gratuito) | Exige repositório público (só o código). Atualiza sozinho a cada mudança |
 | Código | GitHub (repositório `consultorio_nutri`, em outra conta) | Versão de tudo e histórico de mudanças |
 | Agenda | Endereço secreto iCal do Google Agenda | Gratuito, sem Google Cloud |

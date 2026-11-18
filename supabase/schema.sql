@@ -150,9 +150,9 @@ create table if not exists public.lab_exams (
   id          uuid primary key default gen_random_uuid(),
   patient_id  uuid not null references public.patients (id) on delete cascade,
   date        date not null,
-  file_path   text,            -- laudo original na pasta privada "exames"
+  file_path   text,            -- (não usado: os laudos não são guardados)
   file_name   text,
-  notes       text,
+  notes       text,            -- resposta da IA colada pela nutricionista
   created_at  timestamptz not null default now()
 );
 create index if not exists lab_exams_patient_idx on public.lab_exams (patient_id, date desc);
@@ -168,14 +168,6 @@ create table if not exists public.lab_results (
   unit        text
 );
 create index if not exists lab_results_patient_idx on public.lab_results (patient_id, marker, date);
-
--- Pasta privada para os laudos (PDF ou foto), até 10 MB por arquivo; só a usuária logada lê e grava.
-insert into storage.buckets (id, name, public, file_size_limit)
-  values ('exames', 'exames', false, 10485760)
-  on conflict (id) do nothing;
-drop policy if exists "dona exames" on storage.objects;
-create policy "dona exames" on storage.objects for all to authenticated
-  using (bucket_id = 'exames') with check (bucket_id = 'exames');
 
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
@@ -307,6 +299,24 @@ revoke all on function public.get_questionnaire(text) from public;
 revoke all on function public.submit_questionnaire(text, jsonb) from public;
 grant execute on function public.get_questionnaire(text) to anon, authenticated;
 grant execute on function public.submit_questionnaire(text, jsonb) to anon, authenticated;
+
+-- ---------- Espaço usado (para acompanhar o limite do plano gratuito) ----------
+create or replace function public.db_usage() returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.role() is distinct from 'authenticated' then
+    raise exception 'Acesso negado';
+  end if;
+  return jsonb_build_object(
+    'db_bytes', pg_database_size(current_database()),
+    'data_bytes', (select coalesce(sum(pg_total_relation_size(c.oid)), 0)
+                     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = 'public' and c.relkind = 'r'),
+    'patients', (select count(*) from public.patients)
+  );
+end $$;
+revoke all on function public.db_usage() from public, anon;
+grant execute on function public.db_usage() to authenticated;
 
 -- ---------- Acesso: só usuária logada ----------
 alter table public.patients             enable row level security;

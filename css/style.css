@@ -262,3 +262,6 @@ textarea { resize: vertical; min-height: 44px; }
 .lab-review td:nth-child(2) { width: 110px; }
 .lab-review td:nth-child(3) { width: 110px; }
 .backup-banner { background: var(--warn-soft); }
+.meter { height: 10px; background: #eef1ee; border-radius: 999px; overflow: hidden; margin: 6px 0 8px; }
+.meter > div { height: 100%; background: var(--primary); border-radius: 999px; }
+.meter > div.warn { background: var(--warn); }

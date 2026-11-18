@@ -76,6 +76,7 @@ export function SettingsPage() {
             : html` Nenhum evento “Consulta de nutrição – …” nos próximos 30 dias. Confira se é a agenda certa.`}
         </div>`}
     </section>
+    <${StorageSection} />
     <${BackupSection} />`;
 }
 
@@ -115,5 +116,28 @@ function BackupSection() {
         <button class="btn btn-primary" disabled=${!!busy} onClick=${go}>${busy ? 'Preparando…' : '⬇️ Baixar backup agora'}</button>
         ${result && html`<span class="muted small">✓ Backup baixado: ${result.patients} paciente(s), ${result.consultations} consulta(s).</span>`}
       </div>
+    </section>`;
+}
+
+const LIMIT_MB = 500; // banco de dados do plano gratuito do Supabase
+const mb = (b) => (b / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+
+function StorageSection() {
+  const [u, setU] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    supabase.rpc('db_usage').then(({ data, error: err }) => (err ? setError(err) : setU(data)));
+  }, []);
+  const pct = u ? Math.min(100, (u.db_bytes / (LIMIT_MB * 1024 * 1024)) * 100) : 0;
+  return html`
+    <section class="card">
+      <h2 class="card-title">📦 Espaço usado</h2>
+      <${ErrorBox} error=${error} />
+      ${!u && !error && html`<p class="muted">Calculando…</p>`}
+      ${u && html`
+        <p><strong>${mb(u.db_bytes)} MB</strong> de ${LIMIT_MB} MB do plano gratuito (${pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%).</p>
+        <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow=${Math.round(pct)}><div style=${`width:${Math.max(pct, 1)}%`} class=${pct > 80 ? 'warn' : ''}></div></div>
+        <p class="muted small">Os seus dados (${u.patients} paciente(s)) ocupam ${mb(u.data_bytes)} MB; o restante é a estrutura fixa do próprio banco.
+          Texto ocupa pouquíssimo espaço: cada paciente acompanhado por um ano usa cerca de 0,2 a 0,5 MB.</p>`}
     </section>`;
 }

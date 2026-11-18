@@ -1,4 +1,5 @@
-// Ficha do paciente: exames laboratoriais (anexar laudo, leitura pela IA no modo B, revisão, histórico e gráficos).
+// Ficha do paciente: exames laboratoriais (leitura pela IA no modo B, revisão, histórico e gráficos).
+// Só a resposta da IA é guardada (sem o arquivo do laudo).
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
@@ -7,29 +8,19 @@ import { copyText } from '../lib/prompts.js';
 import { Modal, ErrorBox, AutoText } from './common.js';
 import { MetricChart } from './charts.js';
 
-const BUCKET = 'exames';
-const MAX_BYTES = 10 * 1024 * 1024;
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const markerOrder = (k) => { const i = MARKERS.findIndex((m) => m.key === k); return i < 0 ? 999 : i; };
-
-/** Fotos grandes são reduzidas (máx. 1800 px, JPEG) para caber no espaço gratuito. */
-async function compressImage(file) {
-  if (!file.type.startsWith('image/') || file.size < 600 * 1024) return file;
-  const img = await createImageBitmap(file);
-  const scale = Math.min(1, 1800 / Math.max(img.width, img.height));
-  const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * scale), height: Math.round(img.height * scale) });
-  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.82));
-  return blob ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
-}
 
 export function LabsCard({ patientId, exams, results, onChanged }) {
   const [adding, setAdding] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
+  const [viewing, setViewing] = useState(null);
 
-  // Tabela: um biomarcador por linha, as datas (mais recentes primeiro) nas colunas.
-  const dates = useMemo(() => [...new Set(results.map((r) => r.date))].sort().reverse(), [results]);
-  const shownDates = dates.slice(0, 6);
+  // Tabela: um biomarcador por linha e as datas em ordem cronológica nas colunas (as 6 mais recentes),
+  // pela data da coleta, mesmo que um exame antigo seja lançado depois.
+  const dates = useMemo(() => [...new Set(results.map((r) => r.date))].sort(), [results]);
+  const shownDates = dates.slice(-6);
+  const examsByDate = [...exams].sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at));
   const rows = useMemo(() => {
     const m = new Map();
     for (const r of results) {
@@ -41,15 +32,8 @@ export function LabsCard({ patientId, exams, results, onChanged }) {
   const series = rows.map((r) => ({ ...r, points: Object.values(r.byDate).sort((a, b) => a.date.localeCompare(b.date)).map((x) => ({ date: x.date, value: Number(x.value) })) }))
     .filter((r) => r.points.length >= 2);
 
-  async function openFile(exam) {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(exam.file_path, 120);
-    if (error) { alert('Não foi possível abrir o arquivo: ' + error.message); return; }
-    window.open(data.signedUrl, '_blank');
-  }
-
   async function removeExam(exam) {
     if (!confirm(`Apagar o exame de ${fmtDate(exam.date)} e todos os resultados dele?`)) return;
-    if (exam.file_path) await supabase.storage.from(BUCKET).remove([exam.file_path]);
     await run(supabase.from('lab_exams').delete().eq('id', exam.id));
     onChanged();
   }
@@ -58,7 +42,7 @@ export function LabsCard({ patientId, exams, results, onChanged }) {
     <section class="card" id="exames">
       <div class="card-title-row">
         <h2 class="card-title">🧪 Exames laboratoriais</h2>
-        <button class="btn btn-primary btn-sm" onClick=${() => setAdding(true)}>📄 Anexar exame</button>
+        <button class="btn btn-primary btn-sm" onClick=${() => setAdding(true)}>📄 Registrar exame</button>
       </div>
       ${!exams.length && html`<p class="muted">Nenhum exame registrado.</p>`}
       ${rows.length > 0 && html`
@@ -74,14 +58,14 @@ export function LabsCard({ patientId, exams, results, onChanged }) {
             </tbody>
           </table>
         </div>
-        ${dates.length > shownDates.length && html`<p class="muted small">Mostrando as 6 datas mais recentes de ${dates.length}.</p>`}`}
+        ${dates.length > shownDates.length && html`<p class="muted small">Mostrando as 6 coletas mais recentes de ${dates.length}.</p>`}`}
       ${exams.length > 0 && html`
         <div class="exam-list">
-          ${exams.map((e) => html`
+          ${examsByDate.map((e) => html`
             <div class="exam-item">
               <span><strong>${fmtDate(e.date)}</strong> <span class="muted small">· ${results.filter((r) => r.exam_id === e.id).length} resultado(s)</span></span>
               <span class="row-actions">
-                ${e.file_path && html`<button class="btn btn-sm" onClick=${() => openFile(e)}>📎 Ver laudo</button>`}
+                ${e.notes && html`<button class="btn btn-sm" onClick=${() => setViewing(e)}>📄 Ver resposta da IA</button>`}
                 <button class="btn btn-sm btn-danger-ghost" onClick=${() => removeExam(e)}>Apagar</button>
               </span>
             </div>`)}
@@ -90,11 +74,11 @@ export function LabsCard({ patientId, exams, results, onChanged }) {
         <button class="btn btn-sm btn-ghost" onClick=${() => setShowCharts(!showCharts)}>${showCharts ? '▾' : '▸'} Gráficos de evolução (${series.length})</button>
         ${showCharts && html`<div class="charts">${series.map((s) => html`<${MetricChart} key=${s.marker} label=${s.label} unit=${s.unit || ''} points=${s.points} />`)}</div>`}`}
     </section>
+    ${viewing && html`<${Modal} title=${`Exame de ${fmtDate(viewing.date)} · resposta da IA`} onClose=${() => setViewing(null)}><div class="qa-a">${viewing.notes}</div><//>`}
     ${adding && html`<${LabModal} patientId=${patientId} onClose=${() => setAdding(false)} onSaved=${() => { setAdding(false); onChanged(); }} />`}`;
 }
 
 function LabModal({ patientId, onClose, onSaved }) {
-  const [file, setFile] = useState(null);
   const [text, setText] = useState('');
   const [date, setDate] = useState(todayISO());
   const [rows, setRows] = useState(null);
@@ -119,21 +103,9 @@ function LabModal({ patientId, onClose, onSaved }) {
   async function save() {
     setError(null);
     if (!valid.length) return setError(new Error('Nenhum resultado para salvar.'));
-    if (file && file.size > MAX_BYTES * 2) return setError(new Error('Arquivo grande demais (máximo 10 MB).'));
     setBusy(true);
     try {
-      let file_path = null;
-      let file_name = null;
-      if (file) {
-        const f = await compressImage(file);
-        if (f.size > MAX_BYTES) throw new Error('Arquivo grande demais (máximo 10 MB). Tente uma foto menor ou o PDF.');
-        const ext = (f.name.match(/\.(\w+)$/)?.[1] || 'bin').toLowerCase();
-        file_path = `${patientId}/${date}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-        file_name = file.name;
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(file_path, f, { contentType: f.type || undefined });
-        if (upErr) throw upErr;
-      }
-      const [exam] = await run(supabase.from('lab_exams').insert({ patient_id: patientId, date, file_path, file_name }).select('*'));
+      const [exam] = await run(supabase.from('lab_exams').insert({ patient_id: patientId, date, notes: text.trim().slice(0, 20000) || null }).select('*'));
       await run(supabase.from('lab_results').insert(valid.map((r) => {
         const def = findMarker(r.label);
         return {
@@ -152,15 +124,11 @@ function LabModal({ patientId, onClose, onSaved }) {
   }
 
   return html`
-    <${Modal} title="Anexar exame laboratorial" onClose=${onClose} wide>
+    <${Modal} title="Registrar exame laboratorial" onClose=${onClose} wide>
       ${!rows && html`
         <ol class="steps">
-          <li>
-            <strong>Laudo (opcional):</strong> escolha o PDF ou a foto para guardar junto.
-            <input type="file" accept="application/pdf,image/*" style="margin-top:6px" onChange=${(e) => setFile(e.target.files[0] || null)} />
-          </li>
           <li><button class="btn btn-sm" onClick=${copy}>${copied === 'ok' ? '✓ Copiado!' : '📋 Copiar instruções para a IA'}</button>
-            Cole na IA que você usa e <strong>anexe o mesmo laudo</strong>.</li>
+            Cole na IA que você usa e <strong>anexe o laudo</strong> (PDF ou foto) lá na IA.</li>
           <li>Copie a resposta da IA e cole abaixo. (Também dá para digitar: “Glicemia de jejum: 92”.)</li>
         </ol>
         ${copied && copied !== 'ok' && html`<textarea rows="5" readonly value=${copied} onFocus=${(e) => e.target.select()}></textarea>`}
@@ -191,7 +159,6 @@ function LabModal({ patientId, onClose, onSaved }) {
         </table>
         <datalist id="lab-markers">${MARKERS.map((m) => html`<option value=${m.label} />`)}</datalist>
         <button class="btn btn-sm btn-ghost" onClick=${() => setRows([...rows, { label: '', value: '', unit: '' }])}>+ resultado</button>
-        ${file && html`<p class="muted small">Laudo anexado: ${file.name}</p>`}
         <${ErrorBox} error=${error} />
         <div class="actions">
           <button class="btn btn-ghost" onClick=${() => setRows(null)}>← Voltar</button>
