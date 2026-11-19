@@ -1,6 +1,22 @@
-import { html, useEffect } from '../lib/preact.js';
+import { html, render, useEffect, useLayoutEffect, useRef } from '../lib/preact.js';
 
-export function Modal({ title, onClose, children, wide }) {
+/**
+ * Janela (modal). É desenhada direto no fim da página (fora do lugar onde foi aberta), para ficar sempre por cima
+ * de tudo: nenhuma coluna, calendário ou cartão consegue aparecer na frente dela.
+ */
+export function Modal(props) {
+  const host = useRef(null);
+  if (!host.current && typeof document !== 'undefined') host.current = document.createElement('div');
+  // useLayoutEffect: a janela aparece no mesmo instante do clique (antes de a tela ser redesenhada).
+  useLayoutEffect(() => {
+    document.body.appendChild(host.current);
+    return () => { render(null, host.current); host.current.remove(); };
+  }, []);
+  useLayoutEffect(() => { render(html`<${ModalBox} ...${props} />`, host.current); });
+  return null;
+}
+
+function ModalBox({ title, onClose, children, wide }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -8,7 +24,7 @@ export function Modal({ title, onClose, children, wide }) {
   }, [onClose]);
   return html`
     <div class="modal-backdrop" onClick=${(e) => e.target === e.currentTarget && onClose()}>
-      <div class=${'modal' + (wide ? ' modal-wide' : '')} role="dialog" aria-label=${title}>
+      <div class=${'modal' + (wide ? ' modal-wide' : '')} role="dialog" aria-modal="true" aria-label=${title}>
         <header class="modal-head">
           <h2>${title}</h2>
           <button class="icon-btn" onClick=${onClose} aria-label="Fechar">✕</button>
