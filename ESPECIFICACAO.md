@@ -57,6 +57,8 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
    Ficam na lista até serem ticadas; ticada, a diária volta no dia seguinte e a mensal no mês seguinte (a mensal
    aparece a partir do dia escolhido; se o mês acabar sem fazer, continua aparecendo). Ao ticar, "Desfazer" por 6 s.
+   `[▸ Vencimentos]` mostra todas as rotinas programadas, em ordem, com a data em que cada uma vence ("vence hoje",
+   "vence amanhã", "vence 25/11"; "venceu" em vermelho se atrasada).
    **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.

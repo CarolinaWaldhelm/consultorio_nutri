@@ -377,3 +377,12 @@ textarea { resize: vertical; min-height: 44px; }
 .routine-text { border: 1px solid transparent; padding: 4px 6px; }
 .routine-text:hover, .routine-text:focus { border-color: var(--line); }
 .nowrap { white-space: nowrap; }
+.routine-plan { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 4px; }
+.plan-list { list-style: none; padding: 0; margin: 0; }
+.plan-list li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.plan-list li:last-child { border-bottom: 0; }
+.plan-status { white-space: nowrap; font-size: .78rem; font-weight: 600; }
+.plan-status { color: var(--muted); font-weight: 400; }
+.plan-status.today { color: var(--warn); font-weight: 600; }
+.plan-status.late { color: var(--danger); font-weight: 600; }
+.routine-actions { display: flex; gap: 4px; margin: 0 0 4px -8px; }

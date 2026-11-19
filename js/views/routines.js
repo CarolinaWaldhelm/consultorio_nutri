@@ -2,7 +2,7 @@
 // próximo dia (diária) ou o próximo mês (mensal). A mensal aparece a partir de um dia do mês escolhido.
 import { html, useState, useEffect } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { todayISO } from '../lib/util.js';
+import { todayISO, fmtDate } from '../lib/util.js';
 import { dateOf } from '../lib/questionnaires.js';
 import { Modal, ErrorBox } from './common.js';
 
@@ -25,6 +25,7 @@ function prevMonth(today) {
 export function RoutinesCard() {
   const [items, setItems] = useState(null);
   const [managing, setManaging] = useState(false);
+  const [showPlan, setShowPlan] = useState(false); // ver tudo o que está programado
   const [undo, setUndo] = useState(null); // { item, previous }
   const [error, setError] = useState(null);
   const [today, setToday] = useState(todayISO());
@@ -64,8 +65,9 @@ export function RoutinesCard() {
 
   return html`
     <section class="card todo-card routines-card">
-      <div class="card-title-row" style="margin-bottom:6px">
-        <h2 class="card-title" style="margin:0">🔁 Rotinas</h2>
+      <h2 class="card-title" style="margin-bottom:4px">🔁 Rotinas</h2>
+      <div class="routine-actions">
+        ${items?.length > 0 && html`<button class="btn btn-sm btn-ghost" aria-expanded=${showPlan} onClick=${() => setShowPlan(!showPlan)}>${showPlan ? '▾ Vencimentos' : '▸ Vencimentos'}</button>`}
         <button class="btn btn-sm btn-ghost" onClick=${() => setManaging(true)}>⚙️ Gerenciar</button>
       </div>
       ${error && html`<div class="alert alert-error">Não foi possível carregar as rotinas. ${/routines/.test(String(error.message)) ? 'Rode o arquivo do banco (schema.sql) de novo no Supabase.' : error.message}</div>`}
@@ -76,9 +78,46 @@ export function RoutinesCard() {
       ${monthly.length > 0 && html`
         <div class="routine-group">Este mês ${pendMonthly.length ? html`<span class="muted small">(${pendMonthly.length})</span>` : ''}</div>
         ${pendMonthly.length ? html`<ul class="todo-list">${pendMonthly.map(Row)}</ul>` : html`<p class="muted small">✓ Nada pendente este mês.</p>`}`}
+      ${showPlan && html`<div class="routine-plan"><div class="routine-group">Todas as rotinas</div><${Plan} items=${items} today=${today} /></div>`}
       ${undo && html`<div class="undo-bar">✓ “${undo.item.text}” feito <button class="link-btn" onClick=${undoTick}>Desfazer</button></div>`}
     </section>
     ${managing && html`<${RoutinesModal} items=${items || []} onClose=${() => { setManaging(false); load(); }} />`}`;
+}
+
+/** Data de vencimento: diária = hoje (ou amanhã, se já feita); mensal = o dia do mês escolhido. */
+export function dueDate(r, today = todayISO()) {
+  const done = r.last_done_at ? dateOf(r.last_done_at) : null;
+  const plusDays = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  if (r.frequency === 'diaria') return done === today ? plusDays(today, 1) : today;
+  const day = String(r.month_day || 1).padStart(2, '0');
+  const month = today.slice(0, 7);
+  const next = (ym) => { const [y, m] = ym.split('-').map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
+  if (done && done.slice(0, 7) === month) return `${next(month)}-${day}`; // feita: vence no mês que vem
+  if (isPending(r, today) && Number(today.slice(8, 10)) < Number(day)) return `${prevMonth(today)}-${day}`; // atrasada do mês passado
+  return `${month}-${day}`;
+}
+
+/** Tudo o que está programado, com a data em que cada rotina vence. */
+function Plan({ items, today }) {
+  const label = (d) => {
+    const diff = Math.round((Date.parse(d + 'T12:00:00Z') - Date.parse(today + 'T12:00:00Z')) / 864e5);
+    if (diff < 0) return { cls: 'late', text: `venceu ${fmtDate(d).slice(0, 5)}` };
+    if (diff === 0) return { cls: 'today', text: 'vence hoje' };
+    if (diff === 1) return { cls: '', text: `vence amanhã (${fmtDate(d).slice(0, 5)})` };
+    return { cls: '', text: `vence ${fmtDate(d).slice(0, 5)}` };
+  };
+  const sorted = [...items].sort((a, b) => dueDate(a, today).localeCompare(dueDate(b, today)) || a.text.localeCompare(b.text));
+  return html`
+    <ul class="plan-list">
+      ${sorted.map((r) => {
+        const l = label(dueDate(r, today));
+        return html`
+          <li>
+            <span>${r.text} <span class="muted small">· ${r.frequency === 'diaria' ? 'todo dia' : `todo mês, dia ${r.month_day || 1}`}</span></span>
+            <span class=${'plan-status ' + l.cls}>${l.text}</span>
+          </li>`;
+      })}
+    </ul>`;
 }
 
 function RoutinesModal({ items, onClose }) {
