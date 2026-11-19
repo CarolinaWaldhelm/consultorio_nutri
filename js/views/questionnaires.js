@@ -4,7 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
-  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, dateOf, responseStats, durationLabel,
+  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
   DEFAULT_FREQUENCY, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
@@ -70,11 +70,11 @@ function SendsTab({ data, reload, goModels }) {
   const [queue, setQueue] = useState(null); // { ids: [...], pos } durante o envio
   const [sent, setSent] = useState({}); // patientId -> envio criado agora
   const [error, setError] = useState(null);
-  const [showSkipped, setShowSkipped] = useState(false);
   const def = data.questionnaires.find((q) => q.is_default && q.active);
   const message = data.settings.whatsapp_message || DEFAULT_MESSAGE;
   const reminder = data.settings.whatsapp_reminder || DEFAULT_REMINDER;
   const byId = new Map(plan.due.map((d) => [d.patient.id, d.patient]));
+  const dueBy = Object.fromEntries(plan.due.map((d) => [d.patient.id, d]));
 
   const toggle = (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const pending = plan.due.filter((d) => !sent[d.patient.id]);
@@ -161,7 +161,7 @@ function SendsTab({ data, reload, goModels }) {
     <section class="card">
       <div class="card-title-row">
         <h2 class="card-title">Para enviar hoje <span class="muted small">(${plan.due.length}${sentCount ? ` · ${sentCount} enviado(s)` : ''})</span></h2>
-        <span class="muted small">Questionário: <strong>${def.name}</strong> · a cada ${plan.frequency} dias após a última consulta</span>
+        <span class="muted small">Questionário: <strong>${def.name}</strong> · ${plan.frequency} dias após a última consulta ou o último questionário</span>
       </div>
       ${plan.due.length === 0 && html`<p class="muted">Ninguém para receber hoje. 🎉</p>`}
       ${plan.due.length > 0 && html`
@@ -173,13 +173,14 @@ function SendsTab({ data, reload, goModels }) {
         </div>
         <table class="table">
           <thead><tr><th style="width:36px"><input type="checkbox" aria-label="Marcar ou desmarcar todos" checked=${allOn} disabled=${!pending.length}
-            onChange=${() => setSelected(allOn ? new Set() : new Set(pending.map((d) => d.patient.id)))} /></th><th>Paciente</th><th>Última consulta</th><th></th></tr></thead>
+            onChange=${() => setSelected(allOn ? new Set() : new Set(pending.map((d) => d.patient.id)))} /></th><th>Paciente</th><th>Última consulta</th><th>Motivo</th><th></th></tr></thead>
           <tbody>
             ${plan.due.map(({ patient: p }) => html`
               <tr class=${sent[p.id] ? 'row-sent' : ''}>
                 <td><input type="checkbox" aria-label=${'Selecionar ' + p.name} disabled=${!!sent[p.id]} checked=${!!sent[p.id] || selected.has(p.id)} onChange=${() => toggle(p.id)} /></td>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
                 <td>${fmtDate(p.last_consult)} <span class="muted small">(${daysAgoLabel(p.last_consult).toLowerCase()})</span></td>
+                <td class="muted small">${dueBy[p.id]?.fromSend ? `último questionário em ${fmtDate(dueBy[p.id].anchor)}` : 'primeiro após a consulta'}</td>
                 <td class="row-actions">
                   ${sent[p.id] && html`<span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`}
                 </td>
@@ -189,6 +190,8 @@ function SendsTab({ data, reload, goModels }) {
         <p class="muted small">Confira a lista, desmarque quem não deve receber e clique em “Enviar para os selecionados”.
           O WhatsApp exige um clique por pessoa (o envio sai do seu número), então o sistema vai abrindo um de cada vez.</p>`}
     </section>
+
+    ${plan.noPhone.length > 0 && html`<${PhoneRequest} items=${plan.noPhone} onSaved=${reload} />`}
 
     ${plan.reminders.length > 0 && html`
       <section class="card">
@@ -209,24 +212,68 @@ function SendsTab({ data, reload, goModels }) {
         </table>
       </section>`}
 
-    ${plan.noPhone.length > 0 && html`
+    ${plan.autoPaused.length > 0 && html`
       <section class="card">
-        <h2 class="card-title">📞 Sem telefone <span class="muted small">(deveriam receber hoje)</span></h2>
-        <p class="muted small">Abra a ficha e use “Editar cadastro” para colocar o telefone com DDD.</p>
-        <div class="chips">${plan.noPhone.map(({ patient: p }) => html`<a class="chip" href=${'#/paciente/' + p.id}>${p.name}</a>`)}</div>
+        <h2 class="card-title">⛔ Não responderam os 2 últimos <span class="muted small">(${plan.autoPaused.length}: pararam de receber)</span></h2>
+        <p class="muted small">Pela regra, não recebem mais questionários até a próxima consulta. Vale um contato pessoal.</p>
+        <table class="table">
+          <tbody>
+            ${plan.autoPaused.map(({ patient: p, sentDates }) => html`
+              <tr>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td class="muted small">sem resposta aos envios de ${sentDates.map((d) => fmtDate(d)).join(' e ')}</td>
+                <td class="muted small">última consulta ${fmtDate(p.last_consult)}</td>
+              </tr>`)}
+          </tbody>
+        </table>
       </section>`}
 
-    ${(plan.soon.length > 0 || plan.autoPaused.length > 0) && html`
-      <button class="btn btn-sm btn-ghost" onClick=${() => setShowSkipped(!showSkipped)}>
-        ${showSkipped ? '▾' : '▸'} Não recebem hoje: ${plan.soon.length} com consulta hoje · ${plan.autoPaused.length} sem responder os 2 últimos
-      </button>
-      ${showSkipped && html`
-        <section class="card">
-          ${plan.soon.length > 0 && html`<p><strong>Consulta hoje</strong> (no dia da consulta não se envia): ${plan.soon.map((x) => x.patient.name).join(', ')}</p>`}
-          ${plan.autoPaused.length > 0 && html`
-            <p><strong>Pararam de receber</strong> (não responderam os 2 últimos questionários; voltam a receber depois da próxima consulta):
-              ${plan.autoPaused.map((x) => x.patient.name).join(', ')}</p>`}
-        </section>`}`}`;
+    ${plan.soon.length > 0 && html`
+      <p class="muted small">Com consulta hoje (no dia da consulta não se envia): ${plan.soon.map((x) => x.patient.name).join(', ')}.</p>`}`;
+}
+
+/** Pede o telefone de quem deveria receber hoje: digitou e salvou, o paciente vai para a lista de envio. */
+function PhoneRequest({ items, onSaved }) {
+  const [values, setValues] = useState({});
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? items : items.slice(0, 10);
+
+  async function save(p) {
+    const v = (values[p.id] || '').trim();
+    if (!whatsappNumber(v)) { setError(new Error(`Telefone de ${p.name} incompleto: use DDD + número (ex.: 11 98765-4321).`)); return; }
+    setError(null);
+    setBusy(p.id);
+    try {
+      await run(supabase.from('patients').update({ phone: v }).eq('id', p.id));
+      await onSaved();
+    } catch (err) {
+      setError(err);
+    }
+    setBusy(null);
+  }
+
+  return html`
+    <section class="card phone-request">
+      <h2 class="card-title">📞 Atualize os telefones para enviar <span class="muted small">(${items.length} deveriam receber hoje)</span></h2>
+      <p class="muted small">Estes pacientes já estão no prazo do questionário, mas não têm telefone. Digite o WhatsApp com DDD e salve:
+        o paciente entra na lista de envio acima, já marcado.</p>
+      <${ErrorBox} error=${error} />
+      <table class="table">
+        <tbody>
+          ${shown.map(({ patient: p }) => html`
+            <tr>
+              <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+              <td><input type="tel" class="phone-input" placeholder="11 98765-4321" value=${values[p.id] || ''}
+                onInput=${(e) => setValues({ ...values, [p.id]: e.target.value })}
+                onKeyDown=${(e) => e.key === 'Enter' && save(p)} /></td>
+              <td class="row-actions"><button class="btn btn-sm btn-primary" disabled=${busy === p.id || !(values[p.id] || '').trim()} onClick=${() => save(p)}>${busy === p.id ? 'Salvando…' : 'Salvar'}</button></td>
+            </tr>`)}
+        </tbody>
+      </table>
+      ${items.length > 10 && html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setShowAll(!showAll)}>${showAll ? 'Mostrar menos' : `Mostrar todos (${items.length})`}</button>`}
+    </section>`;
 }
 
 // ---------------------------------------------------------------- Log
@@ -562,7 +609,7 @@ function ConfigTab({ data, reload }) {
     <section class="card">
       <h2 class="card-title">Frequência</h2>
       <label class="adjust-row">Enviar a cada <input type="number" min="1" max="60" value=${freq} onInput=${(e) => setFreq(e.target.value)} /> dias, contados a partir da última consulta.</label>
-      <p class="muted small">Depois de cada consulta, envia a cada N dias até a véspera da próxima; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Quem não responde em 3 dias aparece na lista de lembretes.</p>
+      <p class="muted small">Envia N dias depois da última consulta ou do último questionário, até a véspera da próxima consulta; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Quem não responde em 3 dias aparece na lista de lembretes.</p>
     </section>
     <section class="card">
       <h2 class="card-title">Mensagem do WhatsApp</h2>

@@ -326,7 +326,8 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 ### 4.2 Regras de envio
 
 1. A pessoa veio à consulta: a contagem começa da **data da última consulta**.
-2. Envia a cada **7 dias** (frequência configurável), até a **véspera** da próxima consulta.
+2. Aparece para envio **7 dias depois da última consulta** (se ainda não recebeu nenhum desde ela) **ou 7 dias depois
+   do último questionário enviado** (frequência configurável), até a **véspera** da próxima consulta.
 3. Se o dia do envio cair no **dia da consulta**, não envia.
 4. Fez a consulta: **zera a contagem** e volta a enviar 7 dias depois.
 5. **Não respondeu 2 questionários seguidos: para de enviar** (volta depois da próxima consulta).
@@ -349,7 +350,10 @@ Outras regras:
   ela aperta enviar lá e o sistema passa para o próximo (`[Pular]` e `[Parar]` disponíveis). O WhatsApp exige um
   clique por pessoa, porque o envio sai do número pessoal dela. Cada envio pode ser desfeito.
 - Lista separada de **reenvios**.
-- Paciente sem telefone aparece com aviso para completar o cadastro.
+- **Pedido de telefone:** quem já está no prazo mas não tem telefone aparece em "📞 Atualize os telefones para
+  enviar", com um campo para digitar o WhatsApp ali mesmo; ao salvar, entra na lista de envio já marcado.
+- **"⛔ Não responderam os 2 últimos"** fica visível na tela de envios, com as datas dos dois envios sem resposta
+  (sugere contato pessoal). Esses pacientes não aparecem nos lembretes.
 
 ### 4.4 Link e resposta sem login
 

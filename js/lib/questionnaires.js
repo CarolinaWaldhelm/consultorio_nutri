@@ -94,20 +94,29 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
       reminders.push({ patient: p, send: open });
     }
 
-    const days = daysBetween(p.last_consult, today);
-    if (days < frequency) continue;
-    const cycleStart = addDays(p.last_consult, Math.floor(days / frequency) * frequency);
-    if (sinceConsult.some((s) => dateOf(s.created_at) >= cycleStart)) continue; // já enviado neste ciclo
+    // Próximo envio: 7 dias depois do último questionário enviado (desde a consulta) ou, se ainda não houve
+    // nenhum, 7 dias depois da última consulta.
+    const lastSend = sinceConsult[0];
+    const anchor = lastSend ? dateOf(lastSend.sent_at) : p.last_consult;
+    if (daysBetween(anchor, today) < frequency) continue;
 
     const lastTwo = sinceConsult.slice(0, AUTO_PAUSE_UNANSWERED);
-    if (lastTwo.length === AUTO_PAUSE_UNANSWERED && lastTwo.every((s) => !s.answered_at)) { autoPaused.push({ patient: p }); continue; }
+    if (lastTwo.length === AUTO_PAUSE_UNANSWERED && lastTwo.every((s) => !s.answered_at)) {
+      autoPaused.push({ patient: p, sentDates: lastTwo.map((s) => dateOf(s.sent_at)).reverse() });
+      continue;
+    }
     if (soonIds.has(p.id)) { soon.push({ patient: p }); continue; }
     if (!whatsappNumber(p.phone)) { noPhone.push({ patient: p }); continue; }
-    due.push({ patient: p, cycleStart, previousOpen: open || null });
+    due.push({ patient: p, anchor, fromSend: !!lastSend, previousOpen: open || null });
   }
 
+  // Quem já parou de receber (2 sem resposta) aparece só na lista própria, não nos lembretes.
+  const pausedIds = new Set(autoPaused.map((x) => x.patient.id));
   const byName = (a, b) => a.patient.name.localeCompare(b.patient.name);
-  return { due: due.sort(byName), noPhone: noPhone.sort(byName), autoPaused: autoPaused.sort(byName), soon: soon.sort(byName), reminders: reminders.sort(byName) };
+  return {
+    due: due.sort(byName), noPhone: noPhone.sort(byName), autoPaused: autoPaused.sort(byName), soon: soon.sort(byName),
+    reminders: reminders.filter((r) => !pausedIds.has(r.patient.id)).sort(byName),
+  };
 }
 
 /** Pacientes com consulta hoje (N = 0) ou nos próximos N dias (planilha do Nutrium + agenda já vinculada). */

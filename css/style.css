@@ -304,3 +304,5 @@ textarea { resize: vertical; min-height: 44px; }
 .rate-mid { color: var(--warn); }
 .rate-low { color: var(--danger); }
 .table td.num, .table th.num { text-align: right; }
+.phone-request { border-left: 4px solid var(--warn); }
+.phone-input { max-width: 200px; padding: 6px 8px; }
