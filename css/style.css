@@ -298,3 +298,9 @@ textarea { resize: vertical; min-height: 44px; }
 /* Colunas de ações dentro de tabelas continuam sendo células (não quebram as linhas da tabela). */
 .table td.row-actions { display: table-cell; text-align: right; white-space: nowrap; }
 .table td.row-actions > * { margin-left: 6px; vertical-align: middle; }
+.stat-value.small-value { font-size: 1.05rem; padding-top: 6px; }
+.rate { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rate-good { color: #15803d; }
+.rate-mid { color: var(--warn); }
+.rate-low { color: var(--danger); }
+.table td.num, .table th.num { text-align: right; }

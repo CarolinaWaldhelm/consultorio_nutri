@@ -362,6 +362,17 @@ Outras regras:
 - Ao enviar um novo questionário, o link anterior ainda sem resposta vence.
 - As respostas entram no pedido de resumo pré-consulta (as 12 mais recentes) e contam como atividade no alerta de 50 dias.
 
+### 4.4.1 Taxa de resposta
+
+- No topo de "Envios e respostas", com período (30 dias, 90 dias, desde o início):
+  - **taxa de resposta** (respondidos ÷ questionários "fechados": respondidos, vencidos ou enviados há 7+ dias;
+    os em aberto ficam fora e aparecem separados);
+  - **efeito do lembrete**: quantos responderam depois do lembrete e qual seria a taxa sem ele;
+  - **tempo típico de resposta** (mediana);
+  - **taxa por paciente**, da menor para a maior (10 visíveis, "Mostrar todos").
+- Na ficha (seção Questionários): taxa do paciente, tempo típico e respostas depois do lembrete.
+- Serve para a nutricionista avaliar, com dados, se o lembrete e a regra de envio estão funcionando.
+
 ### 4.5 Log de disparos e respostas
 
 | Paciente | Questionário | Enviado em | Status |

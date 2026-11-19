@@ -119,3 +119,42 @@ export function consultSoonIds(patients, agendaPatientIdsByDate, today = todayIS
 }
 
 export { dateOf };
+
+/**
+ * Taxa de resposta. Um envio só entra na conta quando já está "fechado": respondido, vencido, ou enviado há
+ * 7 dias ou mais. Os ainda em aberto aparecem separados, para não puxar a taxa para baixo à toa.
+ * sinceISO: só envios a partir dessa data (ou null para todos).
+ */
+export function responseStats(sends, { sinceISO = null, today = todayISO() } = {}) {
+  const list = sends.filter((s) => !sinceISO || dateOf(s.sent_at) >= sinceISO);
+  const closed = list.filter((s) => s.answered_at || s.expired_at || daysBetween(dateOf(s.sent_at), today) >= 7);
+  const answered = closed.filter((s) => s.answered_at);
+  const withReminder = closed.filter((s) => s.resent_at);
+  const afterReminder = withReminder.filter((s) => s.answered_at && s.answered_at > s.resent_at);
+  const beforeReminderWindow = answered.filter((s) => !s.resent_at || s.answered_at <= s.resent_at);
+  const hours = answered.map((s) => (new Date(s.answered_at) - new Date(s.sent_at)) / 36e5).sort((a, b) => a - b);
+  const mid = Math.floor(hours.length / 2);
+  const median = !hours.length ? null : hours.length % 2 ? hours[mid] : (hours[mid - 1] + hours[mid]) / 2;
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
+  return {
+    total: list.length,
+    open: list.length - closed.length,
+    closed: closed.length,
+    answered: answered.length,
+    rate: pct(answered.length, closed.length),
+    reminders: withReminder.length,
+    answeredAfterReminder: afterReminder.length,
+    reminderRate: pct(afterReminder.length, withReminder.length),
+    answeredWithoutReminder: beforeReminderWindow.length,
+    medianHours: median,
+  };
+}
+
+/** "em 5 horas", "em 2 dias" */
+export function durationLabel(hours) {
+  if (hours == null) return '–';
+  if (hours < 1) return 'em menos de 1 hora';
+  if (hours < 24) return `em ${Math.round(hours)} hora${Math.round(hours) > 1 ? 's' : ''}`;
+  const d = Math.round(hours / 24);
+  return `em ${d} dia${d > 1 ? 's' : ''}`;
+}

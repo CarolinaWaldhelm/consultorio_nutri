@@ -4,7 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
-  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, dateOf,
+  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, dateOf, responseStats, durationLabel,
   DEFAULT_FREQUENCY, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
@@ -231,6 +231,74 @@ function SendsTab({ data, reload, goModels }) {
 
 // ---------------------------------------------------------------- Log
 
+const PERIODS = [['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['all', 'Desde o início']];
+function sinceFor(period) {
+  if (period === 'all') return null;
+  const d = new Date(todayISO() + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - Number(period));
+  return d.toISOString().slice(0, 10);
+}
+
+/** Taxa de resposta geral, efeito do lembrete e taxa por paciente. */
+function StatsCard({ data }) {
+  const [period, setPeriod] = useState('30');
+  const [showAll, setShowAll] = useState(false);
+  const since = sinceFor(period);
+  const st = useMemo(() => responseStats(data.sends, { sinceISO: since }), [data, period]);
+  const perPatient = useMemo(() => {
+    const by = new Map();
+    for (const s of data.sends) {
+      if (!by.has(s.patient_id)) by.set(s.patient_id, []);
+      by.get(s.patient_id).push(s);
+    }
+    const names = new Map(data.patients.map((p) => [p.id, p.name]));
+    return [...by].map(([id, list]) => ({ id, name: names.get(id) || '—', ...responseStats(list, { sinceISO: since }) }))
+      .filter((r) => r.closed > 0)
+      .sort((a, b) => a.rate - b.rate || b.closed - a.closed || a.name.localeCompare(b.name));
+  }, [data, period]);
+  const shown = showAll ? perPatient : perPatient.slice(0, 10);
+  const pctText = (v) => (v == null ? '–' : `${v}%`);
+
+  return html`
+    <section class="card">
+      <div class="card-title-row">
+        <h2 class="card-title">📊 Taxa de resposta</h2>
+        <div class="seg">${PERIODS.map(([k, l]) => html`<button class=${period === k ? 'on' : ''} onClick=${() => setPeriod(k)}>${l}</button>`)}</div>
+      </div>
+      ${st.total === 0 && html`<p class="muted">Nenhum envio neste período.</p>`}
+      ${st.total > 0 && html`
+        <div class="stats">
+          <div class="stat stat-main"><div class="stat-label">Taxa de resposta</div><div class="stat-value">${pctText(st.rate)}</div>
+            <div class="stat-sub">${st.answered} de ${st.closed} questionário(s)</div></div>
+          <div class="stat"><div class="stat-label">Responderam depois do lembrete</div><div class="stat-value">${pctText(st.reminderRate)}</div>
+            <div class="stat-sub">${st.answeredAfterReminder} de ${st.reminders} lembrete(s)</div></div>
+          <div class="stat"><div class="stat-label">Tempo típico de resposta</div><div class="stat-value small-value">${durationLabel(st.medianHours)}</div>
+            <div class="stat-sub">metade responde nesse prazo</div></div>
+          <div class="stat"><div class="stat-label">Em aberto</div><div class="stat-value">${st.open}</div>
+            <div class="stat-sub">enviados há menos de 7 dias</div></div>
+        </div>
+        <p class="muted small">
+          ${st.reminders > 0
+            ? `O lembrete recuperou ${st.answeredAfterReminder} resposta(s): sem ele, a taxa seria ${pctText(st.closed ? Math.round((st.answeredWithoutReminder / st.closed) * 100) : null)}.`
+            : 'Ainda não há lembretes enviados neste período para medir o efeito.'}${' '}Os questionários enviados há menos de 7 dias e ainda sem resposta ficam fora da conta.
+        </p>
+        ${perPatient.length > 0 && html`
+          <h3 class="calc-step">Por paciente <span class="muted small">(menor taxa primeiro)</span></h3>
+          <table class="table">
+            <thead><tr><th>Paciente</th><th class="num">Respondidos</th><th class="num">Taxa</th></tr></thead>
+            <tbody>
+              ${shown.map((r) => html`
+                <tr>
+                  <td><a href=${'#/paciente/' + r.id}>${r.name}</a></td>
+                  <td class="num">${r.answered} de ${r.closed}</td>
+                  <td class="num"><span class=${'rate ' + (r.rate >= 70 ? 'rate-good' : r.rate >= 40 ? 'rate-mid' : 'rate-low')}>${r.rate}%</span></td>
+                </tr>`)}
+            </tbody>
+          </table>
+          ${perPatient.length > 10 && html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setShowAll(!showAll)}>${showAll ? 'Mostrar menos' : `Mostrar todos (${perPatient.length})`}</button>`}`}`}
+    </section>`;
+}
+
 function LogTab({ data }) {
   const [viewing, setViewing] = useState(null);
   const [onlyAnswered, setOnlyAnswered] = useState(false);
@@ -240,6 +308,7 @@ function LogTab({ data }) {
   const rows = data.sends.filter((s) => !onlyAnswered || s.answered_at).slice(0, 200);
 
   return html`
+    <${StatsCard} data=${data} />
     <section class="card">
       <div class="card-title-row">
         <h2 class="card-title">Envios e respostas <span class="muted small">(${data.sends.length})</span></h2>

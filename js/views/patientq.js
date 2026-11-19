@@ -2,7 +2,7 @@
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate } from '../lib/util.js';
-import { dateOf } from '../lib/questionnaires.js';
+import { dateOf, responseStats, durationLabel } from '../lib/questionnaires.js';
 import { MetricChart } from './charts.js';
 import { AnswersView } from './questionnaires.js';
 
@@ -11,6 +11,7 @@ export function QuestionnaireCard({ patient, responses, questionnaires, sends, o
   const qById = useMemo(() => new Map(questionnaires.map((q) => [q.id, q])), [questionnaires]);
   const last = responses[0];
   const pending = sends.find((s) => !s.answered_at && !s.expired_at);
+  const stats = useMemo(() => responseStats(sends), [sends]);
 
   // Um gráfico por pergunta de escala, separado por modelo de questionário.
   const charts = useMemo(() => {
@@ -41,6 +42,8 @@ export function QuestionnaireCard({ patient, responses, questionnaires, sends, o
           <button class="btn btn-sm" onClick=${toggle}>${patient.questionnaires_active ? 'Pausar envio' : 'Reativar envio'}</button>
         </span>
       </div>
+      ${stats.closed > 0 && html`
+        <p class="small"><strong>Taxa de resposta: ${stats.rate}%</strong> <span class="muted">(${stats.answered} de ${stats.closed} questionário(s)${stats.medianHours != null ? ` · costuma responder ${durationLabel(stats.medianHours)}` : ''}${stats.reminders ? ` · ${stats.answeredAfterReminder} de ${stats.reminders} depois do lembrete` : ''})</span></p>`}
       ${pending && html`<p class="muted small">🟡 Questionário enviado em ${fmtDate(dateOf(pending.sent_at))}, aguardando resposta.</p>`}
       ${!responses.length && html`<p class="muted">Nenhum questionário respondido ainda.</p>`}
       ${last && html`
