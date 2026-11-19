@@ -55,14 +55,16 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 3. **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
-4. **Sem retorno há mais de 50 dias**, ativos e **sem consulta marcada** (na agenda, nos próximos 90 dias, ou na
-   planilha). Contam como atualização uma consulta ou uma resposta de questionário. Ações: `[Lembrar em 7 dias]`
-   (coluna `snooze_until`) e `[Marcar como inativo]`. Mostra 15, com `[Mostrar mais]` de 10 em 10.
-5. **Todos os pacientes** (filtros Ativos, Inativos, Todos): 15 visíveis e `[Mostrar mais]` de 10 em 10.
-6. **Regra dos 150 dias também na tela, na hora:** paciente com mais de 150 dias da última consulta e nada
-   marcado sai de "Ativos" e do alerta de 50 dias, aparece em "Inativos" com a etiqueta "+150 dias" e para de
-   receber questionários, sem esperar a importação. Se marcar consulta, volta sozinho. (Na importação, a regra
-   continua removendo de vez os que não têm anotações, ver §8.)
+4. **Sem retorno há mais de 50 dias**: só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
+   na planilha). Com consulta marcada, não há aviso. Contam como atualização uma consulta ou uma resposta de
+   questionário. Ação: `[Lembrar em 7 dias]` (coluna `snooze_until`). 15 visíveis, `[Mostrar mais]` de 10 em 10 e
+   `[Mostrar menos]` (volta aos 15).
+5. **Todos os pacientes**: 15 visíveis, `[Mostrar mais]` de 10 em 10 e `[Mostrar menos]`.
+   **Não existe ativo/inativo** (decisão da nutricionista: o paciente não formaliza o fim do acompanhamento).
+6. **Regra dos 100 dias, na hora:** paciente com mais de 100 dias da última consulta e nada marcado sai da lista
+   de pacientes, do alerta de 50 dias e dos questionários, sem esperar a importação. Continua aparecendo **na busca
+   por nome**, com a etiqueta "+100 dias". Se marcar consulta, volta sozinho. (Na importação, a regra remove de vez
+   os que não têm anotações, ver §8.)
 7. Avisos no topo: questionários para enviar hoje e backup semanal.
 8. **Botão `[Importar planilha do Nutrium]`** (menu) e **`[+ Cadastro rápido]`** (nome, nascimento, telefone).
 
@@ -72,7 +74,7 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 
 - Nome, idade, data de nascimento e telefone.
 - Data da última consulta e dias decorridos.
-- Status dos questionários: **ativo / pausado** (alternável aqui).
+- Envio de questionários: pausar/reativar para aquele paciente (na seção Questionários da ficha).
 - Botões:
   - `[▶ Iniciar consulta de hoje]`: cria o registro da consulta com a data do dia e o tipo (inicial, se não há
     consulta anterior; retorno, nos demais casos) e abre o painel de anotações.
@@ -323,26 +325,29 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 
 ### 4.2 Regras de envio
 
+1. A pessoa veio à consulta: a contagem começa da **data da última consulta**.
+2. Envia a cada **7 dias** (frequência configurável), até a **véspera** da próxima consulta.
+3. Se o dia do envio cair no **dia da consulta**, não envia.
+4. Fez a consulta: **zera a contagem** e volta a enviar 7 dias depois.
+5. **Não respondeu 2 questionários seguidos: para de enviar** (volta depois da próxima consulta).
+6. Mais de 100 dias sem consulta: não envia.
+
+Outras regras:
+
 | Regra | Valor |
 |---|---|
-| Frequência geral (configurável) | a cada 7 dias, contados da última consulta |
-| Não envia se há consulta marcada nos próximos | 3 dias |
-| Reenvio para pendentes | após 3 dias sem resposta, entra na lista de reenvio |
-| Pausa automática | após 2 questionários seguidos sem resposta |
-| Retomada da pausa automática | na próxima consulta |
-| Pausa manual por paciente | na ficha ou na aba Questionários |
+| Lembrete para pendentes (opcional) | após 3 dias sem resposta, aparece na lista de lembretes |
+| Pausa manual por paciente | na ficha (seção Questionários) |
 | Link vence | quando é respondido ou quando o próximo questionário é enviado |
-
-- Modelos já enviados ficam somente leitura; o botão "Nova versão a partir deste" copia as perguntas para um novo
-  modelo. Há um modelo de exemplo pronto ("Começar pelo exemplo"), editável antes de salvar.
-- Lembrete: um por envio. A mensagem do envio e a do lembrete são editáveis em "Mensagem e frequência",
-  com os marcadores **[Nome]** (primeiro nome) e **[Link]**.
 
 ### 4.3 Envio semiautomático pelo WhatsApp (número pessoal)
 
-- Aba **Questionários → "Envios de hoje"**: lista de quem deve receber, com `[Enviar]`.
-- O clique abre o WhatsApp na conversa do paciente com a mensagem pronta e o link dele
-  (`https://wa.me/55DDDNUMERO?text=...`). Ela só aperta enviar, e o sistema marca como enviado.
+- Aba **Questionários → "Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
+  com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.
+- `[📲 Enviar para os selecionados (N)]` abre uma fila: "Enviando 1 de N: Maria — [Abrir WhatsApp]". Cada clique
+  abre o WhatsApp na conversa do paciente com a mensagem pronta e o link dele (`https://wa.me/55DDDNUMERO?text=...`);
+  ela aperta enviar lá e o sistema passa para o próximo (`[Pular]` e `[Parar]` disponíveis). O WhatsApp exige um
+  clique por pessoa, porque o envio sai do número pessoal dela. Cada envio pode ser desfeito.
 - Lista separada de **reenvios**.
 - Paciente sem telefone aparece com aviso para completar o cadastro.
 
@@ -366,10 +371,11 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 
 ---
 
-## 5. Pacientes inativos
+## 5. Sem ativo/inativo
 
-- Alerta após **50 dias** sem consulta **e** sem resposta de questionário.
-- Inativo não recebe questionários até ser reativado ou ter nova consulta.
+- O sistema não tem a escolha "ativo/inativo". O que tira um paciente das listas é só a regra dos 100 dias
+  (sem consulta e sem nada marcado), e ele volta sozinho ao marcar consulta. Dados antigos com `status = 'inativo'`
+  são ignorados.
 
 ---
 
@@ -382,7 +388,7 @@ Durante o dia
   └─ [Iniciar consulta] → anota a anamnese no painel lateral
 
 Envios
-  └─ Aba Questionários → "Envios de hoje" → clicar em [Enviar] em cada um
+  └─ Aba Questionários → "Envios de hoje" → conferir a lista → [Enviar para os selecionados]
 
 Final do dia (montagem dos planos)
   ├─ Exporta a planilha no Nutrium (chega por e-mail)
@@ -430,14 +436,14 @@ O .csv tem problema de acentuação.
 - Mesma pessoa com duas contas (e-mails diferentes): juntar num paciente só. O e-mail da conta com data
   mais recente vira o principal e o antigo fica guardado como secundário.
 - Telefone: o do sistema prevalece (no Nutrium quase sempre está vazio).
-- **Regra dos 150 dias:** fica fora da base quem está há **mais de 150 dias da última consulta e não tem consulta
+- **Regra dos 100 dias:** fica fora da base quem está há **mais de 100 dias da última consulta e não tem consulta
   marcada**. Uma consulta futura conta como atividade (quem marcou fica). Sem nenhuma consulta, vale a data de
-  registro. Uma consulta registrada no software nos últimos 150 dias também conta.
+  registro. Uma consulta registrada no software nos últimos 100 dias também conta.
   - Quem ainda não está no sistema: não é importado.
   - Quem já está no sistema: é **removido automaticamente** na importação.
   - Exceção: se tiver anotações da nutricionista (consulta registrada no software ou resumo salvo), **não é apagado**:
-    fica **inativo** (fora da lista padrão), com `inactive_reason = 'importacao'`.
-  - Se a pessoa marcar consulta de novo, volta na importação seguinte (como paciente novo, ou reativado, se estava inativo).
+    só some das listas (pela regra da tela) e continua aparecendo na busca.
+  - Se a pessoa marcar consulta de novo, volta na importação seguinte.
 - Fora isso, a importação nunca apaga dados do sistema, só acrescenta ou atualiza.
 
 ---

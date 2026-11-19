@@ -216,7 +216,6 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onP
         <div class="patient-status">
           <span><strong>Última consulta:</strong> ${lastConsult ? `${fmtDate(lastConsult)} (${daysAgoLabel(lastConsult).toLowerCase()})` : 'nenhuma'}</span>
           ${nextAppt && html`<span><strong>Próxima:</strong> ${fmtDate(nextAppt.date)} ${nextAppt.start_time || ''}</span>`}
-          ${patient.status === 'inativo' && html`<span class="badge">Inativo</span>`}
           <span class=${'badge ' + (patient.questionnaires_active ? 'badge-green' : '')}>
             Questionários: ${patient.questionnaires_active ? 'ativos' : 'pausados'}
           </span>
@@ -290,7 +289,6 @@ function EditPatientModal({ patient, onClose, onSaved }) {
     sex: patient.sex || '',
     phone: patient.phone || '',
     email_primary: patient.email_primary || '',
-    status: patient.status,
     questionnaires_active: patient.questionnaires_active,
     notes: patient.notes || '',
   });
@@ -314,7 +312,6 @@ function EditPatientModal({ patient, onClose, onSaved }) {
         email_primary: email,
         emails: unique([email, ...(patient.emails || [])]),
         notes: form.notes || null,
-        inactive_reason: form.status === patient.status ? patient.inactive_reason ?? null : null,
       }).eq('id', patient.id).select('*'));
       onSaved(row);
     } catch (err) {
@@ -348,12 +345,7 @@ function EditPatientModal({ patient, onClose, onSaved }) {
           <${Field} label="E-mail principal"><input type="email" value=${form.email_primary} onInput=${set('email_primary')} /><//>
         </div>
         <div class="grid-2">
-          <${Field} label="Situação">
-            <select value=${form.status} onChange=${set('status')}>
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-            </select>
-          <//>
+
           <label class="field checkbox">
             <input type="checkbox" checked=${form.questionnaires_active} onChange=${set('questionnaires_active')} />
             <span>Enviar questionários</span>

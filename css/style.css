@@ -290,4 +290,11 @@ textarea { resize: vertical; min-height: 44px; }
 .todo-list input[type=checkbox] { width: auto; margin-top: 3px; }
 .todo-list li.done span { text-decoration: line-through; color: var(--muted); }
 .icon-btn.small { font-size: .8rem; color: var(--muted); }
-.show-more { margin-top: 8px; }
+.show-more { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.send-queue { border: 2px solid var(--primary); background: var(--primary-soft); }
+.send-queue h2 { font-size: 1.3rem; margin: 4px 0; }
+.row-sent td { color: var(--muted); }
+.table input[type=checkbox] { width: auto; }
+/* Colunas de ações dentro de tabelas continuam sendo células (não quebram as linhas da tabela). */
+.table td.row-actions { display: table-cell; text-align: right; white-space: nowrap; }
+.table td.row-actions > * { margin-left: 6px; vertical-align: middle; }

@@ -3,7 +3,7 @@ import { daysBetween, todayISO, onlyDigits } from './util.js';
 import { ACTIVE_DAYS } from './nutrium.js';
 
 export const DEFAULT_FREQUENCY = 7;
-export const PAUSE_BEFORE_CONSULT_DAYS = 3;
+export const PAUSE_BEFORE_CONSULT_DAYS = 0; // não envia no dia da consulta (na véspera, envia)
 export const REMIND_AFTER_DAYS = 3;
 export const AUTO_PAUSE_UNANSWERED = 2;
 
@@ -83,8 +83,8 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
   const reminders = [];
 
   for (const p of patients) {
-    if (p.status !== 'ativo' || !p.questionnaires_active || !p.last_consult) continue;
-    if (daysBetween(p.last_consult, today) > ACTIVE_DAYS) continue; // mais de 150 dias sem consulta: fora das listas
+    if (!p.questionnaires_active || !p.last_consult) continue;
+    if (daysBetween(p.last_consult, today) > ACTIVE_DAYS) continue; // mais de 100 dias sem consulta: fora das listas
     const mine = byPatient.get(p.id) || [];
     const sinceConsult = mine.filter((s) => dateOf(s.created_at) >= p.last_consult);
 
@@ -110,7 +110,7 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
   return { due: due.sort(byName), noPhone: noPhone.sort(byName), autoPaused: autoPaused.sort(byName), soon: soon.sort(byName), reminders: reminders.sort(byName) };
 }
 
-/** Pacientes com consulta nos próximos N dias (planilha do Nutrium + agenda já vinculada). */
+/** Pacientes com consulta hoje (N = 0) ou nos próximos N dias (planilha do Nutrium + agenda já vinculada). */
 export function consultSoonIds(patients, agendaPatientIdsByDate, today = todayISO(), n = PAUSE_BEFORE_CONSULT_DAYS) {
   const ids = new Set();
   for (const p of patients) if (p.next_consult && daysBetween(today, p.next_consult) <= n) ids.add(p.id);

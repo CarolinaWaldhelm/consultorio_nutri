@@ -25,15 +25,19 @@ function plusDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Lista com os primeiros 15 itens e "Mostrar mais" de 10 em 10. */
+/** Lista com os primeiros 15 itens, "Mostrar mais" de 10 em 10 e "Mostrar menos" (volta aos 15). */
 function usePaged(items, resetKey) {
   const [n, setN] = useState(FIRST_PAGE);
   useEffect(() => setN(FIRST_PAGE), [resetKey]);
   const more = items.length - n;
-  const button = more > 0
-    ? html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setN(n + PAGE_STEP)}>Mostrar mais ${Math.min(PAGE_STEP, more)} (faltam ${more})</button>`
+  const buttons = more > 0 || n > FIRST_PAGE
+    ? html`
+      <div class="show-more">
+        ${more > 0 && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(n + PAGE_STEP)}>Mostrar mais ${Math.min(PAGE_STEP, more)} (faltam ${more})</button>`}
+        ${n > FIRST_PAGE && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(FIRST_PAGE)}>Mostrar menos</button>`}
+      </div>`
     : null;
-  return [items.slice(0, n), button];
+  return [items.slice(0, n), buttons];
 }
 
 export function Home() {
@@ -43,7 +47,6 @@ export function Home() {
   const [q, setQ] = useState('');
   const [newFor, setNewFor] = useState(null); // { name, email } para o cadastro rápido
   const [linking, setLinking] = useState(null); // evento a vincular
-  const [filter, setFilter] = useState('ativos');
   const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
   const [now, setNow] = useState(nowHM()); // muda a cada minuto: consultas que já passaram saem da lista
 
@@ -115,13 +118,13 @@ export function Home() {
     return ids;
   }, [patients, agenda]);
 
-  // Mais de 150 dias da última consulta e nada marcado: sai das listas na hora (sem esperar a importação).
+  // Mais de 100 dias da última consulta e nada marcado: sai das listas na hora (sem esperar a importação).
   const isArchived = (p) => !!p.last_consult && daysBetween(p.last_consult, today) > ACTIVE_DAYS && !scheduled.has(p.id);
 
   // Última atividade: consulta ou resposta de questionário.
   const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
   const overdue = useMemo(() => (patients || [])
-    .filter((p) => p.status === 'ativo' && !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
+    .filter((p) => !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
     .filter((p) => !scheduled.has(p.id))
     .filter((p) => !p.snooze_until || p.snooze_until <= today)
     .sort((a, b) => lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
@@ -137,15 +140,14 @@ export function Home() {
 
   const list = useMemo(() => {
     const nq = norm(q);
-    const active = (p) => p.status === 'ativo' && !isArchived(p);
+    // Na busca aparecem todos (inclusive os que passaram do prazo); na lista, só os atuais.
     return (patients || [])
-      .filter((p) => (filter === 'todos' ? true : filter === 'inativos' ? !active(p) : active(p)))
-      .filter((p) => !nq || norm(p.name).includes(nq))
+      .filter((p) => (nq ? norm(p.name).includes(nq) : !isArchived(p)))
       .sort((a, b) => (b.last_consult || '').localeCompare(a.last_consult || '') || a.name.localeCompare(b.name));
-  }, [patients, q, filter, scheduled]);
+  }, [patients, q, scheduled]);
 
   const [overdueShown, overdueMore] = usePaged(overdue, 'overdue');
-  const [listShown, listMore] = usePaged(list, q + '|' + filter);
+  const [listShown, listMore] = usePaged(list, q);
 
   async function updatePatient(id, patch) {
     await run(supabase.from('patients').update(patch).eq('id', id));
@@ -237,7 +239,6 @@ export function Home() {
                 <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
                 <td class="row-actions">
                   <button class="btn btn-sm" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
-                  <button class="btn btn-sm btn-ghost" title="Para de receber questionários e sai da lista de ativos" onClick=${() => updatePatient(p.id, { status: 'inativo', questionnaires_active: false, inactive_reason: null })}>Marcar como inativo</button>
                 </td>
               </tr>`)}
           </tbody>
@@ -250,10 +251,6 @@ export function Home() {
       <section class="card">
         <div class="card-title-row">
           <h2 class="card-title">${q ? `Resultados para “${q}”` : 'Todos os pacientes'} <span class="muted small">(${list.length})</span></h2>
-          <div class="seg">
-            ${['ativos', 'inativos', 'todos'].map((f) => html`
-              <button class=${filter === f ? 'on' : ''} onClick=${() => setFilter(f)}>${f[0].toUpperCase() + f.slice(1)}</button>`)}
-          </div>
         </div>
         ${list.length === 0 && html`
           <p class="muted">Nenhum paciente encontrado.
@@ -268,8 +265,7 @@ export function Home() {
                   <td>
                     ${p.name}
                     ${!p.phone && html` <span class="badge badge-warn" title="Sem telefone: necessário para os questionários">sem telefone</span>`}
-                    ${p.status === 'inativo' && html` <span class="badge">inativo</span>`}
-                    ${p.status !== 'inativo' && isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado">+${ACTIVE_DAYS} dias</span>`}
+                    ${isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado: fora das listas e dos questionários">+${ACTIVE_DAYS} dias</span>`}
                   </td>
                   <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
                   <td class=${p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>
@@ -278,7 +274,7 @@ export function Home() {
             </tbody>
           </table>
           ${listMore}`}
-        ${filter === 'inativos' && html`<p class="muted small">Inativos: marcados por você, ou com mais de ${ACTIVE_DAYS} dias da última consulta e nenhuma marcada (voltam sozinhos se marcarem).</p>`}
+        ${!q && html`<p class="muted small">Quem passou de ${ACTIVE_DAYS} dias da última consulta sem nada marcado sai da lista (volta sozinho ao marcar consulta) e só aparece na busca por nome.</p>`}
       </section>`}
 
     </div>

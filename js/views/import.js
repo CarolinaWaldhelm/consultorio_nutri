@@ -31,15 +31,14 @@ export function ImportPage() {
       ]);
       const today = todayISO();
       const plan = buildPlan(parsed, ex, today);
-      // Consulta registrada no software nos últimos 150 dias também conta como atividade.
+      // Consulta registrada no software dentro do prazo também conta como atividade.
       const recentOwn = new Set(own.filter((c) => c.date <= today && daysBetween(c.date, today) <= ACTIVE_DAYS).map((c) => c.patient_id));
       for (const m of plan.matches) if (recentOwn.has(m.existing.id)) m.old = false;
-      // Antigos: removidos. Os que têm anotações da nutricionista não são apagados: ficam inativos
-      // (fora da lista) e voltam sozinhos se marcarem consulta.
+      // Antigos: removidos. Os que têm anotações da nutricionista não são apagados (somem das listas pela
+      // regra dos dias e voltam sozinhos se marcarem consulta).
       const hasNotes = new Set([...own, ...notes].map((r) => r.patient_id));
       plan.removable = plan.matches.filter((m) => m.old && !hasNotes.has(m.existing.id));
-      plan.toInactivate = plan.matches.filter((m) => m.old && hasNotes.has(m.existing.id));
-      plan.toReactivate = plan.matches.filter((m) => !m.old && m.existing.inactive_reason === 'importacao');
+      plan.keptOld = plan.matches.filter((m) => m.old && hasNotes.has(m.existing.id));
       setExisting(ex);
       setPlan(plan);
       setDecisions({});
@@ -65,8 +64,6 @@ export function ImportPage() {
         if (toRemove.has(m.existing.id)) continue;
         idOf[m.index] = m.existing.id;
         const row = mergeIntoExisting(updates.get(m.existing.id) || m.existing, plan.persons[m.index]);
-        if (plan.toInactivate.includes(m)) { row.status = 'inativo'; row.inactive_reason = 'importacao'; }
-        if (plan.toReactivate.includes(m)) { row.status = 'ativo'; row.inactive_reason = null; }
         updates.set(m.existing.id, row);
       }
       for (const i of plan.unmatched) {
@@ -109,7 +106,7 @@ export function ImportPage() {
       await run(supabase.from('measurements').delete().in('source', ['nutrium_app', 'nutrium_prof']));
       for (const part of chunks(rows.measurements)) await run(supabase.from('measurements').insert(part));
 
-      setResult({ created: inserts.length, updated: upd.length, removed: toRemove.size, inactivated: plan.toInactivate.length, reactivated: plan.toReactivate.length, skipped: plan.skippedOld.length, appts: rows.appointments.length, meas: rows.measurements.length });
+      setResult({ created: inserts.length, updated: upd.length, removed: toRemove.size, skipped: plan.skippedOld.length, appts: rows.appointments.length, meas: rows.measurements.length });
       setStage('done');
     } catch (err) {
       setError(err);
@@ -155,8 +152,6 @@ export function ImportPage() {
           <li>${result.updated} paciente(s) atualizado(s)</li>
           ${result.skipped > 0 && html`<li>${result.skipped} paciente(s) ignorado(s) por estarem há mais de ${ACTIVE_DAYS} dias sem consulta</li>`}
           ${result.removed > 0 && html`<li>${result.removed} paciente(s) antigo(s) removido(s) do sistema</li>`}
-          ${result.inactivated > 0 && html`<li>${result.inactivated} paciente(s) antigo(s) com anotações suas marcado(s) como inativo(s)</li>`}
-          ${result.reactivated > 0 && html`<li>${result.reactivated} paciente(s) que voltou(aram) a marcar consulta reativado(s)</li>`}
           <li>${result.appts} consulta(s) do Nutrium</li>
           <li>${result.meas} medição(ões) de peso e altura</li>
         </ul>
@@ -186,11 +181,10 @@ function Review({ plan, existing, decisions, setDecisions, onApply, onCancel }) 
         <div class="stat"><div class="stat-label">Consultas</div><div class="stat-value">${nAppts}</div></div>
         <div class="stat"><div class="stat-label">Pesos e alturas</div><div class="stat-value">${nMeas}</div></div>
       </div>
-      ${(plan.removable.length > 0 || plan.toInactivate.length > 0 || plan.toReactivate.length > 0) && html`
+      ${(plan.removable.length > 0 || plan.keptOld.length > 0) && html`
         <div class="alert">
           ${plan.removable.length > 0 && html`<div>🗑️ <strong>${plan.removable.length} paciente(s)</strong> que já estavam no sistema passaram de ${ACTIVE_DAYS} dias sem consulta e sem consulta marcada: serão <strong>removidos</strong>.</div>`}
-          ${plan.toInactivate.length > 0 && html`<div>💤 <strong>${plan.toInactivate.length} paciente(s)</strong> na mesma situação têm anotações suas: não serão apagados, ficam <strong>inativos</strong> (fora da lista) e voltam sozinhos se marcarem consulta.</div>`}
-          ${plan.toReactivate.length > 0 && html`<div>✅ <strong>${plan.toReactivate.length} paciente(s)</strong> inativo(s) marcaram consulta de novo: serão <strong>reativados</strong>.</div>`}
+          ${plan.keptOld.length > 0 && html`<div>📁 <strong>${plan.keptOld.length} paciente(s)</strong> na mesma situação têm anotações suas: não serão apagados. Ficam fora das listas (dá para achar pela busca) e voltam sozinhos se marcarem consulta.</div>`}
         </div>`}
       ${plan.merges.length > 0 && html`
         <div class="alert">

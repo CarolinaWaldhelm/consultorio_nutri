@@ -3,7 +3,7 @@
 import { norm, unique, daysBetween } from './util.js';
 
 /** Pacientes sem consulta há mais que isso não entram na importação. */
-export const ACTIVE_DAYS = 150;
+export const ACTIVE_DAYS = 100;
 
 const key = (h) => norm(h).replace(/[^a-z0-9]/g, '');
 
