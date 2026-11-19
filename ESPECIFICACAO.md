@@ -46,9 +46,10 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    - grade de horários (07h às 20h, ampliada se houver consulta fora disso), consultas posicionadas pelo horário e
      duração, lado a lado quando se sobrepõem; linha vermelha da hora atual; consultas que já passaram ficam apagadas;
    - etiqueta **1ª** para primeira consulta; **⚠️** em laranja para consulta não vinculada;
-   - clique numa consulta: abre uma **janela de resumo do paciente** (última consulta, peso e variação, IMC, meta
-     calórica, objetivo, combinados, taxa de resposta dos questionários, exames fora da referência, telefone) com o
-     botão `[Abrir ficha do paciente →]`; numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
+   - clique numa consulta: abre uma **janela de resumo do paciente** com: última consulta e há quantos dias;
+     **Objetivos da consulta** (se a última anotação foi a primeira consulta) ou **Resumo do mês** (se foi retorno);
+     objetivo e combinados da última consulta; taxa de resposta dos questionários; telefone. Botão
+     `[Abrir ficha do paciente →]`. Numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
      nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
    - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
    - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻.
