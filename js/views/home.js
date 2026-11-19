@@ -1,12 +1,13 @@
 import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, nowHM, onlyDigits, unique } from '../lib/util.js';
-import { loadAgenda, consultationEvents, matchEvent, windowDays, hasEnded } from '../lib/agenda.js';
+import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
+import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE } from '../lib/questionnaires.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { TodoCard } from './todos.js';
+import { CalendarCard } from './calendar.js';
 
 const ALERT_DAYS = 50;
 const FIRST_PAGE = 15; // itens visíveis em cada lista
@@ -48,7 +49,8 @@ export function Home() {
   const [newFor, setNewFor] = useState(null); // { name, email } para o cadastro rápido
   const [linking, setLinking] = useState(null); // evento a vincular
   const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
-  const [now, setNow] = useState(nowHM()); // muda a cada minuto: consultas que já passaram saem da lista
+  const [calPeriod, setCalPeriod] = useState(null); // período visível no calendário
+  const [nutAppts, setNutAppts] = useState([]); // consultas da planilha (quando a agenda não está conectada)
 
   const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
 
@@ -66,6 +68,7 @@ export function Home() {
   useEffect(() => {
     loadPatients();
     refreshAgenda();
+    run(supabase.from('nutrium_appointments').select('*').gte('date', windowDays(-120).to)).then(setNutAppts).catch(() => {});
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
@@ -76,34 +79,28 @@ export function Home() {
     })
       .catch(() => setQdata(null));
 
-    // Atualização automática: o relógio a cada minuto, a agenda a cada 10 minutos e os pacientes a cada 5
+    // Atualização automática: a agenda a cada 10 minutos e os pacientes a cada 5
     // (e sempre que você volta para esta aba do navegador).
-    const clock = setInterval(() => setNow(nowHM()), 60 * 1000);
     const cal = setInterval(() => refreshAgenda(true, true), 10 * 60 * 1000);
     const pts = setInterval(loadPatients, 5 * 60 * 1000);
-    const onFocus = () => { setNow(nowHM()); loadPatients(); refreshAgenda(false, true); };
+    const onFocus = () => { loadPatients(); refreshAgenda(false, true); };
     window.addEventListener('focus', onFocus);
-    return () => { clearInterval(clock); clearInterval(cal); clearInterval(pts); window.removeEventListener('focus', onFocus); };
+    return () => { clearInterval(cal); clearInterval(pts); window.removeEventListener('focus', onFocus); };
   }, []);
 
   const today = todayISO();
 
-  // Próximas consultas: as 15 próximas que ainda não terminaram (agenda do Google; sem agenda, planilha do Nutrium).
-  const upcoming = useMemo(() => {
-    if (!patients) return [];
+  // Consultas do período visível no calendário: agenda do Google ou, sem ela, a planilha do Nutrium.
+  const calendarEvents = useMemo(() => {
+    if (!patients || !calPeriod) return [];
     if (agenda.state === 'ok') {
-      const { from, to } = windowDays(90);
-      return consultationEvents(agenda.events, from, to)
-        .filter((ev) => !hasEnded(ev, today, now))
-        .slice(0, FIRST_PAGE)
-        .map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
+      return consultationEvents(agenda.events, calPeriod.from, calPeriod.to).map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
     }
-    return patients
-      .filter((p) => p.next_consult && !hasEnded({ start: p.next_consult, time: p.next_time }, today, now))
-      .sort((a, b) => (a.next_consult + (a.next_time || '')).localeCompare(b.next_consult + (b.next_time || '')))
-      .slice(0, FIRST_PAGE)
-      .map((p) => ({ uid: p.id, start: p.next_consult, time: p.next_time, patientName: p.name, patient: p, attendees: [] }));
-  }, [patients, agenda, now]);
+    const byId = new Map(patients.map((p) => [p.id, p]));
+    return nutAppts.filter((a) => a.date >= calPeriod.from && a.date <= calPeriod.to)
+      .map((a) => ({ uid: 'n' + a.id, start: a.date, time: a.start_time, endDate: a.date, endTime: a.end_time, patient: byId.get(a.patient_id) || null, patientName: byId.get(a.patient_id)?.name || '', attendees: [] }))
+      .filter((e) => e.patient);
+  }, [patients, agenda, calPeriod, nutAppts]);
 
   // Pacientes com consulta marcada (agenda dos próximos 90 dias ou planilha).
   const scheduled = useMemo(() => {
@@ -190,41 +187,15 @@ export function Home() {
       </section>`}
 
     ${!q && html`
-      <section class="card">
-        <div class="card-title-row">
-          <h2 class="card-title">📅 Próximas consultas${' '}<span class="muted small">${agenda.state === 'ok' ? '(Google Agenda)' : '(pela planilha do Nutrium)'}</span>
-          </h2>
-          ${agenda.state === 'ok' && html`<button class="btn btn-sm btn-ghost" onClick=${() => refreshAgenda(true)}>↻ Atualizar</button>`}
-          ${agenda.state === 'loading' && html`<span class="muted small">Lendo a agenda…</span>`}
-        </div>
-        ${agenda.state === 'off' && html`<div class="alert">A agenda do Google ainda não está conectada. <a href="#/config">Conectar agora</a></div>`}
-        ${agenda.state === 'error' && html`<div class="alert alert-error">Não consegui ler a agenda do Google: ${agenda.error?.message || agenda.error}. Mostrando as consultas da planilha do Nutrium. <a href="#/config">Ver configurações</a></div>`}
-        ${upcoming.length === 0 && agenda.state !== 'loading' && html`<p class="muted">Nenhuma consulta marcada.</p>`}
-        ${upcoming.length > 0 && html`
-          <table class="table">
-            <thead><tr><th>Quando</th><th>Paciente</th><th>Última consulta</th><th>Dias passados</th></tr></thead>
-            <tbody>
-              ${upcoming.map((ev) => ev.patient
-                ? html`
-                  <tr class="row-link" onClick=${() => go('/paciente/' + ev.patient.id)}>
-                    <td><strong>${dayLabel(ev.start)}</strong> ${ev.time || ''}</td>
-                    <td>${ev.patient.name}</td>
-                    <td>${ev.patient.last_consult ? fmtDate(ev.patient.last_consult) : html`<span class="badge badge-blue">Primeira consulta</span>`}</td>
-                    <td>${daysAgoLabel(ev.patient.last_consult)}</td>
-                  </tr>`
-                : html`
-                  <tr>
-                    <td><strong>${dayLabel(ev.start)}</strong> ${ev.time || ''}</td>
-                    <td>${ev.patientName} <span class="badge badge-warn">⚠️ não vinculado</span></td>
-                    <td colspan="2">
-                      <button class="btn btn-sm" onClick=${() => setLinking(ev)}>🔗 Vincular a paciente</button>
-                      <button class="btn btn-sm" onClick=${() => setNewFor({ name: ev.patientName, emails: ev.attendees })}>➕ Criar cadastro</button>
-                    </td>
-                  </tr>`)}
-            </tbody>
-          </table>
-          <p class="muted small">As ${FIRST_PAGE} próximas. Cada consulta sai da lista quando o horário dela termina.</p>`}
-      </section>`}
+      <${CalendarCard}
+        events=${calendarEvents}
+        source=${agenda.state === 'ok' ? 'google' : 'nutrium'}
+        state=${agenda.state}
+        error=${agenda.error}
+        onRefresh=${() => refreshAgenda(true)}
+        onUnlinked=${setLinking}
+        onPeriod=${setCalPeriod}
+      />`}
 
     ${!q && overdue.length > 0 && html`
       <section class="card">
@@ -288,11 +259,12 @@ export function Home() {
         patients=${patients}
         onClose=${() => setLinking(null)}
         onLinked=${async () => { setLinking(null); await loadPatients(); }}
+        onCreate=${() => { const ev = linking; setLinking(null); setNewFor({ name: ev.patientName, emails: ev.attendees }); }}
       />`}`;
 }
 
 /** Vincula um evento da agenda a um paciente: guarda o e-mail do convidado e o nome do título no cadastro. */
-function LinkModal({ event, patients, onClose, onLinked }) {
+function LinkModal({ event, patients, onClose, onLinked, onCreate }) {
   const [q, setQ] = useState(event.patientName.split(' ')[0] || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -323,6 +295,7 @@ function LinkModal({ event, patients, onClose, onLinked }) {
         ${options.length === 0 && html`<li class="muted">Nenhum paciente com esse nome.</li>`}
       </ul>
       <${ErrorBox} error=${error} />
+      <div class="actions"><button class="btn" onClick=${onCreate}>➕ É paciente novo: criar cadastro</button></div>
     <//>`;
 }
 

@@ -39,19 +39,17 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 ## 2. Tela inicial — Pacientes
 
 1. **Busca** de paciente por nome.
-2. **Próximas consultas** (Google Agenda, ver §9; sem agenda, planilha do Nutrium): as **15 próximas** que ainda
-   não terminaram. Cada consulta **sai da lista quando o horário dela termina** (fim do evento; sem fim, 1 hora
-   após o início) e as seguintes sobem. A tela se atualiza sozinha: relógio a cada minuto, agenda a cada 10 minutos,
-   pacientes a cada 5 minutos e sempre que a aba do navegador volta a ficar ativa.
-
-   | Horário | Paciente | Última consulta | Dias passados |
-   |---|---|---|---|
-   | Hoje 09:00 | Maria Silva | 12/10/2026 | Há 30 dias |
-   | Amanhã 10:30 | João Santos | Primeira consulta | – |
-
-   Eventos não vinculados aparecem com ⚠️ e as ações `[Vincular a paciente]` `[Criar cadastro]`.
-   Vincular guarda no cadastro o e-mail do convidado e o nome do título (coluna `aliases`), e nas próximas
-   vezes o vínculo é automático.
+2. **Calendário de consultas** (Google Agenda, ver §9; sem agenda, planilha do Nutrium), no lugar da antiga
+   lista de próximas consultas:
+   - visões **Dia, Semana e Mês** (abre em Semana; no celular, em Dia); semana de domingo a sábado;
+   - navegação `‹ Hoje ›` para ver semanas, dias ou meses anteriores e seguintes;
+   - grade de horários (07h às 20h, ampliada se houver consulta fora disso), consultas posicionadas pelo horário e
+     duração, lado a lado quando se sobrepõem; linha vermelha da hora atual; consultas que já passaram ficam apagadas;
+   - etiqueta **1ª** para primeira consulta; **⚠️** em laranja para consulta não vinculada;
+   - clique numa consulta: abre a ficha; numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
+     nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
+   - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
+   - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻.
 3. **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
