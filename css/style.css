@@ -271,11 +271,17 @@ textarea { resize: vertical; min-height: 44px; }
 .labs th.ref, .labs td.ref { white-space: nowrap; }
 .lab-legend { margin-top: 8px; }
 
-/* Tela inicial: agenda + lembretes lado a lado */
-.home-top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
-.home-top > .card { margin-bottom: 0; }
-.home-top + * { margin-top: 16px; }
-@media (max-width: 900px) { .home-top { grid-template-columns: 1fr; } }
+/* Tela inicial: coluna central (todas as tabelas com a mesma largura) + lembretes na lateral */
+.container.wide { max-width: 1440px; }
+.home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.home-main { min-width: 0; }
+.home-side { position: sticky; top: 76px; padding-top: 52px; }
+.home-side .card { margin-bottom: 0; max-height: calc(100vh - 150px); overflow-y: auto; }
+@media (max-width: 1000px) {
+  .home-layout { grid-template-columns: 1fr; }
+  .home-side { position: static; padding-top: 0; order: -1; }
+  .home-side .card { max-height: none; }
+}
 .todo-add { display: flex; gap: 6px; margin-bottom: 8px; }
 .todo-list { list-style: none; padding: 0; margin: 0; }
 .todo-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--line); }

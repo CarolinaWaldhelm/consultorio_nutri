@@ -156,6 +156,8 @@ export function Home() {
   if (!patients) return html`<${Loading} />`;
 
   return html`
+    <div class="home-layout">
+    <div class="home-main">
     <div class="page-head">
       <h1>Pacientes</h1>
       <button class="btn btn-primary" onClick=${() => setNewFor({ name: q })}>+ Cadastro rápido</button>
@@ -186,7 +188,6 @@ export function Home() {
       </section>`}
 
     ${!q && html`
-      <div class="home-top">
       <section class="card">
         <div class="card-title-row">
           <h2 class="card-title">📅 Próximas consultas${' '}<span class="muted small">${agenda.state === 'ok' ? '(Google Agenda)' : '(pela planilha do Nutrium)'}</span>
@@ -221,9 +222,7 @@ export function Home() {
             </tbody>
           </table>
           <p class="muted small">As ${FIRST_PAGE} próximas. Cada consulta sai da lista quando o horário dela termina.</p>`}
-      </section>
-      <${TodoCard} />
-      </div>`}
+      </section>`}
 
     ${!q && overdue.length > 0 && html`
       <section class="card">
@@ -281,6 +280,10 @@ export function Home() {
           ${listMore}`}
         ${filter === 'inativos' && html`<p class="muted small">Inativos: marcados por você, ou com mais de ${ACTIVE_DAYS} dias da última consulta e nenhuma marcada (voltam sozinhos se marcarem).</p>`}
       </section>`}
+
+    </div>
+    <aside class="home-side"><${TodoCard} /></aside>
+    </div>
 
     ${newFor && html`<${NewPatientModal} initialName=${newFor.name} emails=${newFor.emails || []} onClose=${() => setNewFor(null)} />`}
     ${linking && html`

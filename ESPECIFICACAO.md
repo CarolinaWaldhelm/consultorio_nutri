@@ -52,7 +52,7 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    Eventos não vinculados aparecem com ⚠️ e as ações `[Vincular a paciente]` `[Criar cadastro]`.
    Vincular guarda no cadastro o e-mail do convidado e o nome do título (coluna `aliases`), e nas próximas
    vezes o vínculo é automático.
-3. **✅ Lembretes** (ao lado da agenda): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
+3. **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
 4. **Sem retorno há mais de 50 dias**, ativos e **sem consulta marcada** (na agenda, nos próximos 90 dias, ou na
