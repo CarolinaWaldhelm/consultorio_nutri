@@ -2,7 +2,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, nowHM, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays, hasEnded } from '../lib/agenda.js';
-import { planSends, consultSoonIds, DEFAULT_FREQUENCY } from '../lib/questionnaires.js';
+import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE } from '../lib/questionnaires.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
@@ -69,10 +69,10 @@ export function Home() {
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
-      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'last_backup_at'])),
+      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at'])),
     ]).then(([sends, defs, sets]) => {
       const get = (k) => sets.find((x) => x.key === k)?.value;
-      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, lastBackup: get('last_backup_at') || null });
+      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, lastBackup: get('last_backup_at') || null });
     })
       .catch(() => setQdata(null));
 
@@ -134,7 +134,7 @@ export function Home() {
     const pairs = agenda.state === 'ok'
       ? consultationEvents(agenda.events, ...Object.values(windowDays(7))).map((ev) => [ev.start, matchEvent(ev, patients).patient?.id]).filter(([, id]) => id)
       : [];
-    const plan = planSends({ patients, sends: qdata.sends, soonIds: consultSoonIds(patients, pairs), frequency: qdata.frequency });
+    const plan = planSends({ patients, sends: qdata.sends, soonIds: consultSoonIds(patients, pairs), frequency: qdata.frequency, startDate: qdata.startDate });
     return { due: plan.due.length, reminders: plan.reminders.length };
   }, [qdata, patients, agenda]);
 

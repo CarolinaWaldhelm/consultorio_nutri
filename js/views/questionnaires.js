@@ -5,7 +5,7 @@ import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
   planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
-  DEFAULT_FREQUENCY, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
+  DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
 
@@ -32,7 +32,8 @@ export async function loadQuestionnaireData() {
 export function sendPlan(data) {
   const frequency = Number(data.settings.questionnaire_frequency_days) || DEFAULT_FREQUENCY;
   const soonIds = consultSoonIds(data.patients, data.agendaPairs);
-  return { frequency, ...planSends({ patients: data.patients, sends: data.sends, soonIds, frequency }) };
+  const startDate = data.settings.questionnaire_start_date || DEFAULT_START_DATE;
+  return { frequency, startDate, ...planSends({ patients: data.patients, sends: data.sends, soonIds, frequency, startDate }) };
 }
 
 export function QuestionnairesPage() {
@@ -110,6 +111,12 @@ function SendsTab({ data, reload, goModels }) {
   }
   const queueSkip = () => setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
 
+  async function stopFor(p) {
+    if (!confirm(`Não enviar mais questionários para ${p.name}? Dá para reativar na ficha do paciente (seção Questionários).`)) return;
+    await run(supabase.from('patients').update({ questionnaires_active: false }).eq('id', p.id));
+    reload();
+  }
+
   async function undo(p) {
     const row = sent[p.id];
     if (!confirm(`Desfazer o envio para ${p.name}? O link deixa de funcionar.`)) return;
@@ -182,7 +189,9 @@ function SendsTab({ data, reload, goModels }) {
                 <td>${fmtDate(p.last_consult)} <span class="muted small">(${daysAgoLabel(p.last_consult).toLowerCase()})</span></td>
                 <td class="muted small">${dueBy[p.id]?.fromSend ? `último questionário em ${fmtDate(dueBy[p.id].anchor)}` : 'primeiro após a consulta'}</td>
                 <td class="row-actions">
-                  ${sent[p.id] && html`<span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`}
+                  ${sent[p.id]
+                    ? html`<span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`
+                    : html`<button class="btn btn-sm btn-ghost" title="Tira este paciente dos envios (dá para reativar na ficha)" onClick=${() => stopFor(p)}>Não enviar para este paciente</button>`}
                 </td>
               </tr>`)}
           </tbody>
@@ -191,7 +200,7 @@ function SendsTab({ data, reload, goModels }) {
           O WhatsApp exige um clique por pessoa (o envio sai do seu número), então o sistema vai abrindo um de cada vez.</p>`}
     </section>
 
-    ${plan.noPhone.length > 0 && html`<${PhoneRequest} items=${plan.noPhone} onSaved=${reload} />`}
+    ${plan.noPhone.length > 0 && html`<${PhoneRequest} items=${plan.noPhone} onSaved=${reload} onStop=${stopFor} />`}
 
     ${plan.reminders.length > 0 && html`
       <section class="card">
@@ -223,6 +232,7 @@ function SendsTab({ data, reload, goModels }) {
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
                 <td class="muted small">sem resposta aos envios de ${sentDates.map((d) => fmtDate(d)).join(' e ')}</td>
                 <td class="muted small">última consulta ${fmtDate(p.last_consult)}</td>
+                <td class="row-actions"><button class="btn btn-sm btn-ghost" onClick=${() => stopFor(p)}>Não enviar para este paciente</button></td>
               </tr>`)}
           </tbody>
         </table>
@@ -233,7 +243,7 @@ function SendsTab({ data, reload, goModels }) {
 }
 
 /** Pede o telefone de quem deveria receber hoje: digitou e salvou, o paciente vai para a lista de envio. */
-function PhoneRequest({ items, onSaved }) {
+function PhoneRequest({ items, onSaved, onStop }) {
   const [values, setValues] = useState({});
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -258,7 +268,7 @@ function PhoneRequest({ items, onSaved }) {
     <section class="card phone-request">
       <h2 class="card-title">📞 Atualize os telefones para enviar <span class="muted small">(${items.length} deveriam receber hoje)</span></h2>
       <p class="muted small">Estes pacientes já estão no prazo do questionário, mas não têm telefone. Digite o WhatsApp com DDD e salve:
-        o paciente entra na lista de envio acima, já marcado.</p>
+        o paciente entra na lista de envio acima, já marcado. Se não quiser enviar para alguém, use “Não enviar para este paciente”.</p>
       <${ErrorBox} error=${error} />
       <table class="table">
         <tbody>
@@ -268,7 +278,10 @@ function PhoneRequest({ items, onSaved }) {
               <td><input type="tel" class="phone-input" placeholder="11 98765-4321" value=${values[p.id] || ''}
                 onInput=${(e) => setValues({ ...values, [p.id]: e.target.value })}
                 onKeyDown=${(e) => e.key === 'Enter' && save(p)} /></td>
-              <td class="row-actions"><button class="btn btn-sm btn-primary" disabled=${busy === p.id || !(values[p.id] || '').trim()} onClick=${() => save(p)}>${busy === p.id ? 'Salvando…' : 'Salvar'}</button></td>
+              <td class="row-actions">
+                <button class="btn btn-sm btn-ghost" title="Tira este paciente dos envios (dá para reativar na ficha)" onClick=${() => onStop(p)}>Não enviar para este paciente</button>
+                <button class="btn btn-sm btn-primary" disabled=${busy === p.id || !(values[p.id] || '').trim()} onClick=${() => save(p)}>${busy === p.id ? 'Salvando…' : 'Salvar'}</button>
+              </td>
             </tr>`)}
         </tbody>
       </table>
@@ -580,6 +593,7 @@ function Editor({ initial, isFirst, onClose, onSaved }) {
 
 function ConfigTab({ data, reload }) {
   const [freq, setFreq] = useState(String(data.settings.questionnaire_frequency_days || DEFAULT_FREQUENCY));
+  const [start, setStart] = useState(data.settings.questionnaire_start_date || DEFAULT_START_DATE);
   const [msg, setMsg] = useState(data.settings.whatsapp_message || DEFAULT_MESSAGE);
   const [rem, setRem] = useState(data.settings.whatsapp_reminder || DEFAULT_REMINDER);
   const [saved, setSaved] = useState(false);
@@ -594,6 +608,7 @@ function ConfigTab({ data, reload }) {
     try {
       await run(supabase.from('app_settings').upsert([
         { key: 'questionnaire_frequency_days', value: f },
+        { key: 'questionnaire_start_date', value: start || DEFAULT_START_DATE },
         { key: 'whatsapp_message', value: msg },
         { key: 'whatsapp_reminder', value: rem },
       ]));
@@ -608,7 +623,8 @@ function ConfigTab({ data, reload }) {
   return html`
     <section class="card">
       <h2 class="card-title">Frequência</h2>
-      <label class="adjust-row">Enviar a cada <input type="number" min="1" max="60" value=${freq} onInput=${(e) => setFreq(e.target.value)} /> dias, contados a partir da última consulta.</label>
+      <label class="adjust-row">Enviar a cada <input type="number" min="1" max="60" value=${freq} onInput=${(e) => setFreq(e.target.value)} /> dias, contados a partir da última consulta ou do último questionário.</label>
+      <label class="adjust-row">Começar a contar a partir de <input type="date" style="width:auto" value=${start} onInput=${(e) => setStart(e.target.value)} /> <span class="muted small">(antes dessa data não conta prazo; o primeiro envio sai ${freq} dias depois dela)</span></label>
       <p class="muted small">Envia N dias depois da última consulta ou do último questionário, até a véspera da próxima consulta; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Quem não responde em 3 dias aparece na lista de lembretes.</p>
     </section>
     <section class="card">

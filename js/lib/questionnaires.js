@@ -3,6 +3,8 @@ import { daysBetween, todayISO, onlyDigits } from './util.js';
 import { ACTIVE_DAYS } from './nutrium.js';
 
 export const DEFAULT_FREQUENCY = 7;
+/** Data de início dos questionários: antes dela não conta prazo (editável em "Mensagem e frequência"). */
+export const DEFAULT_START_DATE = '2026-11-19';
 export const PAUSE_BEFORE_CONSULT_DAYS = 0; // não envia no dia da consulta (na véspera, envia)
 export const REMIND_AFTER_DAYS = 3;
 export const AUTO_PAUSE_UNANSWERED = 2;
@@ -68,7 +70,7 @@ export function whatsappUrl(phone, text) {
  * Classifica os pacientes para o envio de hoje.
  * patients: linhas de patient_overview; sends: todos os envios; soonIds: pacientes com consulta nos próximos 3 dias.
  */
-export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUENCY, today = todayISO() }) {
+export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUENCY, startDate = DEFAULT_START_DATE, today = todayISO() }) {
   const byPatient = new Map();
   for (const s of sends) {
     if (!byPatient.has(s.patient_id)) byPatient.set(s.patient_id, []);
@@ -96,8 +98,10 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
 
     // Próximo envio: 7 dias depois do último questionário enviado (desde a consulta) ou, se ainda não houve
     // nenhum, 7 dias depois da última consulta.
+    // A contagem nunca começa antes da data de início dos questionários.
     const lastSend = sinceConsult[0];
-    const anchor = lastSend ? dateOf(lastSend.sent_at) : p.last_consult;
+    let anchor = lastSend ? dateOf(lastSend.sent_at) : p.last_consult;
+    if (startDate && anchor < startDate) anchor = startDate;
     if (daysBetween(anchor, today) < frequency) continue;
 
     const lastTwo = sinceConsult.slice(0, AUTO_PAUSE_UNANSWERED);
