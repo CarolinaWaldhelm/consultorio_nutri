@@ -12,6 +12,11 @@ export function todayISO() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
 }
 
+/** Hora atual (horário de Brasília) no formato HH:MM. */
+export function nowHM() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+}
+
 /** AAAA-MM-DD → DD/MM/AAAA */
 export function fmtDate(iso) {
   if (!iso) return '';

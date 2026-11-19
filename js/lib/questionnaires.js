@@ -1,5 +1,6 @@
 // Regras de envio dos questionários (especificação §4.2) e montagem da mensagem do WhatsApp.
 import { daysBetween, todayISO, onlyDigits } from './util.js';
+import { ACTIVE_DAYS } from './nutrium.js';
 
 export const DEFAULT_FREQUENCY = 7;
 export const PAUSE_BEFORE_CONSULT_DAYS = 3;
@@ -83,6 +84,7 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
 
   for (const p of patients) {
     if (p.status !== 'ativo' || !p.questionnaires_active || !p.last_consult) continue;
+    if (daysBetween(p.last_consult, today) > ACTIVE_DAYS) continue; // mais de 150 dias sem consulta: fora das listas
     const mine = byPatient.get(p.id) || [];
     const sinceConsult = mine.filter((s) => dateOf(s.created_at) >= p.last_consult);
 

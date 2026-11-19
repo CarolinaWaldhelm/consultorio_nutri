@@ -4,7 +4,7 @@ import { todayISO } from './util.js';
 
 export const BACKUP_TABLES = [
   'patients', 'consultations', 'nutrium_appointments', 'measurements', 'calculations', 'ai_notes',
-  'questionnaires', 'questionnaire_sends', 'questionnaire_responses', 'lab_exams', 'lab_results', 'app_settings',
+  'questionnaires', 'questionnaire_sends', 'questionnaire_responses', 'lab_exams', 'lab_results', 'todos', 'app_settings',
 ];
 const SECRET_SETTINGS = ['calendar_ics_url']; // o endereço secreto da agenda não vai para o arquivo
 export const BACKUP_EVERY_DAYS = 7;

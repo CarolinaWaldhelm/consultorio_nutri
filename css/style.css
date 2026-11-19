@@ -270,3 +270,18 @@ textarea { resize: vertical; min-height: 44px; }
 .lab-out { color: var(--danger); }
 .labs th.ref, .labs td.ref { white-space: nowrap; }
 .lab-legend { margin-top: 8px; }
+
+/* Tela inicial: agenda + lembretes lado a lado */
+.home-top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.home-top > .card { margin-bottom: 0; }
+.home-top + * { margin-top: 16px; }
+@media (max-width: 900px) { .home-top { grid-template-columns: 1fr; } }
+.todo-add { display: flex; gap: 6px; margin-bottom: 8px; }
+.todo-list { list-style: none; padding: 0; margin: 0; }
+.todo-list li { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.todo-list li:last-child { border-bottom: 0; }
+.todo-list label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; flex: 1; }
+.todo-list input[type=checkbox] { width: auto; margin-top: 3px; }
+.todo-list li.done span { text-decoration: line-through; color: var(--muted); }
+.icon-btn.small { font-size: .8rem; color: var(--muted); }
+.show-more { margin-top: 8px; }

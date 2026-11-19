@@ -44,6 +44,7 @@ export function parseICS(text) {
       case 'SUMMARY': ev.summary = unescapeText(value); break;
       case 'STATUS': ev.status = value.toUpperCase(); break;
       case 'DTSTART': { const s = parseStart(params, value); if (s) { ev.start = s.date; ev.time = s.time; } break; }
+      case 'DTEND': { const s = parseStart(params, value); if (s) { ev.endDate = s.date; ev.endTime = s.time; } break; }
       case 'ORGANIZER': ev.organizer = value.replace(/^mailto:/i, '').trim().toLowerCase(); break;
       case 'ATTENDEE': {
         const mail = value.replace(/^mailto:/i, '').trim().toLowerCase();
@@ -110,4 +111,18 @@ export function windowDays(n) {
   const d = new Date(from + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   return { from, to: d.toISOString().slice(0, 10) };
+}
+
+/** A consulta já terminou? (término do evento; sem término, 1 hora depois do início). */
+export function hasEnded(ev, today, nowHM) {
+  if (ev.start < today) return true;
+  if (ev.start > today) return false;
+  if (!ev.time) return false; // evento de dia inteiro: fica até o fim do dia
+  let end = ev.endDate === ev.start && ev.endTime ? ev.endTime : null;
+  if (!end) {
+    const [h, m] = ev.time.split(':').map(Number);
+    const t = h * 60 + m + 60;
+    end = `${String(Math.min(23, Math.floor(t / 60))).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  }
+  return end <= nowHM;
 }

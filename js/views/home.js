@@ -1,12 +1,16 @@
 import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
-import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
+import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, nowHM, onlyDigits, unique } from '../lib/util.js';
+import { loadAgenda, consultationEvents, matchEvent, windowDays, hasEnded } from '../lib/agenda.js';
 import { planSends, consultSoonIds, DEFAULT_FREQUENCY } from '../lib/questionnaires.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
+import { ACTIVE_DAYS } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
+import { TodoCard } from './todos.js';
 
 const ALERT_DAYS = 50;
+const FIRST_PAGE = 15; // itens visíveis em cada lista
+const PAGE_STEP = 10; // "Mostrar mais"
 const WEEKDAY = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 function dayLabel(iso) {
   const n = daysBetween(todayISO(), iso);
@@ -21,6 +25,17 @@ function plusDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Lista com os primeiros 15 itens e "Mostrar mais" de 10 em 10. */
+function usePaged(items, resetKey) {
+  const [n, setN] = useState(FIRST_PAGE);
+  useEffect(() => setN(FIRST_PAGE), [resetKey]);
+  const more = items.length - n;
+  const button = more > 0
+    ? html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setN(n + PAGE_STEP)}>Mostrar mais ${Math.min(PAGE_STEP, more)} (faltam ${more})</button>`
+    : null;
+  return [items.slice(0, n), button];
+}
+
 export function Home() {
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);
@@ -30,17 +45,18 @@ export function Home() {
   const [linking, setLinking] = useState(null); // evento a vincular
   const [filter, setFilter] = useState('ativos');
   const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
+  const [now, setNow] = useState(nowHM()); // muda a cada minuto: consultas que já passaram saem da lista
 
   const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
 
-  async function refreshAgenda(force = false) {
-    setAgenda((a) => ({ ...a, state: 'loading' }));
+  async function refreshAgenda(force = false, quiet = false) {
+    if (!quiet) setAgenda((a) => ({ ...a, state: 'loading' }));
     try {
       const events = await loadAgenda({ force });
       if (events == null) setAgenda({ state: 'off', events: [] });
       else setAgenda({ state: 'ok', events });
     } catch (err) {
-      setAgenda({ state: 'error', events: [], error: err });
+      if (!quiet) setAgenda({ state: 'error', events: [], error: err });
     }
   }
 
@@ -56,28 +72,41 @@ export function Home() {
       setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, lastBackup: get('last_backup_at') || null });
     })
       .catch(() => setQdata(null));
+
+    // Atualização automática: o relógio a cada minuto, a agenda a cada 10 minutos e os pacientes a cada 5
+    // (e sempre que você volta para esta aba do navegador).
+    const clock = setInterval(() => setNow(nowHM()), 60 * 1000);
+    const cal = setInterval(() => refreshAgenda(true, true), 10 * 60 * 1000);
+    const pts = setInterval(loadPatients, 5 * 60 * 1000);
+    const onFocus = () => { setNow(nowHM()); loadPatients(); refreshAgenda(false, true); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(clock); clearInterval(cal); clearInterval(pts); window.removeEventListener('focus', onFocus); };
   }, []);
 
   const today = todayISO();
 
-  // Próximas consultas: agenda do Google (ou planilha do Nutrium, se a agenda não estiver conectada).
+  // Próximas consultas: as 15 próximas que ainda não terminaram (agenda do Google; sem agenda, planilha do Nutrium).
   const upcoming = useMemo(() => {
     if (!patients) return [];
     if (agenda.state === 'ok') {
-      const { from, to } = windowDays(7);
-      return consultationEvents(agenda.events, from, to).map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
+      const { from, to } = windowDays(90);
+      return consultationEvents(agenda.events, from, to)
+        .filter((ev) => !hasEnded(ev, today, now))
+        .slice(0, FIRST_PAGE)
+        .map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
     }
     return patients
-      .filter((p) => p.next_consult && daysBetween(today, p.next_consult) <= 7)
+      .filter((p) => p.next_consult && !hasEnded({ start: p.next_consult, time: p.next_time }, today, now))
       .sort((a, b) => (a.next_consult + (a.next_time || '')).localeCompare(b.next_consult + (b.next_time || '')))
+      .slice(0, FIRST_PAGE)
       .map((p) => ({ uid: p.id, start: p.next_consult, time: p.next_time, patientName: p.name, patient: p, attendees: [] }));
-  }, [patients, agenda]);
+  }, [patients, agenda, now]);
 
-  // Pacientes com consulta marcada (agenda dos próximos 60 dias ou planilha), para o alerta de 50 dias.
+  // Pacientes com consulta marcada (agenda dos próximos 90 dias ou planilha).
   const scheduled = useMemo(() => {
     const ids = new Set((patients || []).filter((p) => p.next_consult).map((p) => p.id));
     if (agenda.state === 'ok' && patients) {
-      const { from, to } = windowDays(60);
+      const { from, to } = windowDays(90);
       for (const ev of consultationEvents(agenda.events, from, to)) {
         const m = matchEvent(ev, patients);
         if (m.patient) ids.add(m.patient.id);
@@ -86,10 +115,13 @@ export function Home() {
     return ids;
   }, [patients, agenda]);
 
+  // Mais de 150 dias da última consulta e nada marcado: sai das listas na hora (sem esperar a importação).
+  const isArchived = (p) => !!p.last_consult && daysBetween(p.last_consult, today) > ACTIVE_DAYS && !scheduled.has(p.id);
+
   // Última atividade: consulta ou resposta de questionário.
   const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
   const overdue = useMemo(() => (patients || [])
-    .filter((p) => p.status === 'ativo' && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
+    .filter((p) => p.status === 'ativo' && !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
     .filter((p) => !scheduled.has(p.id))
     .filter((p) => !p.snooze_until || p.snooze_until <= today)
     .sort((a, b) => lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
@@ -105,11 +137,15 @@ export function Home() {
 
   const list = useMemo(() => {
     const nq = norm(q);
+    const active = (p) => p.status === 'ativo' && !isArchived(p);
     return (patients || [])
-      .filter((p) => (filter === 'todos' ? true : filter === 'inativos' ? p.status === 'inativo' : p.status === 'ativo'))
+      .filter((p) => (filter === 'todos' ? true : filter === 'inativos' ? !active(p) : active(p)))
       .filter((p) => !nq || norm(p.name).includes(nq))
       .sort((a, b) => (b.last_consult || '').localeCompare(a.last_consult || '') || a.name.localeCompare(b.name));
-  }, [patients, q, filter]);
+  }, [patients, q, filter, scheduled]);
+
+  const [overdueShown, overdueMore] = usePaged(overdue, 'overdue');
+  const [listShown, listMore] = usePaged(list, q + '|' + filter);
 
   async function updatePatient(id, patch) {
     await run(supabase.from('patients').update(patch).eq('id', id));
@@ -150,17 +186,17 @@ export function Home() {
       </section>`}
 
     ${!q && html`
+      <div class="home-top">
       <section class="card">
         <div class="card-title-row">
-          <h2 class="card-title">📅 Próximas consultas
-            <span class="muted small">${agenda.state === 'ok' ? '(Google Agenda, próximos 7 dias)' : '(pela planilha do Nutrium)'}</span>
+          <h2 class="card-title">📅 Próximas consultas${' '}<span class="muted small">${agenda.state === 'ok' ? '(Google Agenda)' : '(pela planilha do Nutrium)'}</span>
           </h2>
           ${agenda.state === 'ok' && html`<button class="btn btn-sm btn-ghost" onClick=${() => refreshAgenda(true)}>↻ Atualizar</button>`}
           ${agenda.state === 'loading' && html`<span class="muted small">Lendo a agenda…</span>`}
         </div>
         ${agenda.state === 'off' && html`<div class="alert">A agenda do Google ainda não está conectada. <a href="#/config">Conectar agora</a></div>`}
         ${agenda.state === 'error' && html`<div class="alert alert-error">Não consegui ler a agenda do Google: ${agenda.error?.message || agenda.error}. Mostrando as consultas da planilha do Nutrium. <a href="#/config">Ver configurações</a></div>`}
-        ${upcoming.length === 0 && agenda.state !== 'loading' && html`<p class="muted">Nenhuma consulta nos próximos 7 dias.</p>`}
+        ${upcoming.length === 0 && agenda.state !== 'loading' && html`<p class="muted">Nenhuma consulta marcada.</p>`}
         ${upcoming.length > 0 && html`
           <table class="table">
             <thead><tr><th>Quando</th><th>Paciente</th><th>Última consulta</th><th>Dias passados</th></tr></thead>
@@ -183,8 +219,11 @@ export function Home() {
                     </td>
                   </tr>`)}
             </tbody>
-          </table>`}
-      </section>`}
+          </table>
+          <p class="muted small">As ${FIRST_PAGE} próximas. Cada consulta sai da lista quando o horário dela termina.</p>`}
+      </section>
+      <${TodoCard} />
+      </div>`}
 
     ${!q && overdue.length > 0 && html`
       <section class="card">
@@ -192,7 +231,7 @@ export function Home() {
         <table class="table">
           <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem contato</th><th></th></tr></thead>
           <tbody>
-            ${overdue.map((p) => html`
+            ${overdueShown.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
                 <td>${fmtDate(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtDate(p.last_response)}</div>` : ''}</td>
@@ -204,7 +243,8 @@ export function Home() {
               </tr>`)}
           </tbody>
         </table>
-        <p class="muted small">Se o paciente marcar consulta (na agenda ou no Nutrium), ele sai deste alerta sozinho.</p>
+        ${overdueMore}
+        <p class="muted small">Se o paciente marcar consulta (na agenda ou no Nutrium), ele sai deste alerta sozinho. Com mais de ${ACTIVE_DAYS} dias, sai de todas as listas.</p>
       </section>`}
 
     ${patients.length > 0 && html`
@@ -224,19 +264,22 @@ export function Home() {
           <table class="table">
             <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias passados</th><th class="hide-sm">Próxima</th></tr></thead>
             <tbody>
-              ${list.map((p) => html`
+              ${listShown.map((p) => html`
                 <tr class="row-link" onClick=${() => go('/paciente/' + p.id)}>
                   <td>
                     ${p.name}
                     ${!p.phone && html` <span class="badge badge-warn" title="Sem telefone: necessário para os questionários">sem telefone</span>`}
                     ${p.status === 'inativo' && html` <span class="badge">inativo</span>`}
+                    ${p.status !== 'inativo' && isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado">+${ACTIVE_DAYS} dias</span>`}
                   </td>
                   <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
                   <td class=${p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>
                   <td class="hide-sm">${p.next_consult ? fmtDate(p.next_consult) : ''}</td>
                 </tr>`)}
             </tbody>
-          </table>`}
+          </table>
+          ${listMore}`}
+        ${filter === 'inativos' && html`<p class="muted small">Inativos: marcados por você, ou com mais de ${ACTIVE_DAYS} dias da última consulta e nenhuma marcada (voltam sozinhos se marcarem).</p>`}
       </section>`}
 
     ${newFor && html`<${NewPatientModal} initialName=${newFor.name} emails=${newFor.emails || []} onClose=${() => setNewFor(null)} />`}

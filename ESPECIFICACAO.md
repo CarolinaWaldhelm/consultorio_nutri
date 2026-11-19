@@ -39,24 +39,32 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 ## 2. Tela inicial — Pacientes
 
 1. **Busca** de paciente por nome.
-2. **Próximas consultas** (vindas do Google Agenda, ver §9):
+2. **Próximas consultas** (Google Agenda, ver §9; sem agenda, planilha do Nutrium): as **15 próximas** que ainda
+   não terminaram. Cada consulta **sai da lista quando o horário dela termina** (fim do evento; sem fim, 1 hora
+   após o início) e as seguintes sobem. A tela se atualiza sozinha: relógio a cada minuto, agenda a cada 10 minutos,
+   pacientes a cada 5 minutos e sempre que a aba do navegador volta a ficar ativa.
 
    | Horário | Paciente | Última consulta | Dias passados |
    |---|---|---|---|
-   | 09:00 | Maria Silva | 12/10/2026 | Há 30 dias |
-   | 10:30 | João Santos | Primeira consulta | – |
+   | Hoje 09:00 | Maria Silva | 12/10/2026 | Há 30 dias |
+   | Amanhã 10:30 | João Santos | Primeira consulta | – |
 
    Eventos não vinculados aparecem com ⚠️ e as ações `[Vincular a paciente]` `[Criar cadastro]`.
    Vincular guarda no cadastro o e-mail do convidado e o nome do título (coluna `aliases`), e nas próximas
-   vezes o vínculo é automático. Sem agenda conectada, a lista usa as consultas futuras da planilha do Nutrium.
-3. **Pacientes sem retorno há mais de 50 dias**, ativos e **sem consulta marcada** (na agenda, nos próximos
-   60 dias, ou na planilha). Contam como atualização: uma consulta **ou** (Fase 4) uma resposta de questionário.
-   Ações: `[Lembrar em 7 dias]` (some do alerta por 7 dias, coluna `snooze_until`) e
-   `[Marcar como inativo]` (para os questionários e sai da lista de ativos). O nome abre a ficha.
-4. **Botão `[Importar planilha do Nutrium]`** (ver §8).
-5. **Botão `[+ Cadastro rápido]`:** nome, data de nascimento e telefone.
-
----
+   vezes o vínculo é automático.
+3. **✅ Lembretes** (ao lado da agenda): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
+   dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
+   foram marcados; depois são apagados. Dá para desmarcar e apagar.
+4. **Sem retorno há mais de 50 dias**, ativos e **sem consulta marcada** (na agenda, nos próximos 90 dias, ou na
+   planilha). Contam como atualização uma consulta ou uma resposta de questionário. Ações: `[Lembrar em 7 dias]`
+   (coluna `snooze_until`) e `[Marcar como inativo]`. Mostra 15, com `[Mostrar mais]` de 10 em 10.
+5. **Todos os pacientes** (filtros Ativos, Inativos, Todos): 15 visíveis e `[Mostrar mais]` de 10 em 10.
+6. **Regra dos 150 dias também na tela, na hora:** paciente com mais de 150 dias da última consulta e nada
+   marcado sai de "Ativos" e do alerta de 50 dias, aparece em "Inativos" com a etiqueta "+150 dias" e para de
+   receber questionários, sem esperar a importação. Se marcar consulta, volta sozinho. (Na importação, a regra
+   continua removendo de vez os que não têm anotações, ver §8.)
+7. Avisos no topo: questionários para enviar hoje e backup semanal.
+8. **Botão `[Importar planilha do Nutrium]`** (menu) e **`[+ Cadastro rápido]`** (nome, nascimento, telefone).
 
 ## 3. Ficha do paciente
 
