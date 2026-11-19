@@ -7,7 +7,9 @@ import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { TodoCard } from './todos.js';
+import { RoutinesCard } from './routines.js';
 import { CalendarCard } from './calendar.js';
+import { PatientPeek } from './peek.js';
 
 const ALERT_DAYS = 50;
 const FIRST_PAGE = 15; // itens visíveis em cada lista
@@ -48,6 +50,7 @@ export function Home() {
   const [q, setQ] = useState('');
   const [newFor, setNewFor] = useState(null); // { name, email } para o cadastro rápido
   const [linking, setLinking] = useState(null); // evento a vincular
+  const [peek, setPeek] = useState(null); // consulta clicada no calendário (resumo do paciente)
   const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
   const [calPeriod, setCalPeriod] = useState(null); // período visível no calendário
   const [nutAppts, setNutAppts] = useState([]); // consultas da planilha (quando a agenda não está conectada)
@@ -194,6 +197,7 @@ export function Home() {
         error=${agenda.error}
         onRefresh=${() => refreshAgenda(true)}
         onUnlinked=${setLinking}
+        onPatient=${setPeek}
         onPeriod=${setCalPeriod}
       />`}
 
@@ -249,9 +253,10 @@ export function Home() {
       </section>`}
 
     </div>
-    <aside class="home-side"><${TodoCard} /></aside>
+    <aside class="home-side"><${RoutinesCard} /><${TodoCard} /></aside>
     </div>
 
+    ${peek && html`<${PatientPeek} event=${peek} onClose=${() => setPeek(null)} />`}
     ${newFor && html`<${NewPatientModal} initialName=${newFor.name} emails=${newFor.emails || []} onClose=${() => setNewFor(null)} />`}
     ${linking && html`
       <${LinkModal}

@@ -19,6 +19,7 @@ export const FIELDS = {
     ['favoritos', 'Alimentos favoritos'],
     ['alergias', 'Alergias e intolerâncias'],
     ['exames_obs', 'Observações sobre exames iniciais'],
+    ['relato_alimentar', 'Relato alimentar', 'Rotina alimentar: refeições, horários, o que costuma comer e beber.'],
     ['combinados', 'Combinados / Conduta', 'O que foi alinhado com o paciente: metas, orientações.'],
   ],
   retorno: [

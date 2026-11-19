@@ -23,6 +23,9 @@ export function LabValue({ marker, value, unit, sex }) {
 export function LabsCard({ patientId, sex, exams, results, onChanged }) {
   const [adding, setAdding] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
+  const [open, setOpen] = useState(true); // recolher/abrir a seção
+  const [allRows, setAllRows] = useState(false); // tabela: 10 linhas ou todas
+  const ROWS = 10;
   const [viewing, setViewing] = useState(null);
 
   // Tabela: um biomarcador por linha e as datas em ordem cronológica nas colunas (as 6 mais recentes),
@@ -50,16 +53,19 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
   return html`
     <section class="card" id="exames">
       <div class="card-title-row">
-        <h2 class="card-title">🧪 Exames laboratoriais</h2>
+        <button class="card-title collapse-title" aria-expanded=${open} onClick=${() => setOpen(!open)}>
+          ${open ? '▾' : '▸'} 🧪 Exames laboratoriais <span class="muted small">${exams.length ? `(${exams.length} exame${exams.length > 1 ? 's' : ''})` : ''}</span>
+        </button>
         <button class="btn btn-primary btn-sm" onClick=${() => setAdding(true)}>📄 Registrar exame</button>
       </div>
+      ${open && html`
       ${!exams.length && html`<p class="muted">Nenhum exame registrado.</p>`}
       ${rows.length > 0 && html`
         <div class="table-scroll">
           <table class="table labs">
             <thead><tr><th>Exame</th><th class="ref">Referência</th>${shownDates.map((d) => html`<th class="num">${fmtDate(d)}</th>`)}</tr></thead>
             <tbody>
-              ${rows.map((r) => html`
+              ${(allRows ? rows : rows.slice(0, ROWS)).map((r) => html`
                 <tr>
                   <td>${r.label} <span class="muted small">${r.unit || ''}</span></td>
                   <td class="ref muted small" title=${referenceFor(r.marker, sex)?.note || ''}>${referenceFor(r.marker, sex)?.text || '—'}${referenceFor(r.marker, sex)?.note ? ' ⓘ' : ''}</td>
@@ -68,6 +74,10 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
             </tbody>
           </table>
         </div>
+        ${rows.length > ROWS && html`
+          <button class="btn btn-sm btn-ghost show-more" onClick=${() => setAllRows(!allRows)}>
+            ${allRows ? `Mostrar só ${ROWS} linhas` : `Mostrar tudo (${rows.length} exames)`}
+          </button>`}
         <p class="muted small lab-legend">
           <span class="lab-val lab-ok">verde</span>${' dentro da referência · '}<span class="lab-val lab-out">vermelho ↑↓</span>${' acima ou abaixo. '}
           Referências gerais para adultos${sex ? '' : ' (o sexo não está no cadastro: faixas que variam por sexo ficam sem cor)'};
@@ -88,6 +98,7 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
       ${series.length > 0 && html`
         <button class="btn btn-sm btn-ghost" onClick=${() => setShowCharts(!showCharts)}>${showCharts ? '▾' : '▸'} Gráficos de evolução (${series.length})</button>
         ${showCharts && html`<div class="charts">${series.map((s) => html`<${MetricChart} key=${s.marker} label=${s.label} unit=${s.unit || ''} points=${s.points} />`)}</div>`}`}
+      `}
     </section>
     ${viewing && html`<${Modal} title=${`Exame de ${fmtDate(viewing.date)} · resposta da IA`} onClose=${() => setViewing(null)}><div class="qa-a">${viewing.notes}</div><//>`}
     ${adding && html`<${LabModal} patientId=${patientId} sex=${sex} onClose=${() => setAdding(false)} onSaved=${() => { setAdding(false); onChanged(); }} />`}`;

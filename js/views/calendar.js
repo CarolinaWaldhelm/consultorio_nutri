@@ -154,7 +154,7 @@ function MonthGrid({ period, byDate, today, onOpen, onDay }) {
  * events: consultas já vinculadas ({ start, time, endDate, endTime, patientName, patient, attendees }).
  * onUnlinked: chamado ao clicar numa consulta sem paciente vinculado.
  */
-export function CalendarCard({ events, source, state, error, onRefresh, onUnlinked, onPeriod }) {
+export function CalendarCard({ events, source, state, error, onRefresh, onUnlinked, onPatient, onPeriod }) {
   const today = todayISO();
   const isPhone = typeof window !== 'undefined' && window.innerWidth < 700;
   const [view, setView] = useState(isPhone ? 'dia' : 'semana');
@@ -176,7 +176,7 @@ export function CalendarCard({ events, source, state, error, onRefresh, onUnlink
     else if (view === 'semana') setAnchor(addDays(anchor, 7 * dir));
     else { const d = parse(anchor); setAnchor(iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + dir, 1, 12)))); }
   };
-  const open = (ev) => (ev.patient ? go('/paciente/' + ev.patient.id) : onUnlinked(ev));
+  const open = (ev) => (ev.patient ? (onPatient ? onPatient(ev) : go('/paciente/' + ev.patient.id)) : onUnlinked(ev));
   const days = view === 'dia' ? [anchor] : Array.from({ length: 7 }, (_, i) => addDays(period.from, i));
 
   return html`
@@ -201,7 +201,7 @@ export function CalendarCard({ events, source, state, error, onRefresh, onUnlink
         ? html`<${MonthGrid} period=${period} byDate=${byDate} today=${today} onOpen=${open} onDay=${(d) => { setAnchor(d); setView('dia'); }} />`
         : html`<${TimeGrid} days=${days} byDate=${byDate} today=${today} now=${now} onOpen=${open} />`}
       <p class="muted small cal-foot">
-        ${count} consulta(s) neste período · clique numa consulta para abrir a ficha
+        ${count} consulta(s) neste período · clique numa consulta para ver o resumo do paciente
         ${events.some((e) => !e.patient && e.start >= period.from && e.start <= period.to) ? ' · ⚠️ = não vinculada (clique para vincular)' : ''}${' '}
         · <span class="cal-badge">1ª</span> primeira consulta
       </p>

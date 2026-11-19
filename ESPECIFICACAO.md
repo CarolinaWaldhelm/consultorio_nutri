@@ -46,11 +46,17 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    - grade de horários (07h às 20h, ampliada se houver consulta fora disso), consultas posicionadas pelo horário e
      duração, lado a lado quando se sobrepõem; linha vermelha da hora atual; consultas que já passaram ficam apagadas;
    - etiqueta **1ª** para primeira consulta; **⚠️** em laranja para consulta não vinculada;
-   - clique numa consulta: abre a ficha; numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
+   - clique numa consulta: abre uma **janela de resumo do paciente** (última consulta, peso e variação, IMC, meta
+     calórica, objetivo, combinados, taxa de resposta dos questionários, exames fora da referência, telefone) com o
+     botão `[Abrir ficha do paciente →]`; numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
      nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
    - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
    - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻.
-3. **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
+3. **🔁 Rotinas** (coluna lateral, acima dos lembretes; tabela `routines`): tarefas que se repetem **todo dia** ou
+   **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
+   Ficam na lista até serem ticadas; ticada, a diária volta no dia seguinte e a mensal no mês seguinte (a mensal
+   aparece a partir do dia escolhido; se o mês acabar sem fazer, continua aparecendo). Ao ticar, "Desfazer" por 6 s.
+   **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
 4. **Sem retorno há mais de 50 dias**: só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
@@ -107,6 +113,7 @@ apagada automaticamente (não fica vazia no histórico).
 10. Alimentos favoritos
 11. Alergias e intolerâncias
 12. Observações sobre exames iniciais (os valores entram na seção de exames, §3.7)
+12a. **Relato alimentar:** rotina alimentar (refeições, horários, o que costuma comer e beber).
 13. **Combinados / Conduta:** o que foi alinhado com o paciente (metas, orientações)
 
 **B. Anamnese de retorno** (nesta ordem)
@@ -281,6 +288,8 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   creatinina, ureia, ácido úrico, TSH/T4L, hemograma básico, ferritina, ferro, vitamina D, B12, ácido fólico, PCR,
   eletrólitos, zinco). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e triglicerídeos;
   nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
+- A seção pode ser **recolhida** (clique no título). A tabela mostra **10 linhas**, com `[Mostrar tudo]` e
+  `[Mostrar só 10 linhas]`.
 - Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),
   mesmo que um exame antigo seja lançado depois; a lista de exames segue a mesma ordem. Gráficos dos que têm 2+ resultados.
 - **Valores de referência** (base geral para adultos, em `js/lib/labs.js` → `REFERENCES`; lipídios pelos alvos

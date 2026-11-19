@@ -275,12 +275,11 @@ textarea { resize: vertical; min-height: 44px; }
 .container.wide { max-width: 1440px; }
 .home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
 .home-main { min-width: 0; }
-.home-side { position: sticky; top: 76px; padding-top: 52px; }
-.home-side .card { margin-bottom: 0; max-height: calc(100vh - 150px); overflow-y: auto; }
+.home-side { position: sticky; top: 76px; padding-top: 52px; display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 90px); overflow-y: auto; }
+.home-side .card { margin-bottom: 0; }
 @media (max-width: 1000px) {
   .home-layout { grid-template-columns: 1fr; }
-  .home-side { position: static; padding-top: 0; order: -1; }
-  .home-side .card { max-height: none; }
+  .home-side { position: static; padding-top: 0; order: -1; max-height: none; overflow: visible; }
 }
 .todo-add { display: flex; gap: 6px; margin-bottom: 8px; }
 .todo-list { list-style: none; padding: 0; margin: 0; }
@@ -363,3 +362,18 @@ textarea { resize: vertical; min-height: 44px; }
   .cal-chip { font-size: .65rem; }
   .cal-grid { overflow-x: auto; }
 }
+.peek-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.peek-list { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 0; font-size: .9rem; }
+.peek-list dt { color: var(--muted); font-weight: 600; }
+.peek-list dd { margin: 0; white-space: pre-wrap; }
+.collapse-title { border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 1.1rem; font-weight: 700; text-align: left; color: inherit; }
+
+.routine-group { font-weight: 700; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 8px 0 2px; }
+.undo-bar { margin-top: 8px; background: var(--primary-soft); border-radius: 8px; padding: 6px 10px; font-size: .85rem; display: flex; justify-content: space-between; gap: 8px; }
+.routine-add { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+.routine-add input:not([type=number]) { flex: 1; min-width: 200px; }
+.routine-add select { width: auto; }
+.routine-add input[type=number], .routine-day { width: 64px; display: inline-block; padding: 5px 6px; }
+.routine-text { border: 1px solid transparent; padding: 4px 6px; }
+.routine-text:hover, .routine-text:focus { border-color: var(--line); }
+.nowrap { white-space: nowrap; }
