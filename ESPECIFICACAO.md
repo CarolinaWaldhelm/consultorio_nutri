@@ -336,7 +336,7 @@ Outras regras:
 
 | Regra | Valor |
 |---|---|
-| Lembrete para pendentes (opcional) | após 3 dias sem resposta, aparece na lista de lembretes |
+| Lembrete para pendentes | após 3 dias sem resposta, aparece na lista de lembretes (um por envio; mantido por decisão da nutricionista) |
 | Pausa manual por paciente | na ficha (seção Questionários) |
 | Link vence | quando é respondido ou quando o próximo questionário é enviado |
 

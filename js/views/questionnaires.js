@@ -493,7 +493,7 @@ function ConfigTab({ data, reload }) {
     <section class="card">
       <h2 class="card-title">Frequência</h2>
       <label class="adjust-row">Enviar a cada <input type="number" min="1" max="60" value=${freq} onInput=${(e) => setFreq(e.target.value)} /> dias, contados a partir da última consulta.</label>
-      <p class="muted small">Depois de cada consulta, envia a cada N dias até a véspera da próxima; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Lembrete opcional depois de 3 dias sem resposta.</p>
+      <p class="muted small">Depois de cada consulta, envia a cada N dias até a véspera da próxima; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Quem não responde em 3 dias aparece na lista de lembretes.</p>
     </section>
     <section class="card">
       <h2 class="card-title">Mensagem do WhatsApp</h2>
