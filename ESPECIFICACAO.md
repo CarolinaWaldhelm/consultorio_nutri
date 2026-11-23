@@ -389,8 +389,9 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
 
 **Confirmação pelo paciente:** cada lembrete leva um link único (`…/c.html?t=CÓDIGO`, tabela `appointment_reminders`,
 coluna `token`). A página mostra o dia e a hora da consulta e três botões: ✅ Confirmo · 📅 Preciso remarcar ·
-❌ Não vou poder ir. Em **"Preciso remarcar"**, o paciente marca os **dias da semana** que ficam melhores (seg a sáb) e
-**uma ou mais faixas de horário** (09:00 às 11:00, 11:00 às 13:00, 14:00 às 17:00), obrigatórios, e pode deixar um
+❌ Não vou poder ir. Em **"Preciso remarcar"**, o paciente marca os **dias da semana** que ficam melhores (**segunda a sexta**; não há atendimento aos sábados) e
+**uma ou mais faixas de horário** (09:00 às 11:00, 11:00 às 13:00, 14:00 às 17:00), obrigatórios, com a observação "Às sextas, só até 13:00"
+(se marcar só a sexta, a faixa da tarde fica desativada), e pode deixar um
 recado (coluna `response_prefs`). Em "Enviar lembretes" aparece "🗓️ seg, qua · 9h–11h, 14h–17h" e o recado.
 Pode mudar a resposta até o dia da consulta. Sem login: só as funções
 `get_appointment(token)` e `respond_appointment(token, resposta, recado)`.

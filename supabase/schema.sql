@@ -203,7 +203,7 @@ alter table public.appointment_reminders add column if not exists token text uni
 alter table public.appointment_reminders add column if not exists response text check (response in ('confirmado', 'remarcar', 'nao_vai'));
 alter table public.appointment_reminders add column if not exists response_note text;
 alter table public.appointment_reminders add column if not exists responded_at timestamptz;
--- Remarcação: dias da semana e faixas de horário preferidos ({ days: ['seg', ...], slots: ['09-11', ...] })
+-- Remarcação: dias da semana (seg a sex; sem sábado) e faixas de horário preferidos ({ days: ['seg', ...], slots: ['09-11', ...] })
 alter table public.appointment_reminders add column if not exists response_prefs jsonb;
 
 -- Comparecimento marcado pela nutricionista (sem marcação, conta "veio" se houver consulta registrada no dia)
@@ -402,7 +402,7 @@ begin
   if p_response = 'remarcar' and p_prefs is not null and jsonb_typeof(p_prefs) = 'object' then
     prefs := jsonb_build_object(
       'days', coalesce((select jsonb_agg(d) from jsonb_array_elements_text(coalesce(p_prefs->'days', '[]')) d
-                         where d in ('seg', 'ter', 'qua', 'qui', 'sex', 'sab')), '[]'),
+                         where d in ('seg', 'ter', 'qua', 'qui', 'sex')), '[]'),
       'slots', coalesce((select jsonb_agg(x) from jsonb_array_elements_text(coalesce(p_prefs->'slots', '[]')) x
                           where x in ('09-11', '11-13', '14-17')), '[]'));
   end if;

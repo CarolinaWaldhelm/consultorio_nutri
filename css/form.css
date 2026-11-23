@@ -21,3 +21,4 @@
 .pick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .pick-chips button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 10px 14px; font-size: .98rem; cursor: pointer; min-height: 44px; }
 .pick-chips button.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.pick-chips button:disabled { opacity: .45; cursor: not-allowed; }
