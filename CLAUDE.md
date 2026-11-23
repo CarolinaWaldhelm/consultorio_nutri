@@ -14,3 +14,6 @@
   depois de mudar, peça para ela rodar o arquivo de novo no SQL Editor.
 - Publicação: GitHub Pages a partir da branch `main`. Um push em `main` publica o site.
 - Atualize a tabela de situação das fases no `README.md` ao concluir cada fase.
+- Cache: o GitHub Pages guarda arquivos por 10 minutos. Ao mudar `js/confirm.js`, `js/form.js`, `js/app.js` ou o CSS,
+  troque o carimbo `?v=...` nos `<script>`/`<link>` de `c.html`, `q.html` e `index.html` (mesmo valor nos três),
+  para os celulares dos pacientes pegarem a versão nova na hora.
