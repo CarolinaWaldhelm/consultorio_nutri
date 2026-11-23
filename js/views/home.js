@@ -55,6 +55,7 @@ export function Home() {
   const [calPeriod, setCalPeriod] = useState(null); // período visível no calendário
   const [nutAppts, setNutAppts] = useState([]); // consultas da planilha (quando a agenda não está conectada)
   const [apptSent, setApptSent] = useState(null); // lembretes de consulta de amanhã já enviados
+  const [apptMeta, setApptMeta] = useState({ rem: new Map(), att: new Map() }); // confirmações e faltas, para o calendário
 
   const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
 
@@ -74,6 +75,11 @@ export function Home() {
     refreshAgenda();
     run(supabase.from('nutrium_appointments').select('*').gte('date', windowDays(-120).to)).then(setNutAppts).catch(() => {});
     run(supabase.from('appointment_reminders').select('event_key').eq('event_date', windowDays(1).to)).then(setApptSent).catch(() => setApptSent(null));
+    Promise.all([
+      run(supabase.from('appointment_reminders').select('event_key, response').gte('event_date', windowDays(-120).to)),
+      run(supabase.from('appointment_attendance').select('event_key, status').gte('event_date', windowDays(-120).to)),
+    ]).then(([rem, att]) => setApptMeta({ rem: new Map(rem.map((r) => [r.event_key, r.response])), att: new Map(att.map((r) => [r.event_key, r.status])) }))
+      .catch(() => {});
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
@@ -99,13 +105,16 @@ export function Home() {
   const calendarEvents = useMemo(() => {
     if (!patients || !calPeriod) return [];
     if (agenda.state === 'ok') {
-      return consultationEvents(agenda.events, calPeriod.from, calPeriod.to).map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
+      return consultationEvents(agenda.events, calPeriod.from, calPeriod.to).map((ev) => {
+        const key = `${ev.uid}|${ev.start}`;
+        return { ...ev, ...matchEvent(ev, patients), confirm: apptMeta.rem.get(key) || null, attendance: apptMeta.att.get(key) || null };
+      });
     }
     const byId = new Map(patients.map((p) => [p.id, p]));
     return nutAppts.filter((a) => a.date >= calPeriod.from && a.date <= calPeriod.to)
       .map((a) => ({ uid: 'n' + a.id, start: a.date, time: a.start_time, endDate: a.date, endTime: a.end_time, patient: byId.get(a.patient_id) || null, patientName: byId.get(a.patient_id)?.name || '', attendees: [] }))
       .filter((e) => e.patient);
-  }, [patients, agenda, calPeriod, nutAppts]);
+  }, [patients, agenda, calPeriod, nutAppts, apptMeta]);
 
   // Pacientes com consulta marcada (agenda dos próximos 90 dias ou planilha).
   const scheduled = useMemo(() => {
@@ -197,7 +206,7 @@ export function Home() {
     ${!q && apptToRemind > 0 && html`
       <section class="card home-banner">
         <span>📅 <strong>${apptToRemind}</strong> paciente(s) com consulta amanhã para lembrar pelo WhatsApp</span>
-        <a class="btn btn-primary btn-sm" href="#/questionarios/consultas">Abrir lembretes de consulta</a>
+        <a class="btn btn-primary btn-sm" href="#/lembretes">Abrir lembretes de consulta</a>
       </section>`}
 
     ${!q && toSend && (toSend.due > 0 || toSend.reminders > 0) && html`

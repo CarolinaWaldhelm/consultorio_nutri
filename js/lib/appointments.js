@@ -1,0 +1,68 @@
+// Lembretes de consulta: confirmação, comparecimento e estatísticas.
+import { todayISO, daysBetween } from './util.js';
+
+export const RESPONSE_LABEL = { confirmado: '✅ Confirmou', remarcar: '📅 Quer remarcar', nao_vai: '❌ Não vai', null: '⏳ Sem resposta' };
+export const RESPONSE_SHORT = { confirmado: 'confirmou', remarcar: 'quer remarcar', nao_vai: 'não vai' };
+
+/**
+ * Comparecimento de uma consulta que já passou: marcação manual ('veio' | 'faltou'); sem marcação,
+ * "veio" se houver consulta registrada no software para o paciente nesse dia; senão, null (a confirmar).
+ */
+export function attendanceOf(ev, attendanceByKey, consultDays) {
+  const manual = attendanceByKey.get(ev.key);
+  if (manual) return { status: manual.status, auto: false, row: manual };
+  if (ev.patient && consultDays.has(`${ev.patient.id}|${ev.start}`)) return { status: 'veio', auto: true };
+  return { status: null, auto: false };
+}
+
+/**
+ * Estatísticas de um período. items: consultas que já passaram, com { reminder, attendance }.
+ */
+export function attendanceStats(items) {
+  const known = items.filter((i) => i.attendance.status);
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
+  const came = (list) => list.filter((i) => i.attendance.status === 'veio').length;
+  const reminded = items.filter((i) => i.reminder);
+  const byResp = (r) => known.filter((i) => (i.reminder?.response || null) === r && i.reminder);
+  const confirmed = byResp('confirmado');
+  const silent = byResp(null);
+  const cancelled = known.filter((i) => ['nao_vai', 'remarcar'].includes(i.reminder?.response));
+  const noReminder = known.filter((i) => !i.reminder);
+  const missed = known.filter((i) => i.attendance.status === 'faltou');
+  return {
+    total: items.length,
+    pending: items.length - known.length,
+    known: known.length,
+    reminded: reminded.length,
+    confirmRate: pct(reminded.filter((i) => i.reminder.response === 'confirmado').length, reminded.length),
+    answeredRate: pct(reminded.filter((i) => i.reminder.response).length, reminded.length),
+    confirmed: { n: confirmed.length, came: came(confirmed), rate: pct(came(confirmed), confirmed.length) },
+    silent: { n: silent.length, came: came(silent), rate: pct(came(silent), silent.length) },
+    cancelled: { n: cancelled.length, came: came(cancelled), rate: pct(came(cancelled), cancelled.length) },
+    noReminder: { n: noReminder.length, came: came(noReminder), rate: pct(came(noReminder), noReminder.length) },
+    missed: missed.length,
+    missRate: pct(missed.length, known.length),
+  };
+}
+
+/** Pacientes que mais faltam (só quem faltou pelo menos 1 vez). */
+export function missRanking(items) {
+  const by = new Map();
+  for (const i of items) {
+    if (!i.patient || !i.attendance.status) continue;
+    const r = by.get(i.patient.id) || { patient: i.patient, total: 0, missed: 0 };
+    r.total += 1;
+    if (i.attendance.status === 'faltou') r.missed += 1;
+    by.set(i.patient.id, r);
+  }
+  return [...by.values()].filter((r) => r.missed > 0).sort((a, b) => b.missed - a.missed || b.missed / b.total - a.missed / a.total);
+}
+
+export function periodStart(period, today = todayISO()) {
+  if (period === 'all') return '2000-01-01';
+  const d = new Date(today + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - Number(period));
+  return d.toISOString().slice(0, 10);
+}
+
+export { daysBetween };

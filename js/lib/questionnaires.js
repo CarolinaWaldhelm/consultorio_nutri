@@ -179,12 +179,19 @@ export const DEFAULT_APPT_MESSAGE = `Oi, [Nome], tudo bem? 😊
 Passando para lembrar da sua consulta de nutrição [Quando], [Data], às [Hora].
 [Link da consulta]
 
-Qualquer imprevisto, é só me avisar por aqui. Até lá! 🌱`;
+Pode confirmar sua presença por aqui? É só tocar no link e escolher:
+👉 [Link de confirmação]
+
+Qualquer imprevisto, é só me avisar. Até lá! 🌱`;
+
+export function confirmLink(token) {
+  return `${location.origin}${location.pathname.replace(/[^/]*$/, '')}c.html?t=${token}`;
+}
 
 const WEEKDAY_FULL = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
 /** Monta a mensagem: [Nome], [Quando] (amanhã / na segunda-feira…), [Data] (dd/mm), [Hora], [Link da consulta]. */
-export function fillApptMessage(template, { name, date, time, link }, today = todayISO()) {
+export function fillApptMessage(template, { name, date, time, link, confirm }, today = todayISO()) {
   const first = String(name || '').trim().split(/\s+/)[0] || '';
   const d = new Date(date + 'T12:00:00Z');
   const diff = daysBetween(today, date);
@@ -196,6 +203,7 @@ export function fillApptMessage(template, { name, date, time, link }, today = to
     .replace(/\[data\]/gi, ddmm)
     .replace(/\[hora\]/gi, time || '')
     .replace(/[ \t]*\[link da consulta\][ \t]*/gi, link ? `Link da chamada: ${link}` : '')
+    .replace(/\[link de confirma[cç][aã]o\]/gi, confirm || '')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/ às \./, '.')
     .trim();

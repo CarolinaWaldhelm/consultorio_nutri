@@ -16,3 +16,5 @@
 .form-submit { width: 100%; padding: 14px; font-size: 1.05rem; margin-top: 6px; }
 .form-done { text-align: center; padding: 48px 16px; }
 .form-done .big { font-size: 3rem; }
+.confirm-when { font-size: 1.3rem; font-weight: 700; color: var(--primary-dark); margin: 4px 0 8px; }
+.confirm-choices button { font-size: 1.05rem; padding: 14px 16px; }

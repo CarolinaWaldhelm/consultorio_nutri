@@ -5,10 +5,9 @@ import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
   planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
-  DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, DEFAULT_APPT_MESSAGE, QUESTION_TYPES, fillApptMessage,
+  DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
-import { ApptRemindersTab } from './apptreminders.js';
 
 export async function loadQuestionnaireData() {
   const [patients, questionnaires, sends, settingsRows] = await Promise.all([
@@ -37,10 +36,10 @@ export function sendPlan(data) {
   return { frequency, startDate, ...planSends({ patients: data.patients, sends: data.sends, soonIds, frequency, startDate }) };
 }
 
-export function QuestionnairesPage({ initialTab = 'envios' }) {
+export function QuestionnairesPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState('envios');
 
   const reload = () => loadQuestionnaireData().then(setData).catch(setError);
   useEffect(() => { reload(); }, []);
@@ -48,12 +47,11 @@ export function QuestionnairesPage({ initialTab = 'envios' }) {
   if (error) return html`<${ErrorBox} error=${error} />`;
   if (!data) return html`<${Loading} />`;
 
-  const tabs = [['envios', '📨 Envios de hoje'], ['consultas', '📅 Lembrete de consulta'], ['log', '📋 Envios e respostas'], ['modelos', '🧩 Modelos'], ['config', '⚙️ Mensagens e frequência']];
+  const tabs = [['envios', '📨 Envios de hoje'], ['log', '📋 Envios e respostas'], ['modelos', '🧩 Modelos'], ['config', '⚙️ Mensagem e frequência']];
   return html`
-    <div class="page-head"><h1>Questionários e lembretes</h1></div>
+    <div class="page-head"><h1>Questionários</h1></div>
     <div class="seg tabs">${tabs.map(([k, l]) => html`<button class=${tab === k ? 'on' : ''} onClick=${() => { setTab(k); reload(); }}>${l}</button>`)}</div>
     ${tab === 'envios' && html`<${SendsTab} data=${data} reload=${reload} goModels=${() => setTab('modelos')} />`}
-    ${tab === 'consultas' && html`<${ApptRemindersTab} data=${data} reload=${reload} />`}
     ${tab === 'log' && html`<${LogTab} data=${data} />`}
     ${tab === 'modelos' && html`<${ModelsTab} data=${data} reload=${reload} />`}
     ${tab === 'config' && html`<${ConfigTab} data=${data} reload=${reload} />`}`;
@@ -598,7 +596,6 @@ function ConfigTab({ data, reload }) {
   const [start, setStart] = useState(data.settings.questionnaire_start_date || DEFAULT_START_DATE);
   const [msg, setMsg] = useState(data.settings.whatsapp_message || DEFAULT_MESSAGE);
   const [rem, setRem] = useState(data.settings.whatsapp_reminder || DEFAULT_REMINDER);
-  const [appt, setAppt] = useState(data.settings.whatsapp_appt_message || DEFAULT_APPT_MESSAGE);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
@@ -614,7 +611,6 @@ function ConfigTab({ data, reload }) {
         { key: 'questionnaire_start_date', value: start || DEFAULT_START_DATE },
         { key: 'whatsapp_message', value: msg },
         { key: 'whatsapp_reminder', value: rem },
-        { key: 'whatsapp_appt_message', value: appt },
       ]));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -644,19 +640,6 @@ function ConfigTab({ data, reload }) {
         <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
         ${saved && html`<span class="muted small">✓ Salvo</span>`}
         <button class="btn btn-ghost btn-sm" onClick=${() => { setMsg(DEFAULT_MESSAGE); setRem(DEFAULT_REMINDER); }}>Voltar ao texto original</button>
-      </div>
-    </section>
-    <section class="card">
-      <h2 class="card-title">Mensagem do lembrete de consulta</h2>
-      <p class="muted small">Use <strong>[Nome]</strong>, <strong>[Quando]</strong> (vira “amanhã”, “hoje” ou “na segunda-feira”), <strong>[Data]</strong>,
-        <strong>[Hora]</strong> e <strong>[Link da consulta]</strong> (o link da videochamada do evento; se não houver, a linha some).</p>
-      <${AutoText} rows=${6} value=${appt} onInput=${setAppt} />
-      <h3 class="calc-step">Como fica</h3>
-      <div class="quote">${fillApptMessage(appt, { name: 'Maria Silva', date: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })(), time: '14:30', link: 'https://meet.google.com/abc-defg-hij' })}</div>
-      <div class="actions" style="justify-content:flex-start">
-        <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
-        ${saved && html`<span class="muted small">✓ Salvo</span>`}
-        <button class="btn btn-ghost btn-sm" onClick=${() => setAppt(DEFAULT_APPT_MESSAGE)}>Voltar ao texto original</button>
       </div>
     </section>`;
 }

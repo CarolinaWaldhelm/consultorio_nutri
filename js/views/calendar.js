@@ -72,13 +72,14 @@ function layoutDay(evs) {
 function EventBlock({ it, top, height, past, onOpen }) {
   const { ev } = it;
   const first = ev.patient && !ev.patient.last_consult;
-  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : ''].join(' ');
+  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : '', ev.attendance === 'faltou' ? 'missed' : ''].join(' ');
+  const conf = { confirmado: ' ✅', remarcar: ' 📅', nao_vai: ' ❌' }[ev.confirm] || '';
   const w = 100 / it.lanes;
   return html`
     <button class=${cls} style=${`top:${top}px;height:${height}px;left:calc(${it.lane * w}% + 2px);width:calc(${w}% - 4px)`}
       title=${`${ev.time}–${fromMin(endMin(ev))} · ${ev.patient?.name || ev.patientName}${ev.patient ? '' : ' (não vinculado)'}`}
       onClick=${() => onOpen(ev)}>
-      <span class="cal-ev-time">${ev.time}–${fromMin(endMin(ev))}${first ? html` <span class="cal-badge">1ª</span>` : ''}${ev.patient ? '' : ' ⚠️'}</span>
+      <span class="cal-ev-time">${ev.time}–${fromMin(endMin(ev))}${first ? html` <span class="cal-badge">1ª</span>` : ''}${ev.patient ? '' : ' ⚠️'}${conf}${ev.attendance === 'faltou' ? ' · faltou' : ''}</span>
       <span class="cal-ev-name">${ev.patient?.name || ev.patientName}</span>
     </button>`;
 }
@@ -203,7 +204,7 @@ export function CalendarCard({ events, source, state, error, onRefresh, onUnlink
       <p class="muted small cal-foot">
         ${count} consulta(s) neste período · clique numa consulta para ver o resumo do paciente
         ${events.some((e) => !e.patient && e.start >= period.from && e.start <= period.to) ? ' · ⚠️ = não vinculada (clique para vincular)' : ''}${' '}
-        · <span class="cal-badge">1ª</span> primeira consulta
+        · <span class="cal-badge">1ª</span> primeira consulta · ✅ confirmou · 📅 quer remarcar · ❌ não vai
       </p>
     </section>`;
 }

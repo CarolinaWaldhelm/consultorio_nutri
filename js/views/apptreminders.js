@@ -4,7 +4,8 @@ import { html, useState, useEffect, useRef, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent } from '../lib/agenda.js';
-import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
+import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
+import { RESPONSE_LABEL } from '../lib/appointments.js';
 import { ErrorBox, Loading } from './common.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -69,8 +70,9 @@ export function ApptRemindersTab({ data, reload }) {
   async function sendOne(ev) {
     const win = window.open('', '_blank');
     try {
-      await run(supabase.from('appointment_reminders').insert({ patient_id: ev.patient.id, event_key: ev.key, event_date: ev.start, event_time: ev.time || null }));
-      const text = fillApptMessage(template, { name: ev.patient.name, date: ev.start, time: ev.time, link: ev.meet }, today);
+      const token = newToken();
+      await run(supabase.from('appointment_reminders').insert({ patient_id: ev.patient.id, event_key: ev.key, event_date: ev.start, event_time: ev.time || null, token }));
+      const text = fillApptMessage(template, { name: ev.patient.name, date: ev.start, time: ev.time, link: ev.meet, confirm: confirmLink(token) }, today);
       const url = whatsappUrl(ev.patient.phone, text);
       if (win) win.location.href = url; else window.open(url, '_blank');
       await load();
@@ -105,7 +107,7 @@ export function ApptRemindersTab({ data, reload }) {
     <${ErrorBox} error=${error} />
     <section class="card">
       <div class="card-title-row">
-        <h2 class="card-title">📅 Lembrete de consulta</h2>
+        <h2 class="card-title">📲 Enviar lembretes</h2>
         <div class="row-actions">
           <button class=${'btn btn-sm' + (date === plusDays(today, 1) ? ' btn-primary' : '')} onClick=${() => setDate(plusDays(today, 1))}>Amanhã</button>
           <input type="date" class="date-pick" value=${date} min=${today} onInput=${(e) => e.target.value && setDate(e.target.value)} />
@@ -115,6 +117,7 @@ export function ApptRemindersTab({ data, reload }) {
         Consultas de <strong>${weekday(date)}, ${fmtDate(date)}</strong>
         ${day.source === 'google' ? ' (Google Agenda)' : day.source === 'nutrium' ? ' (planilha do Nutrium: conecte a agenda em Configurações para ver as marcações mais recentes)' : ''}.
         Na sexta, escolha a data de segunda para lembrar as consultas do início da semana.
+        A mensagem leva um link para o paciente confirmar; a resposta aparece aqui sozinha.
       </p>
       ${total === 0 && html`<p class="muted">Nenhuma consulta nesta data.</p>`}
 
@@ -143,7 +146,7 @@ export function ApptRemindersTab({ data, reload }) {
           <thead><tr>
             <th style="width:36px"><input type="checkbox" aria-label="Marcar ou desmarcar todos" checked=${allOn} disabled=${!groups.toSend.length}
               onChange=${() => setSelected(allOn ? new Set() : new Set(groups.toSend.map((e) => e.key)))} /></th>
-            <th>Horário</th><th>Paciente</th><th>Telefone</th><th></th>
+            <th>Horário</th><th>Paciente</th><th>Telefone</th><th>Resposta</th><th></th>
           </tr></thead>
           <tbody>
             ${groups.toSend.map((ev) => html`
@@ -152,6 +155,7 @@ export function ApptRemindersTab({ data, reload }) {
                 <td><strong>${ev.time || '—'}</strong></td>
                 <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>${ev.meet ? html` <span class="badge" title=${ev.meet}>🎥 link</span>` : ''}</td>
                 <td class="muted small">${ev.patient.phone}</td>
+                <td class="muted small">—</td>
                 <td></td>
               </tr>`)}
             ${groups.sent.map((ev) => html`
@@ -160,7 +164,10 @@ export function ApptRemindersTab({ data, reload }) {
                 <td>${ev.time || '—'}</td>
                 <td>${ev.patient.name}</td>
                 <td class="muted small">${ev.patient.phone || ''}</td>
-                <td class="row-actions"><span class="badge badge-green">✓ Lembrete enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
+                <td class=${'resp resp-' + (ev.sentRow.response || 'none')} title=${ev.sentRow.response_note || ''}>
+                  ${RESPONSE_LABEL[ev.sentRow.response || null]}${ev.sentRow.response_note ? html`<div class="muted small">“${ev.sentRow.response_note}”</div>` : ''}
+                </td>
+                <td class="row-actions"><span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
               </tr>`)}
           </tbody>
         </table>`}

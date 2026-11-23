@@ -369,19 +369,31 @@ Outras regras:
 - **"⛔ Não responderam os 2 últimos"** fica visível na tela de envios, com as datas dos dois envios sem resposta
   (sugere contato pessoal). Esses pacientes não aparecem nos lembretes.
 
-### 4.3.1 Lembrete de consulta (véspera)
+### 4.3.1 Lembretes de consulta (página própria no menu: "Lembretes de consulta")
 
-- Aba **"📅 Lembrete de consulta"** (em Questionários e lembretes): lista as consultas da data escolhida (padrão:
-  **amanhã**; dá para escolher outra data, por exemplo segunda-feira na sexta), pela agenda do Google (sem agenda,
-  planilha do Nutrium). Consultas canceladas não entram.
-- Mesma forma de envio dos questionários: todos marcados, seleção individual, `[Marcar todos]` / `[Desmarcar todos]`,
-  fila "Enviando 1 de N" abrindo o WhatsApp com a mensagem pronta.
-- Mensagem editável em "Mensagens e frequência", com **[Nome]**, **[Quando]** ("amanhã", "hoje", "na segunda-feira"),
-  **[Data]**, **[Hora]** e **[Link da consulta]** (link da videochamada lido do evento: Google Meet, Zoom ou Teams;
-  sem link, a linha some).
-- Quem já recebeu fica marcado "✓ Lembrete enviado" (tabela `appointment_reminders`, uma linha por consulta), com
-  `[Desfazer]`. Sem telefone: campo para digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
-- Tela inicial: aviso "N pacientes com consulta amanhã para lembrar" (com a agenda conectada).
+Separada de "Questionários" (que fica só com o semanal). Quatro abas:
+
+1. **📲 Enviar lembretes:** consultas da data escolhida (padrão: **amanhã**; na sexta, escolher segunda), pela agenda
+   do Google (sem agenda, planilha do Nutrium); canceladas não entram. Todos marcados, seleção individual,
+   `[Marcar todos]` / `[Desmarcar todos]`, fila de envio pelo WhatsApp. Coluna **Resposta** do paciente
+   (✅ confirmou, 📅 quer remarcar, ❌ não vai, ⏳ sem resposta, com o recado se houver). Sem telefone: campo para
+   digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
+2. **✔ Confirmar comparecimento:** consultas que já passaram (7, 14, 30 ou 90 dias), "A confirmar" e "Já marcadas",
+   botões `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` (tabela `appointment_attendance`). Se houver consulta registrada
+   no software para o paciente no dia ("Iniciar consulta"), conta **"veio" automaticamente**.
+3. **📊 Estatísticas** (30 dias, 90 dias, desde o início): **dos que confirmaram, quantos vieram**; dos que não
+   responderam, quantos vieram; taxa de confirmação pelo link; faltas no geral; quem mais falta. Consultas sem
+   comparecimento marcado ficam fora da conta (e aparecem contadas).
+4. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
+   evento) e **[Link de confirmação]** (avisa se o link de confirmação ficar de fora).
+
+**Confirmação pelo paciente:** cada lembrete leva um link único (`…/c.html?t=CÓDIGO`, tabela `appointment_reminders`,
+coluna `token`). A página mostra o dia e a hora da consulta e três botões: ✅ Confirmo · 📅 Preciso remarcar ·
+❌ Não vou poder ir (com recado opcional). Pode mudar a resposta até o dia da consulta. Sem login: só as funções
+`get_appointment(token)` e `respond_appointment(token, resposta, recado)`.
+
+**Calendário da tela inicial:** ✅/📅/❌ ao lado do horário e consulta com falta riscada ("· faltou").
+Aviso na tela inicial: "N pacientes com consulta amanhã para lembrar".
 
 ### 4.4 Link e resposta sem login
 

@@ -198,6 +198,23 @@ create table if not exists public.appointment_reminders (
   sent_at     timestamptz not null default now()
 );
 create index if not exists appointment_reminders_date_idx on public.appointment_reminders (event_date);
+-- Confirmação pelo link do lembrete
+alter table public.appointment_reminders add column if not exists token text unique;
+alter table public.appointment_reminders add column if not exists response text check (response in ('confirmado', 'remarcar', 'nao_vai'));
+alter table public.appointment_reminders add column if not exists response_note text;
+alter table public.appointment_reminders add column if not exists responded_at timestamptz;
+
+-- Comparecimento marcado pela nutricionista (sem marcação, conta "veio" se houver consulta registrada no dia)
+create table if not exists public.appointment_attendance (
+  id          uuid primary key default gen_random_uuid(),
+  patient_id  uuid not null references public.patients (id) on delete cascade,
+  event_key   text not null unique,
+  event_date  date not null,
+  event_time  text,
+  status      text not null check (status in ('veio', 'faltou')),
+  marked_at   timestamptz not null default now()
+);
+create index if not exists appointment_attendance_date_idx on public.appointment_attendance (event_date);
 
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
@@ -348,6 +365,49 @@ end $$;
 revoke all on function public.db_usage() from public, anon;
 grant execute on function public.db_usage() to authenticated;
 
+-- ---------- Confirmação de consulta pelo paciente (sem login, pelo link do lembrete) ----------
+create or replace function public.get_appointment(p_token text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  r record;
+begin
+  if p_token is null or length(p_token) < 20 then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+  select a.event_date, a.event_time, a.response, a.response_note, split_part(p.name, ' ', 1) as first_name
+    into r
+    from public.appointment_reminders a join public.patients p on p.id = a.patient_id
+   where a.token = p_token;
+  if not found then
+    return jsonb_build_object('status', 'invalid');
+  end if;
+  return jsonb_build_object(
+    'status', 'ok', 'first_name', r.first_name, 'date', r.event_date, 'time', r.event_time,
+    'response', r.response, 'note', r.response_note,
+    'open', r.event_date >= (now() at time zone 'America/Sao_Paulo')::date);
+end $$;
+
+create or replace function public.respond_appointment(p_token text, p_response text, p_note text default null) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  r record;
+begin
+  if p_token is null or length(p_token) < 20 then return 'invalid'; end if;
+  if p_response not in ('confirmado', 'remarcar', 'nao_vai') then return 'invalid'; end if;
+  select id, event_date into r from public.appointment_reminders where token = p_token for update;
+  if not found then return 'invalid'; end if;
+  if r.event_date < (now() at time zone 'America/Sao_Paulo')::date then return 'closed'; end if;
+  update public.appointment_reminders
+     set response = p_response, response_note = nullif(left(coalesce(p_note, ''), 1000), ''), responded_at = now()
+   where id = r.id;
+  return 'ok';
+end $$;
+
+revoke all on function public.get_appointment(text) from public;
+revoke all on function public.respond_appointment(text, text, text) from public;
+grant execute on function public.get_appointment(text) to anon, authenticated;
+grant execute on function public.respond_appointment(text, text, text) to anon, authenticated;
+
 -- ---------- Acesso: só usuária logada ----------
 alter table public.patients             enable row level security;
 alter table public.consultations        enable row level security;
@@ -364,6 +424,7 @@ alter table public.lab_results enable row level security;
 alter table public.todos enable row level security;
 alter table public.routines enable row level security;
 alter table public.appointment_reminders enable row level security;
+alter table public.appointment_attendance enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -380,6 +441,7 @@ drop policy if exists "dona" on public.lab_results;
 drop policy if exists "dona" on public.todos;
 drop policy if exists "dona" on public.routines;
 drop policy if exists "dona" on public.appointment_reminders;
+drop policy if exists "dona" on public.appointment_attendance;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -395,11 +457,13 @@ create policy "dona" on public.lab_results          for all to authenticated usi
 create policy "dona" on public.todos                for all to authenticated using (true) with check (true);
 create policy "dona" on public.routines             for all to authenticated using (true) with check (true);
 create policy "dona" on public.appointment_reminders for all to authenticated using (true) with check (true);
+create policy "dona" on public.appointment_attendance for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
   public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
-  public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders to authenticated;
+  public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders,
+  public.appointment_attendance to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;
