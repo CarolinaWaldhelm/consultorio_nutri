@@ -171,3 +171,52 @@ export function durationLabel(hours) {
   const d = Math.round(hours / 24);
   return `em ${d} dia${d > 1 ? 's' : ''}`;
 }
+
+// ---------- Lembrete de consulta (véspera) ----------
+
+export const DEFAULT_APPT_MESSAGE = `Oi, [Nome], tudo bem? 😊
+
+Passando para lembrar da sua consulta de nutrição [Quando], [Data], às [Hora].
+[Link da consulta]
+
+Qualquer imprevisto, é só me avisar por aqui. Até lá! 🌱`;
+
+const WEEKDAY_FULL = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+
+/** Monta a mensagem: [Nome], [Quando] (amanhã / na segunda-feira…), [Data] (dd/mm), [Hora], [Link da consulta]. */
+export function fillApptMessage(template, { name, date, time, link }, today = todayISO()) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  const d = new Date(date + 'T12:00:00Z');
+  const diff = daysBetween(today, date);
+  const when = diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : `na ${WEEKDAY_FULL[d.getUTCDay()]}`.replace('na sábado', 'no sábado').replace('na domingo', 'no domingo');
+  const ddmm = `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+  return template
+    .replace(/\[(nome|primeiro nome)\]/gi, first)
+    .replace(/\[quando\]/gi, when)
+    .replace(/\[data\]/gi, ddmm)
+    .replace(/\[hora\]/gi, time || '')
+    .replace(/[ \t]*\[link da consulta\][ \t]*/gi, link ? `Link da chamada: ${link}` : '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/ às \./, '.')
+    .trim();
+}
+
+/**
+ * Consultas de uma data para o lembrete. events: consultas da agenda já vinculadas (ev.patient) ou da planilha.
+ * sent: linhas de appointment_reminders. Devolve { toSend, sent, noPhone, unlinked }.
+ */
+export function apptReminderList({ events, sent }) {
+  const sentKeys = new Map(sent.map((r) => [r.event_key, r]));
+  const out = { toSend: [], sent: [], noPhone: [], unlinked: [] };
+  for (const ev of events) {
+    const key = `${ev.uid || ev.key}|${ev.start}`;
+    const item = { ...ev, key };
+    if (!ev.patient) out.unlinked.push(item);
+    else if (sentKeys.has(key)) out.sent.push({ ...item, sentRow: sentKeys.get(key) });
+    else if (!whatsappNumber(ev.patient.phone)) out.noPhone.push(item);
+    else out.toSend.push(item);
+  }
+  const byTime = (a, b) => (a.time || '').localeCompare(b.time || '');
+  for (const k of Object.keys(out)) out[k].sort(byTime);
+  return out;
+}

@@ -369,6 +369,20 @@ Outras regras:
 - **"⛔ Não responderam os 2 últimos"** fica visível na tela de envios, com as datas dos dois envios sem resposta
   (sugere contato pessoal). Esses pacientes não aparecem nos lembretes.
 
+### 4.3.1 Lembrete de consulta (véspera)
+
+- Aba **"📅 Lembrete de consulta"** (em Questionários e lembretes): lista as consultas da data escolhida (padrão:
+  **amanhã**; dá para escolher outra data, por exemplo segunda-feira na sexta), pela agenda do Google (sem agenda,
+  planilha do Nutrium). Consultas canceladas não entram.
+- Mesma forma de envio dos questionários: todos marcados, seleção individual, `[Marcar todos]` / `[Desmarcar todos]`,
+  fila "Enviando 1 de N" abrindo o WhatsApp com a mensagem pronta.
+- Mensagem editável em "Mensagens e frequência", com **[Nome]**, **[Quando]** ("amanhã", "hoje", "na segunda-feira"),
+  **[Data]**, **[Hora]** e **[Link da consulta]** (link da videochamada lido do evento: Google Meet, Zoom ou Teams;
+  sem link, a linha some).
+- Quem já recebeu fica marcado "✓ Lembrete enviado" (tabela `appointment_reminders`, uma linha por consulta), com
+  `[Desfazer]`. Sem telefone: campo para digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
+- Tela inicial: aviso "N pacientes com consulta amanhã para lembrar" (com a agenda conectada).
+
 ### 4.4 Link e resposta sem login
 
 - Cada envio gera um código aleatório de 128 bits (link `…/q.html?t=CÓDIGO`), ligado no banco a:

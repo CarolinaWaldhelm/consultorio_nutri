@@ -386,3 +386,5 @@ textarea { resize: vertical; min-height: 44px; }
 .plan-status.today { color: var(--warn); font-weight: 600; }
 .plan-status.late { color: var(--danger); font-weight: 600; }
 .routine-actions { display: flex; gap: 4px; margin: 0 0 4px -8px; }
+
+.date-pick { width: auto; padding: 5px 8px; }

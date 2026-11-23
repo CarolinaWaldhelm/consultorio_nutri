@@ -54,6 +54,7 @@ export function Home() {
   const [qdata, setQdata] = useState(null); // envios + configurações, para o aviso de questionários
   const [calPeriod, setCalPeriod] = useState(null); // período visível no calendário
   const [nutAppts, setNutAppts] = useState([]); // consultas da planilha (quando a agenda não está conectada)
+  const [apptSent, setApptSent] = useState(null); // lembretes de consulta de amanhã já enviados
 
   const loadPatients = () => run(supabase.from('patient_overview').select('*').order('name')).then(setPatients).catch(setError);
 
@@ -72,6 +73,7 @@ export function Home() {
     loadPatients();
     refreshAgenda();
     run(supabase.from('nutrium_appointments').select('*').gte('date', windowDays(-120).to)).then(setNutAppts).catch(() => {});
+    run(supabase.from('appointment_reminders').select('event_key').eq('event_date', windowDays(1).to)).then(setApptSent).catch(() => setApptSent(null));
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
@@ -129,6 +131,15 @@ export function Home() {
     .filter((p) => !p.snooze_until || p.snooze_until <= today)
     .sort((a, b) => lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
 
+  // Consultas de amanhã ainda sem lembrete (só com a agenda conectada).
+  const apptToRemind = useMemo(() => {
+    if (!patients || agenda.state !== 'ok' || !apptSent) return 0;
+    const tomorrow = windowDays(1).to;
+    const sentKeys = new Set(apptSent.map((r) => r.event_key));
+    return consultationEvents(agenda.events, tomorrow, tomorrow)
+      .filter((ev) => matchEvent(ev, patients).patient && !sentKeys.has(`${ev.uid}|${ev.start}`)).length;
+  }, [patients, agenda, apptSent]);
+
   const toSend = useMemo(() => {
     if (!qdata?.hasDefault || !patients) return null;
     const pairs = agenda.state === 'ok'
@@ -181,6 +192,12 @@ export function Home() {
       <section class="card home-banner backup-banner">
         <span>💾 ${qdata.lastBackup ? `Último backup em ${fmtDate(qdata.lastBackup.slice(0, 10))}.` : 'Você ainda não fez nenhum backup.'} Faça o backup semanal dos seus dados.</span>
         <a class="btn btn-sm" href="#/config">Fazer backup</a>
+      </section>`}
+
+    ${!q && apptToRemind > 0 && html`
+      <section class="card home-banner">
+        <span>📅 <strong>${apptToRemind}</strong> paciente(s) com consulta amanhã para lembrar pelo WhatsApp</span>
+        <a class="btn btn-primary btn-sm" href="#/questionarios/consultas">Abrir lembretes de consulta</a>
       </section>`}
 
     ${!q && toSend && (toSend.due > 0 || toSend.reminders > 0) && html`

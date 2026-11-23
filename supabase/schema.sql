@@ -188,6 +188,17 @@ create table if not exists public.routines (
   created_at    timestamptz not null default now()
 );
 
+-- ---------- Lembretes de consulta enviados pelo WhatsApp (para não mandar duas vezes) ----------
+create table if not exists public.appointment_reminders (
+  id          uuid primary key default gen_random_uuid(),
+  patient_id  uuid not null references public.patients (id) on delete cascade,
+  event_key   text not null unique,   -- identifica a consulta (evento da agenda + data, ou consulta da planilha)
+  event_date  date not null,
+  event_time  text,
+  sent_at     timestamptz not null default now()
+);
+create index if not exists appointment_reminders_date_idx on public.appointment_reminders (event_date);
+
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$
@@ -352,6 +363,7 @@ alter table public.lab_exams enable row level security;
 alter table public.lab_results enable row level security;
 alter table public.todos enable row level security;
 alter table public.routines enable row level security;
+alter table public.appointment_reminders enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -367,6 +379,7 @@ drop policy if exists "dona" on public.lab_exams;
 drop policy if exists "dona" on public.lab_results;
 drop policy if exists "dona" on public.todos;
 drop policy if exists "dona" on public.routines;
+drop policy if exists "dona" on public.appointment_reminders;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -381,11 +394,12 @@ create policy "dona" on public.lab_exams            for all to authenticated usi
 create policy "dona" on public.lab_results          for all to authenticated using (true) with check (true);
 create policy "dona" on public.todos                for all to authenticated using (true) with check (true);
 create policy "dona" on public.routines             for all to authenticated using (true) with check (true);
+create policy "dona" on public.appointment_reminders for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
   public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
-  public.lab_exams, public.lab_results, public.todos, public.routines to authenticated;
+  public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

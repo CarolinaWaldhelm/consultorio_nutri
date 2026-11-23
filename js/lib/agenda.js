@@ -42,6 +42,10 @@ export function parseICS(text) {
     switch (name.toUpperCase()) {
       case 'UID': ev.uid = value; break;
       case 'SUMMARY': ev.summary = unescapeText(value); break;
+      // Link da videochamada (Google Meet ou outro), para o lembrete de consulta.
+      case 'X-GOOGLE-CONFERENCE': if (/^https?:\/\//i.test(value)) ev.meet = value.trim(); break;
+      case 'LOCATION': { const m = value.match(/https?:\/\/[^\s\\,;]+/i); if (m && !ev.meet) ev.meet = m[0]; break; }
+      case 'DESCRIPTION': { const m = value.match(/https?:\/\/(?:meet\.google\.com|[\w.-]*zoom\.us|teams\.microsoft\.com)[^\s\\,;]*/i); if (m && !ev.meet) ev.meet = m[0]; break; }
       case 'STATUS': ev.status = value.toUpperCase(); break;
       case 'DTSTART': { const s = parseStart(params, value); if (s) { ev.start = s.date; ev.time = s.time; } break; }
       case 'DTEND': { const s = parseStart(params, value); if (s) { ev.endDate = s.date; ev.endTime = s.time; } break; }
