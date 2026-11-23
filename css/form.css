@@ -18,3 +18,6 @@
 .form-done .big { font-size: 3rem; }
 .confirm-when { font-size: 1.3rem; font-weight: 700; color: var(--primary-dark); margin: 4px 0 8px; }
 .confirm-choices button { font-size: 1.05rem; padding: 14px 16px; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick-chips button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 10px 14px; font-size: .98rem; cursor: pointer; min-height: 44px; }
+.pick-chips button.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }

@@ -4,6 +4,18 @@ import { todayISO, daysBetween } from './util.js';
 export const RESPONSE_LABEL = { confirmado: '✅ Confirmou', remarcar: '📅 Quer remarcar', nao_vai: '❌ Não vai', null: '⏳ Sem resposta' };
 export const RESPONSE_SHORT = { confirmado: 'confirmou', remarcar: 'quer remarcar', nao_vai: 'não vai' };
 
+const DAY_SHORT = { seg: 'seg', ter: 'ter', qua: 'qua', qui: 'qui', sex: 'sex', sab: 'sáb' };
+const DAY_ORDER = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+const SLOT_LABEL = { '09-11': '9h–11h', '11-13': '11h–13h', '14-17': '14h–17h' };
+
+/** Preferência de remarcação em texto curto: "seg, qua · 9h–11h, 14h–17h". */
+export function prefsText(prefs) {
+  if (!prefs) return '';
+  const days = DAY_ORDER.filter((d) => (prefs.days || []).includes(d)).map((d) => DAY_SHORT[d]);
+  const slots = ['09-11', '11-13', '14-17'].filter((x) => (prefs.slots || []).includes(x)).map((x) => SLOT_LABEL[x]);
+  return [days.join(', '), slots.join(', ')].filter(Boolean).join(' · ');
+}
+
 /**
  * Comparecimento de uma consulta que já passou: marcação manual ('veio' | 'faltou'); sem marcação,
  * "veio" se houver consulta registrada no software para o paciente nesse dia; senão, null (a confirmar).

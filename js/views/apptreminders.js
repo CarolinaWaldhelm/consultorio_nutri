@@ -5,7 +5,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL } from '../lib/appointments.js';
+import { RESPONSE_LABEL, prefsText } from '../lib/appointments.js';
 import { ErrorBox, Loading } from './common.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -165,7 +165,9 @@ export function ApptRemindersTab({ data, reload }) {
                 <td>${ev.patient.name}</td>
                 <td class="muted small">${ev.patient.phone || ''}</td>
                 <td class=${'resp resp-' + (ev.sentRow.response || 'none')} title=${ev.sentRow.response_note || ''}>
-                  ${RESPONSE_LABEL[ev.sentRow.response || null]}${ev.sentRow.response_note ? html`<div class="muted small">“${ev.sentRow.response_note}”</div>` : ''}
+                  ${RESPONSE_LABEL[ev.sentRow.response || null]}
+                  ${ev.sentRow.response === 'remarcar' && ev.sentRow.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(ev.sentRow.response_prefs)}</div>`}
+                  ${ev.sentRow.response_note ? html`<div class="muted small">“${ev.sentRow.response_note}”</div>` : ''}
                 </td>
                 <td class="row-actions"><span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
               </tr>`)}

@@ -11,6 +11,9 @@ const OPTIONS = [
   ['remarcar', '📅 Preciso remarcar'],
   ['nao_vai', '❌ Não vou poder ir'],
 ];
+const DAYS = [['seg', 'Segunda'], ['ter', 'Terça'], ['qua', 'Quarta'], ['qui', 'Quinta'], ['sex', 'Sexta'], ['sab', 'Sábado']];
+const SLOTS = [['09-11', '09:00 às 11:00'], ['11-13', '11:00 às 13:00'], ['14-17', '14:00 às 17:00']];
+
 const THANKS = {
   confirmado: ['💚', 'Consulta confirmada!', 'Obrigada! Até lá. 🌱'],
   remarcar: ['📅', 'Pedido de remarcação enviado', 'Sua nutricionista vai falar com você para combinar um novo horário.'],
@@ -30,6 +33,9 @@ function Confirm() {
   const [st, setSt] = useState({ status: 'loading' });
   const [choice, setChoice] = useState(null);
   const [note, setNote] = useState('');
+  const [days, setDays] = useState([]);
+  const [slots, setSlots] = useState([]);
+  const toggle = (list, set, v) => { set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]); setError(''); };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null);
@@ -39,9 +45,14 @@ function Confirm() {
   }, []);
 
   async function send(resp) {
-    setBusy(true);
     setError('');
-    const { data, error: err } = await supabase.rpc('respond_appointment', { p_token: token, p_response: resp, p_note: note.trim() || null });
+    if (resp === 'remarcar' && (!days.length || !slots.length)) {
+      setError('Escolha pelo menos um dia da semana e um horário que ficam melhores para você.');
+      return;
+    }
+    const prefs = resp === 'remarcar' ? { days, slots } : null;
+    setBusy(true);
+    const { data, error: err } = await supabase.rpc('respond_appointment', { p_token: token, p_response: resp, p_note: note.trim() || null, p_prefs: prefs });
     setBusy(false);
     if (err) { setError('Não foi possível enviar agora. Verifique a internet e tente de novo.'); return; }
     if (data === 'closed') { setSt({ ...st, open: false }); return; }
@@ -78,11 +89,21 @@ function Confirm() {
           <button type="button" class=${choice === k ? 'on' : ''} disabled=${busy}
             onClick=${() => (k === 'confirmado' ? send(k) : setChoice(k))}>${label}</button>`)}
       </div>
+      ${choice === 'remarcar' && html`
+        <div class="form-q" style="margin-top:12px">
+          <span class="form-q-label">Quais dias da semana ficam melhores?</span>
+          <div class="pick-chips">${DAYS.map(([k, l]) => html`
+            <button type="button" class=${days.includes(k) ? 'on' : ''} aria-pressed=${days.includes(k)} onClick=${() => toggle(days, setDays, k)}>${l}</button>`)}</div>
+          <span class="form-q-label" style="margin-top:14px">E quais horários?</span>
+          <div class="pick-chips">${SLOTS.map(([k, l]) => html`
+            <button type="button" class=${slots.includes(k) ? 'on' : ''} aria-pressed=${slots.includes(k)} onClick=${() => toggle(slots, setSlots, k)}>${l}</button>`)}</div>
+          <p class="muted small">Pode marcar mais de um. Sua nutricionista vai ver na agenda e te propor um horário.</p>
+        </div>`}
       ${choice && choice !== 'confirmado' && html`
         <div class="form-q" style="margin-top:12px">
           <span class="form-q-label">Quer deixar um recado? <span class="muted small">(opcional)</span></span>
           <textarea rows="3" maxlength="1000" value=${note} onInput=${(e) => setNote(e.target.value)}
-            placeholder=${choice === 'remarcar' ? 'Ex.: prefiro na próxima semana, à tarde' : 'Ex.: tive um imprevisto'}></textarea>
+            placeholder=${choice === 'remarcar' ? 'Ex.: a partir da semana que vem' : 'Ex.: tive um imprevisto'}></textarea>
           <button class="btn btn-primary form-submit" disabled=${busy} onClick=${() => send(choice)}>${busy ? 'Enviando…' : 'Enviar'}</button>
         </div>`}
       ${error && html`<div class="alert alert-error">${error}</div>`}

@@ -394,3 +394,4 @@ textarea { resize: vertical; min-height: 44px; }
 .resp { white-space: nowrap; }
 .resp-confirmado { color: #15803d; font-weight: 600; }
 .resp-remarcar, .resp-nao_vai { color: var(--danger); font-weight: 600; }
+.resp-prefs { color: var(--text); font-weight: 600; font-size: .85rem; white-space: normal; margin-top: 2px; }

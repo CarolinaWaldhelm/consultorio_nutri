@@ -203,6 +203,8 @@ alter table public.appointment_reminders add column if not exists token text uni
 alter table public.appointment_reminders add column if not exists response text check (response in ('confirmado', 'remarcar', 'nao_vai'));
 alter table public.appointment_reminders add column if not exists response_note text;
 alter table public.appointment_reminders add column if not exists responded_at timestamptz;
+-- Remarcação: dias da semana e faixas de horário preferidos ({ days: ['seg', ...], slots: ['09-11', ...] })
+alter table public.appointment_reminders add column if not exists response_prefs jsonb;
 
 -- Comparecimento marcado pela nutricionista (sem marcação, conta "veio" se houver consulta registrada no dia)
 create table if not exists public.appointment_attendance (
@@ -374,7 +376,7 @@ begin
   if p_token is null or length(p_token) < 20 then
     return jsonb_build_object('status', 'invalid');
   end if;
-  select a.event_date, a.event_time, a.response, a.response_note, split_part(p.name, ' ', 1) as first_name
+  select a.event_date, a.event_time, a.response, a.response_note, a.response_prefs, split_part(p.name, ' ', 1) as first_name
     into r
     from public.appointment_reminders a join public.patients p on p.id = a.patient_id
    where a.token = p_token;
@@ -383,30 +385,41 @@ begin
   end if;
   return jsonb_build_object(
     'status', 'ok', 'first_name', r.first_name, 'date', r.event_date, 'time', r.event_time,
-    'response', r.response, 'note', r.response_note,
+    'response', r.response, 'note', r.response_note, 'prefs', r.response_prefs,
     'open', r.event_date >= (now() at time zone 'America/Sao_Paulo')::date);
 end $$;
 
-create or replace function public.respond_appointment(p_token text, p_response text, p_note text default null) returns text
+drop function if exists public.respond_appointment(text, text, text);
+create or replace function public.respond_appointment(p_token text, p_response text, p_note text default null, p_prefs jsonb default null) returns text
 language plpgsql security definer set search_path = public as $$
 declare
   r record;
+  prefs jsonb;
 begin
   if p_token is null or length(p_token) < 20 then return 'invalid'; end if;
   if p_response not in ('confirmado', 'remarcar', 'nao_vai') then return 'invalid'; end if;
+  -- Só guarda dias/horários válidos (e só na remarcação).
+  if p_response = 'remarcar' and p_prefs is not null and jsonb_typeof(p_prefs) = 'object' then
+    prefs := jsonb_build_object(
+      'days', coalesce((select jsonb_agg(d) from jsonb_array_elements_text(coalesce(p_prefs->'days', '[]')) d
+                         where d in ('seg', 'ter', 'qua', 'qui', 'sex', 'sab')), '[]'),
+      'slots', coalesce((select jsonb_agg(x) from jsonb_array_elements_text(coalesce(p_prefs->'slots', '[]')) x
+                          where x in ('09-11', '11-13', '14-17')), '[]'));
+  end if;
   select id, event_date into r from public.appointment_reminders where token = p_token for update;
   if not found then return 'invalid'; end if;
   if r.event_date < (now() at time zone 'America/Sao_Paulo')::date then return 'closed'; end if;
   update public.appointment_reminders
-     set response = p_response, response_note = nullif(left(coalesce(p_note, ''), 1000), ''), responded_at = now()
+     set response = p_response, response_note = nullif(left(coalesce(p_note, ''), 1000), ''),
+         response_prefs = prefs, responded_at = now()
    where id = r.id;
   return 'ok';
 end $$;
 
 revoke all on function public.get_appointment(text) from public;
-revoke all on function public.respond_appointment(text, text, text) from public;
+revoke all on function public.respond_appointment(text, text, text, jsonb) from public;
 grant execute on function public.get_appointment(text) to anon, authenticated;
-grant execute on function public.respond_appointment(text, text, text) to anon, authenticated;
+grant execute on function public.respond_appointment(text, text, text, jsonb) to anon, authenticated;
 
 -- ---------- Acesso: só usuária logada ----------
 alter table public.patients             enable row level security;
