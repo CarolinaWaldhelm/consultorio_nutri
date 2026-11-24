@@ -2,6 +2,8 @@
 import { todayISO, daysBetween } from './util.js';
 
 export const RESPONSE_LABEL = { confirmado: '✅ Confirmou', remarcar: '📅 Quer remarcar', nao_vai: '❌ Não vai', null: '⏳ Sem resposta' };
+export const STATUS_LABEL = { veio: '✔ Veio', faltou: '✖ Não apareceu', cancelou: '🚫 Paciente cancelou', remarcou: '📅 Remarcou' };
+export const CANCEL_REASONS = [['faltou', 'Não apareceu'], ['cancelou', 'Paciente cancelou'], ['remarcou', 'Pediu para remarcar']];
 export const RESPONSE_SHORT = { confirmado: 'confirmou', remarcar: 'quer remarcar', nao_vai: 'não vai' };
 
 const DAY_SHORT = { seg: 'seg', ter: 'ter', qua: 'qua', qui: 'qui', sex: 'sex', sab: 'sáb' };
@@ -23,6 +25,8 @@ export function prefsText(prefs) {
 export function attendanceOf(ev, attendanceByKey, consultDays) {
   const manual = attendanceByKey.get(ev.key);
   if (manual) return { status: manual.status, auto: false, row: manual };
+  // Cancelada (sumiu da agenda): se o mesmo evento foi para outra data, conta como remarcada; senão, falta o motivo.
+  if (ev.cancelled) return ev.movedTo ? { status: 'remarcou', auto: true } : { status: null, auto: false };
   if (ev.patient && consultDays.has(`${ev.patient.id}|${ev.start}`)) return { status: 'veio', auto: true };
   return { status: null, auto: false };
 }
@@ -31,7 +35,8 @@ export function attendanceOf(ev, attendanceByKey, consultDays) {
  * Estatísticas de um período. items: consultas que já passaram, com { reminder, attendance }.
  */
 export function attendanceStats(items) {
-  const known = items.filter((i) => i.attendance.status);
+  // Comparecimento conta só veio/faltou; canceladas e remarcadas aparecem à parte.
+  const known = items.filter((i) => ['veio', 'faltou'].includes(i.attendance.status));
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
   const came = (list) => list.filter((i) => i.attendance.status === 'veio').length;
   const reminded = items.filter((i) => i.reminder);
@@ -43,7 +48,7 @@ export function attendanceStats(items) {
   const missed = known.filter((i) => i.attendance.status === 'faltou');
   return {
     total: items.length,
-    pending: items.length - known.length,
+    pending: items.filter((i) => !i.attendance.status).length,
     known: known.length,
     reminded: reminded.length,
     confirmRate: pct(reminded.filter((i) => i.reminder.response === 'confirmado').length, reminded.length),
@@ -53,6 +58,9 @@ export function attendanceStats(items) {
     cancelled: { n: cancelled.length, came: came(cancelled), rate: pct(came(cancelled), cancelled.length) },
     noReminder: { n: noReminder.length, came: came(noReminder), rate: pct(came(noReminder), noReminder.length) },
     missed: missed.length,
+    cancelledByPatient: items.filter((i) => i.attendance.status === 'cancelou').length,
+    rescheduled: items.filter((i) => i.attendance.status === 'remarcou').length,
+    cancelledNoReason: items.filter((i) => i.cancelled && !i.attendance.status).length,
     missRate: pct(missed.length, known.length),
   };
 }
@@ -61,7 +69,7 @@ export function attendanceStats(items) {
 export function missRanking(items) {
   const by = new Map();
   for (const i of items) {
-    if (!i.patient || !i.attendance.status) continue;
+    if (!i.patient || !['veio', 'faltou'].includes(i.attendance.status)) continue;
     const r = by.get(i.patient.id) || { patient: i.patient, total: 0, missed: 0 };
     r.total += 1;
     if (i.attendance.status === 'faltou') r.missed += 1;

@@ -10,6 +10,7 @@ import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { TodoCard } from './todos.js';
 import { RoutinesCard } from './routines.js';
 import { CalendarCard } from './calendar.js';
+import { syncSnapshot } from '../lib/snapshot.js';
 import { PatientPeek } from './peek.js';
 
 const ALERT_DAYS = 50;
@@ -101,6 +102,11 @@ export function Home() {
   }, []);
 
   const today = todayISO();
+
+  // A cada leitura da agenda, atualiza a fotografia (para não perder consultas canceladas no Nutrium).
+  useEffect(() => {
+    if (agenda.state === 'ok' && patients) syncSnapshot(agenda.events, patients).catch(() => {});
+  }, [agenda, patients]);
 
   // Consultas do período visível no calendário: agenda do Google ou, sem ela, a planilha do Nutrium.
   const calendarEvents = useMemo(() => {

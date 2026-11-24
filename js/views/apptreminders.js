@@ -5,7 +5,8 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, prefsText, attendanceOf } from '../lib/appointments.js';
+import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS } from '../lib/appointments.js';
+import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading } from './common.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -209,16 +210,24 @@ function TodayCard({ data }) {
   const [items, setItems] = useState(null);
   const [now, setNow] = useState(nowHM());
   const [err, setErr] = useState(null);
-  const load = () => Promise.all([
+  const load = async () => {
+    // Atualiza a fotografia da agenda antes, para saber quais consultas de hoje foram canceladas.
+    try { const evs = await loadAgenda(); if (evs) await syncSnapshot(evs, data.patients, { force: true }); } catch { /* segue sem */ }
+    return loadNow();
+  };
+  const loadNow = () => Promise.all([
     loadDayAppointments(today, data.patients),
+    cancelledEvents(today, today, data.patients).catch(() => []),
     run(supabase.from('appointment_reminders').select('*').eq('event_date', today)),
     run(supabase.from('appointment_attendance').select('*').eq('event_date', today)),
     run(supabase.from('consultations').select('patient_id, date').eq('date', today)),
-  ]).then(([{ list }, rems, att, consults]) => {
+  ]).then(([{ list: active }, cancelled, rems, att, consults]) => {
+    const activeKeys = new Set(active.map((ev) => `${ev.uid || ev.key}|${ev.start}`));
+    const list = [...active, ...cancelled.filter((c) => !activeKeys.has(c.key))];
     const byKey = new Map(rems.map((r) => [r.event_key, r]));
     const attByKey = new Map(att.map((r) => [r.event_key, r]));
     const consultDays = new Set(consults.map((c) => `${c.patient_id}|${c.date}`));
-    setItems(list.map((ev) => ({ ...ev, key: `${ev.uid || ev.key}|${ev.start}` }))
+    setItems(list.map((ev) => ({ ...ev, key: ev.cancelled ? ev.key : `${ev.uid || ev.key}|${ev.start}` }))
       .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null, attendance: attendanceOf(ev, attByKey, consultDays) }))
       .sort((a, b) => (a.time || '').localeCompare(b.time || '')));
   }).catch(() => setItems([]));
@@ -234,12 +243,12 @@ function TodayCard({ data }) {
     try {
       if (ev.attendance.row) await run(supabase.from('appointment_attendance').update({ status, marked_at: new Date().toISOString() }).eq('id', ev.attendance.row.id));
       else await run(supabase.from('appointment_attendance').insert({ patient_id: ev.patient.id, event_key: ev.key, event_date: ev.start, event_time: ev.time || null, status }));
-      await load();
+      await loadNow();
     } catch (e) { setErr(e); }
   }
   async function clear(ev) {
     await run(supabase.from('appointment_attendance').delete().eq('id', ev.attendance.row.id));
-    load();
+    loadNow();
   }
 
   if (!items) return html`<section class="card"><h2 class="card-title">📋 Consultas de hoje</h2><p class="muted">Carregando…</p></section>`;
@@ -248,13 +257,15 @@ function TodayCard({ data }) {
     .map(([k, l]) => [count(k), l]).filter(([n]) => n > 0);
   const came = items.filter((i) => i.attendance?.status === 'veio').length;
   const missed = items.filter((i) => i.attendance?.status === 'faltou').length;
+  const cancelledN = items.filter((i) => i.cancelled).length;
 
   return html`
     <section class="card today-card">
       <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length})</span></h2>
       ${items.length === 0 && html`<p class="muted">Nenhuma consulta hoje.</p>`}
       ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}
-        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, faltaram ${missed}</span>` : ''}</p>`}
+        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, não apareceram ${missed}</span>` : ''}
+        ${cancelledN ? html`<span class="muted"> · 🚫 ${cancelledN} cancelada(s)</span>` : ''}</p>`}
       <${ErrorBox} error=${err} />
       ${items.length > 0 && html`
         <table class="table">
@@ -265,7 +276,9 @@ function TodayCard({ data }) {
               const past = hasEnded(ev, today, now);
               return html`
                 <tr class=${past ? 'row-sent' : ''}>
-                  <td><strong>${ev.time || '—'}</strong>${past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
+                  <td><strong class=${ev.cancelled ? 'strike' : ''}>${ev.time || '—'}</strong>${ev.cancelled
+                    ? html` <span class="badge badge-red">🚫 Cancelada</span>${ev.movedTo ? html` <span class="badge badge-blue">remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}</span>` : ''}`
+                    : past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
                   <td>${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
                   <td class=${'resp resp-' + (r?.response || 'none')}>
                     ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
@@ -273,7 +286,12 @@ function TodayCard({ data }) {
                     ${r?.response_note ? html`<div class="muted small">“${r.response_note}”</div>` : ''}
                   </td>
                   <td class="attend-cell">
-                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : html`
+                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : ev.cancelled ? html`
+                      <div class="muted small">Motivo do cancelamento:</div>
+                      ${CANCEL_REASONS.map(([k, l]) => html`
+                        <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
+                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(ev)}>Limpar</button>`}
+                      ${ev.attendance.auto && ev.attendance.status === 'remarcou' && html`<div class="muted small">(remarcada: detectado pela agenda)</div>`}` : html`
                       ${ev.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${ev.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
                       ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
                       ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}

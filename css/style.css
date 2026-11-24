@@ -399,3 +399,4 @@ textarea { resize: vertical; min-height: 44px; }
 .today-summary { margin: 0 0 8px; }
 .attend-cell { white-space: nowrap; }
 .attend-cell > * { margin-right: 4px; }
+.strike { text-decoration: line-through; }

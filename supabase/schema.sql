@@ -219,6 +219,27 @@ create table if not exists public.appointment_attendance (
   marked_at   timestamptz not null default now()
 );
 create index if not exists appointment_attendance_date_idx on public.appointment_attendance (event_date);
+-- Além de veio/faltou: consulta cancelada porque o paciente cancelou ou pediu para remarcar.
+alter table public.appointment_attendance drop constraint if exists appointment_attendance_status_check;
+alter table public.appointment_attendance add constraint appointment_attendance_status_check
+  check (status in ('veio', 'faltou', 'cancelou', 'remarcou'));
+
+-- "Fotografia" das consultas da agenda: quando uma consulta já vista some da agenda (cancelada no Nutrium),
+-- continua na lista do dia como cancelada. moved_to: o mesmo evento apareceu em outra data (remarcado).
+create table if not exists public.calendar_snapshot (
+  event_key     text primary key,
+  uid           text,
+  patient_id    uuid references public.patients (id) on delete set null,
+  patient_name  text,
+  event_date    date not null,
+  event_time    text,
+  end_time      text,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at  timestamptz not null default now(),
+  cancelled_at  timestamptz,
+  moved_to      date
+);
+create index if not exists calendar_snapshot_date_idx on public.calendar_snapshot (event_date);
 
 -- ---------- updated_at automático ----------
 create or replace function public.touch_updated_at() returns trigger
@@ -441,6 +462,7 @@ alter table public.todos enable row level security;
 alter table public.routines enable row level security;
 alter table public.appointment_reminders enable row level security;
 alter table public.appointment_attendance enable row level security;
+alter table public.calendar_snapshot enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -458,6 +480,7 @@ drop policy if exists "dona" on public.todos;
 drop policy if exists "dona" on public.routines;
 drop policy if exists "dona" on public.appointment_reminders;
 drop policy if exists "dona" on public.appointment_attendance;
+drop policy if exists "dona" on public.calendar_snapshot;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -474,12 +497,13 @@ create policy "dona" on public.todos                for all to authenticated usi
 create policy "dona" on public.routines             for all to authenticated using (true) with check (true);
 create policy "dona" on public.appointment_reminders for all to authenticated using (true) with check (true);
 create policy "dona" on public.appointment_attendance for all to authenticated using (true) with check (true);
+create policy "dona" on public.calendar_snapshot    for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
   public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
   public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders,
-  public.appointment_attendance to authenticated;
+  public.appointment_attendance, public.calendar_snapshot to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

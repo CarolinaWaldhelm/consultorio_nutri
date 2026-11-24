@@ -4,7 +4,8 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart } from '../lib/appointments.js';
+import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart, STATUS_LABEL, CANCEL_REASONS } from '../lib/appointments.js';
+import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText } from './common.js';
 import { ApptRemindersTab } from './apptreminders.js';
 
@@ -24,13 +25,17 @@ async function loadPast(from, patients) {
   try { events = await loadAgenda(); } catch { events = null; }
   let list;
   if (events) {
+    try { await syncSnapshot(events, patients); } catch { /* segue sem */ }
     list = consultationEvents(events, from, today).map((ev) => ({ ...ev, ...matchEvent(ev, patients), key: `${ev.uid}|${ev.start}` }));
+    const keys = new Set(list.map((ev) => ev.key));
+    const cancelled = await cancelledEvents(from, today, patients).catch(() => []);
+    list = [...list, ...cancelled.filter((c) => !keys.has(c.key))];
   } else {
     const rows = await run(supabase.from('nutrium_appointments').select('*').gte('date', from).lte('date', today));
     const byId = new Map(patients.map((p) => [p.id, p]));
     list = rows.map((a) => ({ key: `n${a.id}|${a.date}`, start: a.date, time: a.start_time, endDate: a.date, endTime: a.end_time, patient: byId.get(a.patient_id) || null, patientName: byId.get(a.patient_id)?.name || '' }));
   }
-  list = list.filter((ev) => hasEnded(ev, today, now));
+  list = list.filter((ev) => ev.cancelled ? ev.start <= today : hasEnded(ev, today, now));
   const [reminders, attendance, consults] = await Promise.all([
     run(supabase.from('appointment_reminders').select('*').gte('event_date', from)),
     run(supabase.from('appointment_attendance').select('*').gte('event_date', from)),
@@ -90,14 +95,23 @@ function AttendanceTab({ data }) {
   const marked = linked.filter((i) => i.attendance.status);
   const unlinked = past.items.filter((i) => !i.patient);
 
-  const Row = (i) => html`
+  const Row = (i) => i.cancelled ? html`
+    <tr>
+      <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small strike">${i.time || ''}</span> <span class="badge badge-red">🚫 Cancelada</span></td>
+      <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a>${i.movedTo ? html` <span class="badge badge-blue">remarcada p/ ${fmtDate(i.movedTo).slice(0, 5)}</span>` : ''}</td>
+      <td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}</td>
+      <td class="row-actions">
+        ${CANCEL_REASONS.map(([k, l]) => html`<button class=${'btn btn-sm' + (i.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(i, k)}>${i.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
+        ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(i)}>Limpar</button>`}
+      </td>
+    </tr>` : html`
     <tr>
       <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small">${i.time || ''}</span></td>
       <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a></td>
       <td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}</td>
       <td class="row-actions">
         ${i.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${i.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
-        ${i.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
+        ${i.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Não apareceu</span>`}
         ${i.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(i, 'veio')}>✔ Veio</button>`}
         ${i.attendance.status !== 'faltou' && html`<button class="btn btn-sm" onClick=${() => mark(i, 'faltou')}>✖ Faltou</button>`}
         ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(i)}>Limpar</button>`}
@@ -145,10 +159,12 @@ function StatsTab({ data }) {
           <div class="stat stat-main"><div class="stat-label">Dos que confirmaram, vieram</div><div class="stat-value">${p(st.confirmed.rate)}</div><div class="stat-sub">${st.confirmed.came} de ${st.confirmed.n}</div></div>
           <div class="stat"><div class="stat-label">Dos que não responderam, vieram</div><div class="stat-value">${p(st.silent.rate)}</div><div class="stat-sub">${st.silent.came} de ${st.silent.n}</div></div>
           <div class="stat"><div class="stat-label">Confirmaram pelo link</div><div class="stat-value">${p(st.confirmRate)}</div><div class="stat-sub">de ${st.reminded} lembrete(s) · ${p(st.answeredRate)} responderam algo</div></div>
-          <div class="stat"><div class="stat-label">Faltas no geral</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} consulta(s)</div></div>
+          <div class="stat"><div class="stat-label">Não apareceram (faltas)</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} consulta(s)</div></div>
         </div>
         <p class="muted small">
-          ${st.cancelled.n ? `Avisaram que não iam ou pediram para remarcar: ${st.cancelled.n} (${st.cancelled.came} acabou(aram) vindo). ` : ''}
+          ${st.cancelledByPatient || st.rescheduled ? `Consultas canceladas: ${st.cancelledByPatient} pelo paciente, ${st.rescheduled} remarcada(s) (não contam como falta). ` : ''}
+          ${st.cancelledNoReason ? `${st.cancelledNoReason} cancelada(s) sem motivo marcado. ` : ''}
+          ${st.cancelled.n ? `Responderam ao lembrete que não iam ou pediram para remarcar: ${st.cancelled.n} (${st.cancelled.came} acabou(aram) vindo). ` : ''}
           ${st.noReminder.n ? `Sem lembrete enviado: ${st.noReminder.n} consulta(s), ${p(st.noReminder.rate)} vieram. ` : ''}
           ${st.pending ? html`<strong>${st.pending} consulta(s) ainda sem comparecimento marcado</strong> ficam fora da conta (aba “Confirmar comparecimento”).` : ''}
         </p>

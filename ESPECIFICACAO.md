@@ -382,6 +382,14 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    enviado"), resumo com as contagens e "(já passou)" para as que terminaram. Coluna **"Compareceu?"** com
    `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` para marcar ao vivo (mesma tabela `appointment_attendance`, entra nas
    estatísticas); "veio" automático se houver consulta registrada no dia.
+   **Consultas canceladas continuam na lista** com a etiqueta **🚫 Cancelada** (horário riscado) e o motivo para
+   escolher: `[Não apareceu]` (conta como **falta**) · `[Paciente cancelou]` · `[Pediu para remarcar]` (esses dois
+   **não** contam como falta). Se a mesma consulta reaparecer na agenda em outra data, mostra "remarcada para dd/mm"
+   e já entra como "pediu para remarcar". Como funciona: o Google tira da agenda as consultas canceladas no Nutrium,
+   então o software guarda uma **"fotografia" da agenda** (tabela `calendar_snapshot`, de 3 dias atrás a 60 dias à
+   frente, atualizada no máximo a cada 2 minutos ao abrir a tela inicial ou os lembretes). Uma consulta que estava na
+   fotografia e sumiu da agenda vira "cancelada". Limitação: só reconhece consultas que o software já tinha visto
+   antes do cancelamento. Proteção: se a agenda vier vazia de repente (erro do Google), nada é marcado como cancelado.
    **📲 Enviar lembretes:** consultas da data escolhida (padrão: **amanhã**; na sexta, escolher segunda), pela agenda
    do Google (sem agenda, planilha do Nutrium); canceladas não entram. Todos marcados, seleção individual,
    `[Marcar todos]` / `[Desmarcar todos]`, fila de envio pelo WhatsApp. Coluna **Resposta** do paciente
@@ -392,7 +400,8 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    no software para o paciente no dia ("Iniciar consulta"), conta **"veio" automaticamente**.
 3. **📊 Estatísticas** (30 dias, 90 dias, desde o início): **dos que confirmaram, quantos vieram**; dos que não
    responderam, quantos vieram; taxa de confirmação pelo link; faltas no geral; quem mais falta. Consultas sem
-   comparecimento marcado ficam fora da conta (e aparecem contadas).
+   comparecimento marcado ficam fora da conta (e aparecem contadas). Canceladas aparecem também em "Confirmar
+   comparecimento" (com os mesmos três motivos); "Não apareceu" entra nas faltas, as outras aparecem só contadas.
 4. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
    evento) e **[Link de confirmação]** (avisa se o link de confirmação ficar de fora).
 
