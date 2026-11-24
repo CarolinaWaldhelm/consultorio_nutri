@@ -2,8 +2,8 @@
 // para conferir, selecionar e enviar um por um, igual aos questionários. Guarda quem já recebeu.
 import { html, useState, useEffect, useRef, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { fmtDate, todayISO } from '../lib/util.js';
-import { loadAgenda, consultationEvents, matchEvent } from '../lib/agenda.js';
+import { fmtDate, todayISO, nowHM } from '../lib/util.js';
+import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
 import { RESPONSE_LABEL, prefsText } from '../lib/appointments.js';
 import { ErrorBox, Loading } from './common.js';
@@ -105,6 +105,7 @@ export function ApptRemindersTab({ data, reload }) {
 
   return html`
     <${ErrorBox} error=${error} />
+    <${TodayCard} data=${data} />
     <section class="card">
       <div class="card-title-row">
         <h2 class="card-title">📲 Enviar lembretes</h2>
@@ -200,4 +201,56 @@ export function ApptRemindersTab({ data, reload }) {
           depois eles aparecem aqui para o lembrete.</p>
         <ul>${groups.unlinked.map((ev) => html`<li>${ev.time || ''} — ${ev.patientName}</li>`)}</ul>
       </section>`}`;
+}
+
+/** Consultas de hoje e a resposta de cada paciente ao lembrete. */
+function TodayCard({ data }) {
+  const today = todayISO();
+  const [items, setItems] = useState(null);
+  const [now, setNow] = useState(nowHM());
+  useEffect(() => {
+    Promise.all([
+      loadDayAppointments(today, data.patients),
+      run(supabase.from('appointment_reminders').select('*').eq('event_date', today)),
+    ]).then(([{ list }, rems]) => {
+      const byKey = new Map(rems.map((r) => [r.event_key, r]));
+      setItems(list.map((ev) => ({ ...ev, key: `${ev.uid || ev.key}|${ev.start}` }))
+        .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null }))
+        .sort((a, b) => (a.time || '').localeCompare(b.time || '')));
+    }).catch(() => setItems([]));
+    const t = setInterval(() => setNow(nowHM()), 60 * 1000);
+    return () => clearInterval(t);
+  }, [data]);
+
+  if (!items) return html`<section class="card"><h2 class="card-title">📋 Consultas de hoje</h2><p class="muted">Carregando…</p></section>`;
+  const count = (r) => items.filter((i) => (r === 'none' ? !i.reminder : i.reminder && (i.reminder.response || null) === r)).length;
+  const summary = [['confirmado', '✅ confirmaram'], ['remarcar', '📅 querem remarcar'], ['nao_vai', '❌ não vão'], [null, '⏳ sem resposta'], ['none', 'sem lembrete']]
+    .map(([k, l]) => [count(k), l]).filter(([n]) => n > 0);
+
+  return html`
+    <section class="card today-card">
+      <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length})</span></h2>
+      ${items.length === 0 && html`<p class="muted">Nenhuma consulta hoje.</p>`}
+      ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}</p>`}
+      ${items.length > 0 && html`
+        <table class="table">
+          <thead><tr><th>Horário</th><th>Paciente</th><th>Confirmação</th></tr></thead>
+          <tbody>
+            ${items.map((ev) => {
+              const r = ev.reminder;
+              const past = hasEnded(ev, today, now);
+              return html`
+                <tr class=${past ? 'row-sent' : ''}>
+                  <td><strong>${ev.time || '—'}</strong>${past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
+                  <td>${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
+                  <td class=${'resp resp-' + (r?.response || 'none')}>
+                    ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
+                    ${r?.response === 'remarcar' && r.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(r.response_prefs)}</div>`}
+                    ${r?.response_note ? html`<div class="muted small">“${r.response_note}”</div>` : ''}
+                  </td>
+                </tr>`;
+            })}
+          </tbody>
+        </table>`}
+    </section>`;
 }
