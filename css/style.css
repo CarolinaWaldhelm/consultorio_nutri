@@ -397,3 +397,5 @@ textarea { resize: vertical; min-height: 44px; }
 .resp-prefs { color: var(--text); font-weight: 600; font-size: .85rem; white-space: normal; margin-top: 2px; }
 .today-card { border-left: 4px solid var(--primary); }
 .today-summary { margin: 0 0 8px; }
+.attend-cell { white-space: nowrap; }
+.attend-cell > * { margin-right: 4px; }

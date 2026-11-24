@@ -5,7 +5,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, prefsText } from '../lib/appointments.js';
+import { RESPONSE_LABEL, prefsText, attendanceOf } from '../lib/appointments.js';
 import { ErrorBox, Loading } from './common.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -208,33 +208,57 @@ function TodayCard({ data }) {
   const today = todayISO();
   const [items, setItems] = useState(null);
   const [now, setNow] = useState(nowHM());
+  const [err, setErr] = useState(null);
+  const load = () => Promise.all([
+    loadDayAppointments(today, data.patients),
+    run(supabase.from('appointment_reminders').select('*').eq('event_date', today)),
+    run(supabase.from('appointment_attendance').select('*').eq('event_date', today)),
+    run(supabase.from('consultations').select('patient_id, date').eq('date', today)),
+  ]).then(([{ list }, rems, att, consults]) => {
+    const byKey = new Map(rems.map((r) => [r.event_key, r]));
+    const attByKey = new Map(att.map((r) => [r.event_key, r]));
+    const consultDays = new Set(consults.map((c) => `${c.patient_id}|${c.date}`));
+    setItems(list.map((ev) => ({ ...ev, key: `${ev.uid || ev.key}|${ev.start}` }))
+      .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null, attendance: attendanceOf(ev, attByKey, consultDays) }))
+      .sort((a, b) => (a.time || '').localeCompare(b.time || '')));
+  }).catch(() => setItems([]));
   useEffect(() => {
-    Promise.all([
-      loadDayAppointments(today, data.patients),
-      run(supabase.from('appointment_reminders').select('*').eq('event_date', today)),
-    ]).then(([{ list }, rems]) => {
-      const byKey = new Map(rems.map((r) => [r.event_key, r]));
-      setItems(list.map((ev) => ({ ...ev, key: `${ev.uid || ev.key}|${ev.start}` }))
-        .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null }))
-        .sort((a, b) => (a.time || '').localeCompare(b.time || '')));
-    }).catch(() => setItems([]));
+    load();
     const t = setInterval(() => setNow(nowHM()), 60 * 1000);
     return () => clearInterval(t);
   }, [data]);
+
+  // Comparecimento ao vivo: vai direto para as estatísticas (mesma tabela da aba "Confirmar comparecimento").
+  async function mark(ev, status) {
+    setErr(null);
+    try {
+      if (ev.attendance.row) await run(supabase.from('appointment_attendance').update({ status, marked_at: new Date().toISOString() }).eq('id', ev.attendance.row.id));
+      else await run(supabase.from('appointment_attendance').insert({ patient_id: ev.patient.id, event_key: ev.key, event_date: ev.start, event_time: ev.time || null, status }));
+      await load();
+    } catch (e) { setErr(e); }
+  }
+  async function clear(ev) {
+    await run(supabase.from('appointment_attendance').delete().eq('id', ev.attendance.row.id));
+    load();
+  }
 
   if (!items) return html`<section class="card"><h2 class="card-title">📋 Consultas de hoje</h2><p class="muted">Carregando…</p></section>`;
   const count = (r) => items.filter((i) => (r === 'none' ? !i.reminder : i.reminder && (i.reminder.response || null) === r)).length;
   const summary = [['confirmado', '✅ confirmaram'], ['remarcar', '📅 querem remarcar'], ['nao_vai', '❌ não vão'], [null, '⏳ sem resposta'], ['none', 'sem lembrete']]
     .map(([k, l]) => [count(k), l]).filter(([n]) => n > 0);
+  const came = items.filter((i) => i.attendance?.status === 'veio').length;
+  const missed = items.filter((i) => i.attendance?.status === 'faltou').length;
 
   return html`
     <section class="card today-card">
       <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length})</span></h2>
       ${items.length === 0 && html`<p class="muted">Nenhuma consulta hoje.</p>`}
-      ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}</p>`}
+      ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}
+        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, faltaram ${missed}</span>` : ''}</p>`}
+      <${ErrorBox} error=${err} />
       ${items.length > 0 && html`
         <table class="table">
-          <thead><tr><th>Horário</th><th>Paciente</th><th>Confirmação</th></tr></thead>
+          <thead><tr><th>Horário</th><th>Paciente</th><th>Confirmação</th><th>Compareceu?</th></tr></thead>
           <tbody>
             ${items.map((ev) => {
               const r = ev.reminder;
@@ -247,6 +271,14 @@ function TodayCard({ data }) {
                     ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
                     ${r?.response === 'remarcar' && r.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(r.response_prefs)}</div>`}
                     ${r?.response_note ? html`<div class="muted small">“${r.response_note}”</div>` : ''}
+                  </td>
+                  <td class="attend-cell">
+                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : html`
+                      ${ev.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${ev.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
+                      ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
+                      ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}
+                      ${ev.attendance.status !== 'faltou' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'faltou')}>✖ Faltou</button>`}
+                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(ev)}>Limpar</button>`}`}
                   </td>
                 </tr>`;
             })}

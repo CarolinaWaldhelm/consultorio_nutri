@@ -379,7 +379,9 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
 
 1. **📋 Consultas de hoje** (no topo da primeira aba, sempre visível): cada consulta do dia com a resposta do
    paciente (✅ confirmou, 📅 quer remarcar com dias/horários e recado, ❌ não vai, ⏳ sem resposta, ou "sem lembrete
-   enviado"), resumo com as contagens e "(já passou)" para as que terminaram.
+   enviado"), resumo com as contagens e "(já passou)" para as que terminaram. Coluna **"Compareceu?"** com
+   `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` para marcar ao vivo (mesma tabela `appointment_attendance`, entra nas
+   estatísticas); "veio" automático se houver consulta registrada no dia.
    **📲 Enviar lembretes:** consultas da data escolhida (padrão: **amanhã**; na sexta, escolher segunda), pela agenda
    do Google (sem agenda, planilha do Nutrium); canceladas não entram. Todos marcados, seleção individual,
    `[Marcar todos]` / `[Desmarcar todos]`, fila de envio pelo WhatsApp. Coluna **Resposta** do paciente
