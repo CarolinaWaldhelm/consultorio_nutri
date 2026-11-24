@@ -246,7 +246,10 @@ export function Home() {
 
     ${!q && overdue.length > 0 && html`
       <section class="card">
-        <h2 class="card-title">⏰ Sem retorno há mais de ${ALERT_DAYS} dias <span class="muted small">(${overdue.length}, sem consulta marcada)</span></h2>
+        <div class="card-title-row">
+          <h2 class="card-title">⏰ Sem retorno há mais de ${ALERT_DAYS} dias <span class="muted small">(${overdue.length}, sem consulta marcada)</span></h2>
+          <a class="btn btn-sm btn-ghost" href="#/lembretes/mensagem" title="Mudar o texto da mensagem de retorno (vale para todos)">✏️ Editar mensagem</a>
+        </div>
         <table class="table">
           <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem contato</th><th></th></tr></thead>
           <tbody>
