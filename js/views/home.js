@@ -2,7 +2,8 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
-import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE } from '../lib/questionnaires.js';
+import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, whatsappUrl, whatsappNumber } from '../lib/questionnaires.js';
+import { copyText } from '../lib/prompts.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
@@ -83,10 +84,10 @@ export function Home() {
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
-      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at'])),
+      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at', 'whatsapp_return_message'])),
     ]).then(([sends, defs, sets]) => {
       const get = (k) => sets.find((x) => x.key === k)?.value;
-      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, lastBackup: get('last_backup_at') || null });
+      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, returnMessage: get('whatsapp_return_message') || DEFAULT_RETURN_MESSAGE, lastBackup: get('last_backup_at') || null });
     })
       .catch(() => setQdata(null));
 
@@ -169,6 +170,22 @@ export function Home() {
   const [overdueShown, overdueMore] = usePaged(overdue, 'overdue');
   const [listShown, listMore] = usePaged(list, q);
 
+  const [copiedFor, setCopiedFor] = useState(null);
+  // Mensagem de retorno: copiar (para mandar pelo app da Nutrium) ou abrir no WhatsApp. Anota a data.
+  async function returnMessage(p, via) {
+    const text = fillReturnMessage(qdata?.returnMessage || DEFAULT_RETURN_MESSAGE, p.name, daysBetween(lastActivity(p), today));
+    if (via === 'whatsapp') {
+      window.open(whatsappUrl(p.phone, text), '_blank');
+    } else if (await copyText(text)) {
+      setCopiedFor(p.id);
+      setTimeout(() => setCopiedFor((x) => (x === p.id ? null : x)), 4000);
+    } else {
+      window.prompt('Não consegui copiar sozinho. Copie o texto abaixo (Ctrl+C):', text);
+    }
+    await run(supabase.from('patients').update({ return_msg_at: today }).eq('id', p.id)).catch(() => {});
+    setPatients((ps) => ps.map((x) => (x.id === p.id ? { ...x, return_msg_at: today } : x)));
+  }
+
   async function updatePatient(id, patch) {
     await run(supabase.from('patients').update(patch).eq('id', id));
     await loadPatients();
@@ -239,7 +256,10 @@ export function Home() {
                 <td>${fmtDate(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtDate(p.last_response)}</div>` : ''}</td>
                 <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
                 <td class="row-actions">
-                  <button class="btn btn-sm" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
+                  ${p.return_msg_at && html`<span class="muted small" title="Última mensagem de retorno">✉️ ${fmtDate(p.return_msg_at).slice(0, 5)}</span>`}
+                  <button class="btn btn-sm" title="Copia a mensagem de retorno para colar no app de mensagens da Nutrium" onClick=${() => returnMessage(p, 'copy')}>${copiedFor === p.id ? '✓ Copiada' : '📋 Copiar mensagem'}</button>
+                  <button class="btn btn-sm" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem pronta' : 'Sem telefone no cadastro'} onClick=${() => returnMessage(p, 'whatsapp')}>📲 WhatsApp</button>
+                  <button class="btn btn-sm btn-ghost" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
                 </td>
               </tr>`)}
           </tbody>

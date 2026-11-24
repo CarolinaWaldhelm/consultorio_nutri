@@ -228,3 +228,17 @@ export function apptReminderList({ events, sent }) {
   for (const k of Object.keys(out)) out[k].sort(byTime);
   return out;
 }
+
+// ---------- Mensagem de retorno (pacientes sem retorno há mais de 50 dias) ----------
+
+export const DEFAULT_RETURN_MESSAGE = `Oi, [Nome], tudo bem? 😊
+
+Já faz [Dias] dias desde a nossa última consulta e senti sua falta por aqui! Imagino que a rotina tenha apertado ou que tenha acontecido alguma coisa, e está tudo bem.
+
+Que tal retomarmos o seu acompanhamento? Se quiser, te mando alguns horários disponíveis para remarcarmos. 🌱`;
+
+/** [Nome] = primeiro nome; [Dias] = dias desde a última consulta. */
+export function fillReturnMessage(template, name, days) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[dias\]/gi, String(days ?? ''));
+}

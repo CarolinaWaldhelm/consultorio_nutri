@@ -64,7 +64,11 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
 4. **Sem retorno há mais de 50 dias**: só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
    na planilha). Com consulta marcada, não há aviso. Contam como atualização uma consulta ou uma resposta de
-   questionário. Ação: `[Lembrar em 7 dias]` (coluna `snooze_until`). 15 visíveis, `[Mostrar mais]` de 10 em 10 e
+   questionário. Ações: **`[📋 Copiar mensagem]`** (para colar no app de mensagens da Nutrium), **`[📲 WhatsApp]`**
+   (abre a conversa com a mensagem pronta; desativado sem telefone) e `[Lembrar em 7 dias]` (coluna `snooze_until`).
+   A mensagem de retorno usa [Nome] (primeiro nome) e [Dias] (desde a última consulta) e é editável em
+   Lembretes de consulta → Mensagem. Ao copiar ou abrir no WhatsApp, a data fica anotada (coluna `return_msg_at`,
+   "✉️ 24/11" na linha). 15 visíveis, `[Mostrar mais]` de 10 em 10 e
    `[Mostrar menos]` (volta aos 15).
 5. **Todos os pacientes**: 15 visíveis, `[Mostrar mais]` de 10 em 10 e `[Mostrar menos]`.
    **Não existe ativo/inativo** (decisão da nutricionista: o paciente não formaliza o fim do acompanhamento).

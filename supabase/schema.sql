@@ -31,6 +31,8 @@ alter table public.patients add column if not exists inactive_reason text;
 alter table public.patients add column if not exists aliases text[] not null default '{}';
 -- "Lembrar depois" no alerta de 50 dias sem retorno
 alter table public.patients add column if not exists snooze_until date;
+-- Última mensagem de retorno (resgate) enviada pelo alerta de 50 dias
+alter table public.patients add column if not exists return_msg_at date;
 
 -- ---------- Consultas registradas no software (com anamnese) ----------
 create table if not exists public.consultations (
@@ -242,7 +244,8 @@ select
   n.date       as next_consult,
   n.start_time as next_time,
   p.email_primary, p.emails, p.aliases, p.snooze_until, p.name_norm,
-  r.last_date as last_response
+  r.last_date as last_response,
+  p.return_msg_at
 from public.patients p
 left join lateral (
   select max((submitted_at at time zone 'America/Sao_Paulo')::date) as last_date
