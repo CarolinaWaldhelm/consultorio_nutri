@@ -5,7 +5,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS } from '../lib/appointments.js';
+import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm, effectiveStatus } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading } from './common.js';
 
@@ -256,7 +256,7 @@ function TodayCard({ data }) {
   const summary = [['confirmado', '✅ confirmaram'], ['remarcar', '📅 querem remarcar'], ['nao_vai', '❌ não vão'], [null, '⏳ sem resposta'], ['none', 'sem lembrete']]
     .map(([k, l]) => [count(k), l]).filter(([n]) => n > 0);
   const came = items.filter((i) => i.attendance?.status === 'veio').length;
-  const missed = items.filter((i) => i.attendance?.status === 'faltou').length;
+  const missed = items.filter((i) => effectiveStatus(i) === 'faltou').length;
   const cancelledN = items.filter((i) => i.cancelled).length;
 
   return html`
@@ -291,7 +291,8 @@ function TodayCard({ data }) {
                       ${CANCEL_REASONS.map(([k, l]) => html`
                         <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
                       ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(ev)}>Limpar</button>`}
-                      ${ev.attendance.auto && ev.attendance.status === 'remarcou' && html`<div class="muted small">(remarcada: detectado pela agenda)</div>`}` : html`
+                      ${ev.attendance.auto && ev.attendance.status === 'remarcou' && html`<div class="muted small">(remarcada: detectado pela agenda)</div>`}
+                      ${lateAfterConfirm(ev) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}` : html`
                       ${ev.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${ev.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
                       ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
                       ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}

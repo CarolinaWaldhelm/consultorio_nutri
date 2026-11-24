@@ -384,7 +384,10 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    estatísticas); "veio" automático se houver consulta registrada no dia.
    **Consultas canceladas continuam na lista** com a etiqueta **🚫 Cancelada** (horário riscado) e o motivo para
    escolher: `[Não apareceu]` (conta como **falta**) · `[Paciente cancelou]` · `[Pediu para remarcar]` (esses dois
-   **não** contam como falta). Se a mesma consulta reaparecer na agenda em outra data, mostra "remarcada para dd/mm"
+   **não** contam como falta), **exceto se o paciente tinha confirmado pelo lembrete**: quem confirmou e depois
+   cancelou ou pediu para remarcar teve a chance de avisar pelo link e não avisou, então **conta como falta** (a linha
+   mostra "⚠️ Tinha confirmado no lembrete: conta como falta"; nas estatísticas, entra em "Não apareceram", em "Dos que
+   confirmaram, vieram" e em "Quem mais falta", com a contagem à parte). Se a mesma consulta reaparecer na agenda em outra data, mostra "remarcada para dd/mm"
    e já entra como "pediu para remarcar". Como funciona: o Google tira da agenda as consultas canceladas no Nutrium,
    então o software guarda uma **"fotografia" da agenda** (tabela `calendar_snapshot`, de 3 dias atrás a 60 dias à
    frente, atualizada no máximo a cada 2 minutos ao abrir a tela inicial ou os lembretes). Uma consulta que estava na

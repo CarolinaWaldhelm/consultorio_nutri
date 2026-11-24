@@ -4,7 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart, STATUS_LABEL, CANCEL_REASONS } from '../lib/appointments.js';
+import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText } from './common.js';
 import { ApptRemindersTab } from './apptreminders.js';
@@ -103,6 +103,7 @@ function AttendanceTab({ data }) {
       <td class="row-actions">
         ${CANCEL_REASONS.map(([k, l]) => html`<button class=${'btn btn-sm' + (i.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(i, k)}>${i.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
         ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(i)}>Limpar</button>`}
+        ${lateAfterConfirm(i) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}
       </td>
     </tr>` : html`
     <tr>
@@ -162,7 +163,8 @@ function StatsTab({ data }) {
           <div class="stat"><div class="stat-label">Não apareceram (faltas)</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} consulta(s)</div></div>
         </div>
         <p class="muted small">
-          ${st.cancelledByPatient || st.rescheduled ? `Consultas canceladas: ${st.cancelledByPatient} pelo paciente, ${st.rescheduled} remarcada(s) (não contam como falta). ` : ''}
+          ${st.lateCancel || st.lateReschedule ? html`<strong>Confirmaram e depois desmarcaram: ${st.lateCancel} cancelou(aram) e ${st.lateReschedule} remarcou(aram) — contadas como falta.</strong> ` : ''}
+          ${st.cancelledByPatient || st.rescheduled ? `Canceladas sem ter confirmado antes: ${st.cancelledByPatient} pelo paciente, ${st.rescheduled} remarcada(s) (não contam como falta). ` : ''}
           ${st.cancelledNoReason ? `${st.cancelledNoReason} cancelada(s) sem motivo marcado. ` : ''}
           ${st.cancelled.n ? `Responderam ao lembrete que não iam ou pediram para remarcar: ${st.cancelled.n} (${st.cancelled.came} acabou(aram) vindo). ` : ''}
           ${st.noReminder.n ? `Sem lembrete enviado: ${st.noReminder.n} consulta(s), ${p(st.noReminder.rate)} vieram. ` : ''}
