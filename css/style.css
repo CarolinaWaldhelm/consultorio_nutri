@@ -402,3 +402,4 @@ textarea { resize: vertical; min-height: 44px; }
 .strike { text-decoration: line-through; }
 
 .late-warn { color: #b42318; margin-top: 4px; font-weight: 600; }
+.text-danger { color: var(--danger); }

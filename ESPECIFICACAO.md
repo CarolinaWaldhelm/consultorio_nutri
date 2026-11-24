@@ -65,7 +65,11 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
 4. **Sem retorno há mais de 50 dias**: só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
    na planilha). Com consulta marcada, não há aviso. Contam como atualização uma consulta ou uma resposta de
    questionário. Ações: **`[📋 Copiar mensagem]`** (para colar no app de mensagens da Nutrium), **`[📲 WhatsApp]`**
-   (abre a conversa com a mensagem pronta; desativado sem telefone) e `[Lembrar em 7 dias]` (coluna `snooze_until`).
+   (abre a conversa com a mensagem pronta; desativado sem telefone) e `[Lembrar em 7 dias]` (coluna `snooze_until`). `[🚫 Perdi este paciente]` (coluna `lost_at`, com
+   confirmação): para quem perdeu o acesso à Nutrium ou não tem como receber mensagem. O paciente sai do alerta, da
+   lista "Todos os pacientes" e dos questionários; na busca aparece com a etiqueta "🚫 perdido". Volta sozinho se marcar
+   consulta de novo (consulta depois da data marcada ou consulta agendada). Abaixo do alerta, `▸ Pacientes perdidos (N)`
+   abre a lista com `[Desfazer]`.
    A mensagem de retorno usa [Nome] (primeiro nome) e [Dias] (desde a última consulta) e é editável em
    Lembretes de consulta → Mensagem. Ao copiar ou abrir no WhatsApp, a data fica anotada (coluna `return_msg_at`,
    "✉️ 24/11" na linha). 15 visíveis, `[Mostrar mais]` de 10 em 10 e

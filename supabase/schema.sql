@@ -33,6 +33,8 @@ alter table public.patients add column if not exists aliases text[] not null def
 alter table public.patients add column if not exists snooze_until date;
 -- Última mensagem de retorno (resgate) enviada pelo alerta de 50 dias
 alter table public.patients add column if not exists return_msg_at date;
+-- "Perdi este paciente" (sem acesso à Nutrium / sem como contatar): sai do alerta e das listas até marcar consulta de novo
+alter table public.patients add column if not exists lost_at date;
 
 -- ---------- Consultas registradas no software (com anamnese) ----------
 create table if not exists public.consultations (
@@ -266,7 +268,8 @@ select
   n.start_time as next_time,
   p.email_primary, p.emails, p.aliases, p.snooze_until, p.name_norm,
   r.last_date as last_response,
-  p.return_msg_at
+  p.return_msg_at,
+  p.lost_at
 from public.patients p
 left join lateral (
   select max((submitted_at at time zone 'America/Sao_Paulo')::date) as last_date

@@ -5,7 +5,7 @@ import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/a
 import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, whatsappUrl, whatsappNumber } from '../lib/questionnaires.js';
 import { copyText } from '../lib/prompts.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
-import { ACTIVE_DAYS } from '../lib/nutrium.js';
+import { ACTIVE_DAYS, isLost } from '../lib/nutrium.js';
 import { Modal, Field, ErrorBox, Loading, go } from './common.js';
 import { TodoCard } from './todos.js';
 import { RoutinesCard } from './routines.js';
@@ -137,7 +137,10 @@ export function Home() {
   }, [patients, agenda]);
 
   // Mais de 100 dias da última consulta e nada marcado: sai das listas na hora (sem esperar a importação).
-  const isArchived = (p) => !!p.last_consult && daysBetween(p.last_consult, today) > ACTIVE_DAYS && !scheduled.has(p.id);
+  const isArchived = (p) => (!!p.last_consult && daysBetween(p.last_consult, today) > ACTIVE_DAYS && !scheduled.has(p.id)) || lost(p);
+  const lost = (p) => isLost(p, scheduled);
+  const lostList = useMemo(() => (patients || []).filter(lost).sort((a, b) => b.lost_at.localeCompare(a.lost_at)), [patients, scheduled]);
+  const [showLost, setShowLost] = useState(false);
 
   // Última atividade: consulta ou resposta de questionário.
   const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
@@ -190,6 +193,11 @@ export function Home() {
     }
     await run(supabase.from('patients').update({ return_msg_at: today }).eq('id', p.id)).catch(() => {});
     setPatients((ps) => ps.map((x) => (x.id === p.id ? { ...x, return_msg_at: today } : x)));
+  }
+
+  async function markLost(p) {
+    if (!window.confirm(`Marcar ${p.name} como paciente perdido?\n\nEle sai deste alerta, da lista de pacientes e dos questionários. Se marcar consulta de novo, volta sozinho. Dá para desfazer em “Pacientes perdidos”.`)) return;
+    await updatePatient(p.id, { lost_at: today });
   }
 
   async function updatePatient(id, patch) {
@@ -269,6 +277,7 @@ export function Home() {
                   <button class="btn btn-sm" title="Copia a mensagem de retorno para colar no app de mensagens da Nutrium" onClick=${() => returnMessage(p, 'copy')}>${copiedFor === p.id ? '✓ Copiada' : '📋 Copiar mensagem'}</button>
                   <button class="btn btn-sm" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem pronta' : 'Sem telefone no cadastro'} onClick=${() => returnMessage(p, 'whatsapp')}>📲 WhatsApp</button>
                   <button class="btn btn-sm btn-ghost" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
+                  <button class="btn btn-sm btn-ghost text-danger" title="Sem acesso à Nutrium / sem como mandar mensagem: tira o paciente das listas" onClick=${() => markLost(p)}>🚫 Perdi este paciente</button>
                 </td>
               </tr>`)}
           </tbody>
@@ -276,6 +285,26 @@ export function Home() {
         ${overdueMore}
         <p class="muted small">Se o paciente marcar consulta (na agenda ou no Nutrium), ele sai deste alerta sozinho. Com mais de ${ACTIVE_DAYS} dias, sai de todas as listas.</p>
       </section>`}
+
+    ${!q && lostList.length > 0 && html`
+      <p class="muted small lost-toggle">
+        <button class="btn btn-sm btn-ghost" onClick=${() => setShowLost(!showLost)}>${showLost ? '▾' : '▸'} 🚫 Pacientes perdidos (${lostList.length})</button>
+      </p>
+      ${showLost && html`
+        <section class="card">
+          <h2 class="card-title">🚫 Pacientes perdidos <span class="muted small">(${lostList.length})</span></h2>
+          <table class="table">
+            <thead><tr><th>Paciente</th><th>Última consulta</th><th>Marcado como perdido em</th><th></th></tr></thead>
+            <tbody>${lostList.map((p) => html`
+              <tr>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
+                <td>${fmtDate(p.lost_at)}</td>
+                <td class="row-actions"><button class="btn btn-sm" onClick=${() => updatePatient(p.id, { lost_at: null })}>Desfazer</button></td>
+              </tr>`)}</tbody>
+          </table>
+          <p class="muted small">Se o paciente marcar consulta de novo, sai daqui e volta às listas sozinho.</p>
+        </section>`}`}
 
     ${patients.length > 0 && html`
       <section class="card">
@@ -295,7 +324,7 @@ export function Home() {
                   <td>
                     ${p.name}
                     ${!p.phone && html` <span class="badge badge-warn" title="Sem telefone: necessário para os questionários">sem telefone</span>`}
-                    ${isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado: fora das listas e dos questionários">+${ACTIVE_DAYS} dias</span>`}
+                    ${lost(p) ? html` <span class="badge badge-red" title="Marcado como paciente perdido">🚫 perdido</span>` : isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado: fora das listas e dos questionários">+${ACTIVE_DAYS} dias</span>`}
                   </td>
                   <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
                   <td class=${p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>

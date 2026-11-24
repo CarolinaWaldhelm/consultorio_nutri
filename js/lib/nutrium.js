@@ -5,6 +5,17 @@ import { norm, unique, daysBetween } from './util.js';
 /** Pacientes sem consulta há mais que isso não entram na importação. */
 export const ACTIVE_DAYS = 100;
 
+/**
+ * "Perdi este paciente": vale até ele voltar (consulta depois da marcação ou consulta marcada).
+ * scheduled: Set de ids com consulta marcada na agenda (opcional).
+ */
+export function isLost(p, scheduled) {
+  if (!p.lost_at) return false;
+  if (p.last_consult && p.last_consult > p.lost_at) return false;
+  if (p.next_consult || scheduled?.has(p.id)) return false;
+  return true;
+}
+
 const key = (h) => norm(h).replace(/[^a-z0-9]/g, '');
 
 function findSheet(XLSX, wb, word) {
