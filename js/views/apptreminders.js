@@ -247,7 +247,7 @@ function TodayCard({ data }) {
   const RebookActions = (ev) => {
     const sentAt = contacted[ev.patient.id] && contacted[ev.patient.id] >= ev.start ? contacted[ev.patient.id] : null;
     return html`
-      <div class="rebook-actions">
+      <div class="rebook-actions" title=${ev.attendance?.status === 'faltou' ? 'Mensagem para quem faltou' : 'Mensagem para quem cancelou'}>
         <button class="icon-btn" title=${ev.attendance?.status === 'faltou' ? 'Copiar a mensagem para quem faltou (para colar na Nutrium)' : 'Copiar a mensagem para remarcar (para colar na Nutrium)'} aria-label="Copiar mensagem para remarcar" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓' : '📋'}</button>
         <button class="icon-btn" disabled=${!whatsappNumber(ev.patient.phone)} title=${whatsappNumber(ev.patient.phone) ? 'Abrir o WhatsApp com a mensagem para remarcar' : 'Sem telefone no cadastro'} aria-label="Enviar pelo WhatsApp" onClick=${() => rebookMsg(ev, 'whatsapp')}>📲</button>
         <span class=${'small ' + (sentAt ? 'sent-ok' : 'muted')} title=${sentAt ? 'Mensagem para remarcar enviada' : 'Mensagem para remarcar ainda não enviada'}>${sentAt ? `✉️ ${fmtDate(sentAt).slice(0, 5)}` : 'não enviada'}</span>
@@ -305,7 +305,7 @@ function TodayCard({ data }) {
       <${ErrorBox} error=${err} />
       ${items.length > 0 && html`
         <table class="table">
-          <thead><tr><th>Horário</th><th>Paciente</th><th>Confirmação</th><th>Compareceu?</th></tr></thead>
+          <thead><tr><th>Horário</th><th>Paciente</th><th>Confirmação</th><th>Compareceu?</th><th>Mensagem</th></tr></thead>
           <tbody>
             ${items.map((ev) => {
               const r = ev.reminder;
@@ -315,7 +315,7 @@ function TodayCard({ data }) {
                   <td><strong class=${ev.cancelled ? 'strike' : ''}>${ev.time || '—'}</strong>${ev.cancelled
                     ? html` <span class="badge badge-red">🚫 Cancelada</span>${ev.movedTo ? html` <span class="badge badge-blue">remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}</span>` : ''}`
                     : past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
-                  <td>${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} />` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
+                  <td class="name-cell">${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} />` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
                   <td class=${'resp resp-' + (r?.response || 'none')}>
                     ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
                     ${r?.response === 'remarcar' && r.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(r.response_prefs)}</div>`}
@@ -333,17 +333,17 @@ function TodayCard({ data }) {
                           ${CANCEL_REASONS.map(([k, l]) => html`
                             <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
                           ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(ev)}>Limpar</button>`}
-                          ${lateAfterConfirm(ev) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}`}
-                      ${RebookActions(ev)}`
+                          ${lateAfterConfirm(ev) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}`}`
                     : !ev.reminder && ev.attendance.status !== 'veio' ? html`<span class="muted small">sem lembrete: fora das estatísticas</span>`
                     : html`
                       ${ev.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${ev.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
                       ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
                       ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}
                       ${ev.attendance.status !== 'faltou' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'faltou')}>✖ Faltou</button>`}
-                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(ev)}>Limpar</button>`}
-                      ${ev.attendance.status === 'faltou' && RebookActions(ev)}`}
+                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(ev)}>Limpar</button>`}`}
                   </td>
+                  <td class="msg-cell">${ev.patient && !ev.movedTo && (ev.cancelled || ev.attendance.status === 'faltou' || (ev.attendance.byLink && ev.attendance.status === 'cancelou'))
+                    ? RebookActions(ev) : ''}</td>
                 </tr>`;
             })}
           </tbody>

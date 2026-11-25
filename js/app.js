@@ -53,7 +53,7 @@ function App() {
       </nav>
       <button class="btn btn-ghost btn-sm" onClick=${() => supabase.auth.signOut()}>Sair</button>
     </div>
-    <main class=${'container' + (route.name === 'home' ? ' wide' : '')}>${page}</main>`;
+    <main class=${'container' + (route.name !== 'patient' ? ' wide' : '')}>${page}</main>`;
 }
 
 render(html`<${App} />`, document.getElementById('app'));
