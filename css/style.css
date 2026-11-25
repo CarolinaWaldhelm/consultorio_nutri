@@ -403,3 +403,7 @@ textarea { resize: vertical; min-height: 44px; }
 
 .late-warn { color: #b42318; margin-top: 4px; font-weight: 600; }
 .text-danger { color: var(--danger); }
+.patient-note { white-space: normal; overflow-wrap: anywhere; max-width: 340px; font-weight: 400; margin-top: 2px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--primary-dark); text-decoration: underline; cursor: pointer; font-size: inherit; }
+.table-wrap { overflow-x: auto; }
+.outcome-table td, .outcome-table th { vertical-align: top; }

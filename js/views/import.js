@@ -34,6 +34,15 @@ export function ImportPage() {
       // Consulta registrada no software dentro do prazo também conta como atividade.
       const recentOwn = new Set(own.filter((c) => c.date <= today && daysBetween(c.date, today) <= ACTIVE_DAYS).map((c) => c.patient_id));
       for (const m of plan.matches) if (recentOwn.has(m.existing.id)) m.old = false;
+      // "Perdi este paciente": continua fora das listas, a não ser que tenha consulta (feita ou marcada) depois da marcação.
+      for (const m of plan.matches) {
+        if (!m.existing.lost_at) continue;
+        const backOwn = own.some((c) => c.patient_id === m.existing.id && c.date > m.existing.lost_at);
+        if (backOwn || (m.lastActivity && m.lastActivity > m.existing.lost_at)) m.cameBack = true;
+        else m.lost = true;
+      }
+      plan.lost = plan.matches.filter((m) => m.lost && !m.old);
+      plan.cameBack = plan.matches.filter((m) => m.cameBack);
       // Antigos: removidos. Os que têm anotações da nutricionista não são apagados (somem das listas pela
       // regra dos dias e voltam sozinhos se marcarem consulta).
       const hasNotes = new Set([...own, ...notes].map((r) => r.patient_id));
@@ -64,6 +73,7 @@ export function ImportPage() {
         if (toRemove.has(m.existing.id)) continue;
         idOf[m.index] = m.existing.id;
         const row = mergeIntoExisting(updates.get(m.existing.id) || m.existing, plan.persons[m.index]);
+        if (m.cameBack) row.lost_at = null; // voltou: marcou consulta depois de ter sido dado como perdido
         updates.set(m.existing.id, row);
       }
       for (const i of plan.unmatched) {
@@ -181,9 +191,11 @@ function Review({ plan, existing, decisions, setDecisions, onApply, onCancel }) 
         <div class="stat"><div class="stat-label">Consultas</div><div class="stat-value">${nAppts}</div></div>
         <div class="stat"><div class="stat-label">Pesos e alturas</div><div class="stat-value">${nMeas}</div></div>
       </div>
-      ${(plan.removable.length > 0 || plan.keptOld.length > 0) && html`
+      ${(plan.removable.length > 0 || plan.keptOld.length > 0 || plan.lost.length > 0 || plan.cameBack.length > 0) && html`
         <div class="alert">
           ${plan.removable.length > 0 && html`<div>🗑️ <strong>${plan.removable.length} paciente(s)</strong> que já estavam no sistema passaram de ${ACTIVE_DAYS} dias sem consulta e sem consulta marcada: serão <strong>removidos</strong>.</div>`}
+          ${plan.lost.length > 0 && html`<div>🚫 <strong>${plan.lost.length} paciente(s) perdido(s)</strong> continuam fora das listas (não voltam com a importação).</div>`}
+          ${plan.cameBack.length > 0 && html`<div>🎉 <strong>${plan.cameBack.length} paciente(s) que estavam como perdidos</strong> marcaram consulta de novo e voltam para as listas: ${plan.cameBack.map((m) => m.existing.name).join(', ')}.</div>`}
           ${plan.keptOld.length > 0 && html`<div>📁 <strong>${plan.keptOld.length} paciente(s)</strong> na mesma situação têm anotações suas: não serão apagados. Ficam fora das listas (dá para achar pela busca) e voltam sozinhos se marcarem consulta.</div>`}
         </div>`}
       ${plan.merges.length > 0 && html`

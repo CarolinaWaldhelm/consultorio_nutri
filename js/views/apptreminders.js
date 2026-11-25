@@ -169,7 +169,7 @@ export function ApptRemindersTab({ data, reload }) {
                 <td class=${'resp resp-' + (ev.sentRow.response || 'none')} title=${ev.sentRow.response_note || ''}>
                   ${RESPONSE_LABEL[ev.sentRow.response || null]}
                   ${ev.sentRow.response === 'remarcar' && ev.sentRow.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(ev.sentRow.response_prefs)}</div>`}
-                  ${ev.sentRow.response_note ? html`<div class="muted small">“${ev.sentRow.response_note}”</div>` : ''}
+                  ${ev.sentRow.response_note ? html`<${PatientNote} text=${ev.sentRow.response_note} />` : ''}
                 </td>
                 <td class="row-actions"><span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
               </tr>`)}
@@ -228,7 +228,7 @@ function TodayCard({ data }) {
     const attByKey = new Map(att.map((r) => [r.event_key, r]));
     const consultDays = new Set(consults.map((c) => `${c.patient_id}|${c.date}`));
     setItems(list.map((ev) => ({ ...ev, key: ev.cancelled ? ev.key : `${ev.uid || ev.key}|${ev.start}` }))
-      .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null, attendance: attendanceOf(ev, attByKey, consultDays) }))
+      .map((ev) => ({ ...ev, reminder: byKey.get(ev.key) || null, attendance: attendanceOf(ev, attByKey, consultDays, byKey.get(ev.key) || null) }))
       .sort((a, b) => (a.time || '').localeCompare(b.time || '')));
   }).catch(() => setItems([]));
   useEffect(() => {
@@ -283,10 +283,11 @@ function TodayCard({ data }) {
                   <td class=${'resp resp-' + (r?.response || 'none')}>
                     ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
                     ${r?.response === 'remarcar' && r.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(r.response_prefs)}</div>`}
-                    ${r?.response_note ? html`<div class="muted small">“${r.response_note}”</div>` : ''}
+                    ${r?.response_note ? html`<${PatientNote} text=${r.response_note} />` : ''}
                   </td>
                   <td class="attend-cell">
-                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : ev.cancelled ? html`
+                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : ev.attendance.byLink ? html`
+                      <span class="muted small">${ev.cancelled ? '🚫 Cancelada · ' : ''}${ev.attendance.status === 'remarcou' ? 'pediu para remarcar pelo link' : 'avisou pelo link que não vem'}<br />(entra nas estatísticas)</span>` : ev.cancelled ? html`
                       <div class="muted small">Motivo do cancelamento:</div>
                       ${CANCEL_REASONS.map(([k, l]) => html`
                         <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
@@ -304,4 +305,14 @@ function TodayCard({ data }) {
           </tbody>
         </table>`}
     </section>`;
+}
+
+/** Recado do paciente: mostra só o começo; "ver tudo" abre o texto inteiro. */
+export function PatientNote({ text, max = 70 }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > max;
+  return html`<div class="patient-note muted small">
+    “${open || !long ? text : text.slice(0, max).trimEnd() + '…'}”
+    ${long && html` <button class="link-btn" onClick=${(e) => { e.stopPropagation(); setOpen(!open); }}>${open ? 'ver menos' : 'ver tudo'}</button>`}
+  </div>`;
 }

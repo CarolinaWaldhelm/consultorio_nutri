@@ -7,7 +7,7 @@ import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillRetu
 import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText } from './common.js';
-import { ApptRemindersTab } from './apptreminders.js';
+import { ApptRemindersTab, PatientNote } from './apptreminders.js';
 
 async function loadBase() {
   const [patients, settingsRows] = await Promise.all([
@@ -24,6 +24,14 @@ async function loadPast(from, patients) {
   let events = null;
   try { events = await loadAgenda(); } catch { events = null; }
   let list;
+  // Datas de consulta de cada paciente (passadas e futuras), para saber quem marcou de novo depois de desmarcar.
+  const datesOf = new Map();
+  const addDate = (id, d) => { if (id && d) { if (!datesOf.has(id)) datesOf.set(id, []); datesOf.get(id).push(d); } };
+  if (events) {
+    const far = new Date(); far.setDate(far.getDate() + 180);
+    for (const ev of consultationEvents(events, from, far.toISOString().slice(0, 10))) addDate(matchEvent(ev, patients).patient?.id, ev.start);
+  }
+  for (const p of patients) { addDate(p.id, p.last_consult); addDate(p.id, p.next_consult); }
   if (events) {
     try { await syncSnapshot(events, patients); } catch { /* segue sem */ }
     list = consultationEvents(events, from, today).map((ev) => ({ ...ev, ...matchEvent(ev, patients), key: `${ev.uid}|${ev.start}` }));
@@ -44,7 +52,12 @@ async function loadPast(from, patients) {
   const remByKey = new Map(reminders.map((r) => [r.event_key, r]));
   const attByKey = new Map(attendance.map((r) => [r.event_key, r]));
   const consultDays = new Set(consults.map((c) => `${c.patient_id}|${c.date}`));
-  const items = list.map((ev) => ({ ...ev, reminder: remByKey.get(ev.key) || null, attendance: attendanceOf(ev, attByKey, consultDays) }))
+  for (const c of consults) addDate(c.patient_id, c.date);
+  const rebooked = (ev) => !!ev.movedTo || (ev.patient && (datesOf.get(ev.patient.id) || []).some((d) => d > ev.start));
+  const items = list.map((ev) => {
+    const reminder = remByKey.get(ev.key) || null;
+    return { ...ev, reminder, rebooked: rebooked(ev), attendance: attendanceOf(ev, attByKey, consultDays, reminder) };
+  })
     .sort((a, b) => (b.start + (b.time || '')).localeCompare(a.start + (a.time || '')));
   return { source: events ? 'google' : 'nutrium', items };
 }
@@ -95,11 +108,18 @@ function AttendanceTab({ data }) {
   const marked = linked.filter((i) => i.attendance.status);
   const unlinked = past.items.filter((i) => !i.patient);
 
-  const Row = (i) => i.cancelled ? html`
+  const Resp = (i) => html`<td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}${i.reminder?.response_note ? html`<${PatientNote} text=${i.reminder.response_note} />` : ''}</td>`;
+  const Row = (i) => i.attendance.byLink ? html`
+    <tr>
+      <td>${fmtDate(i.start).slice(0, 5)} <span class=${'muted small' + (i.cancelled ? ' strike' : '')}>${i.time || ''}</span>${i.cancelled ? html` <span class="badge badge-red">🚫 Cancelada</span>` : ''}</td>
+      <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a></td>
+      ${Resp(i)}
+      <td class="muted small">Avisou pelo link: não precisa marcar · ${i.rebooked ? '✔ já marcou de novo' : 'ainda sem nova consulta'}</td>
+    </tr>` : i.cancelled ? html`
     <tr>
       <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small strike">${i.time || ''}</span> <span class="badge badge-red">🚫 Cancelada</span></td>
       <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a>${i.movedTo ? html` <span class="badge badge-blue">remarcada p/ ${fmtDate(i.movedTo).slice(0, 5)}</span>` : ''}</td>
-      <td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}</td>
+      ${Resp(i)}
       <td class="row-actions">
         ${CANCEL_REASONS.map(([k, l]) => html`<button class=${'btn btn-sm' + (i.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(i, k)}>${i.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
         ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(i)}>Limpar</button>`}
@@ -109,7 +129,7 @@ function AttendanceTab({ data }) {
     <tr>
       <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small">${i.time || ''}</span></td>
       <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a></td>
-      <td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}</td>
+      ${Resp(i)}
       <td class="row-actions">
         ${i.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${i.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
         ${i.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Não apareceu</span>`}
@@ -157,21 +177,46 @@ function StatsTab({ data }) {
       </div>
       ${!past ? html`<${Loading} />` : st.total === 0 ? html`<p class="muted">Nenhuma consulta neste período.</p>` : html`
         <div class="stats">
-          <div class="stat stat-main"><div class="stat-label">Dos que confirmaram, vieram</div><div class="stat-value">${p(st.confirmed.rate)}</div><div class="stat-sub">${st.confirmed.came} de ${st.confirmed.n}</div></div>
-          <div class="stat"><div class="stat-label">Dos que não responderam, vieram</div><div class="stat-value">${p(st.silent.rate)}</div><div class="stat-sub">${st.silent.came} de ${st.silent.n}</div></div>
-          <div class="stat"><div class="stat-label">Confirmaram pelo link</div><div class="stat-value">${p(st.confirmRate)}</div><div class="stat-sub">de ${st.reminded} lembrete(s) · ${p(st.answeredRate)} responderam algo</div></div>
-          <div class="stat"><div class="stat-label">Não apareceram (faltas)</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} consulta(s)</div></div>
+          <div class="stat stat-main"><div class="stat-label">Dos que confirmaram, vieram</div><div class="stat-value">${p(st.confirmed.rate)}</div><div class="stat-sub">${st.confirmed.came} de ${st.confirmed.came + st.confirmed.missed}</div></div>
+          <div class="stat"><div class="stat-label">Dos que não responderam, vieram</div><div class="stat-value">${p(st.silent.rate)}</div><div class="stat-sub">${st.silent.came} de ${st.silent.came + st.silent.missed}</div></div>
+          <div class="stat"><div class="stat-label">Desmarcaram em cima da hora</div><div class="stat-value">${p(st.lastMinuteRate)}</div><div class="stat-sub">${st.lastMinute} de ${st.total} consulta(s)</div></div>
+          <div class="stat"><div class="stat-label">Faltas no geral</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} · responderam o lembrete: ${p(st.answeredRate)}</div></div>
         </div>
-        <p class="muted small">
-          ${st.lateCancel || st.lateReschedule ? html`<strong>Confirmaram e depois desmarcaram: ${st.lateCancel} cancelou(aram) e ${st.lateReschedule} remarcou(aram) — contadas como falta.</strong> ` : ''}
-          ${st.cancelledByPatient || st.rescheduled ? `Canceladas sem ter confirmado antes: ${st.cancelledByPatient} pelo paciente, ${st.rescheduled} remarcada(s) (não contam como falta). ` : ''}
-          ${st.cancelledNoReason ? `${st.cancelledNoReason} cancelada(s) sem motivo marcado. ` : ''}
-          ${st.cancelled.n ? `Responderam ao lembrete que não iam ou pediram para remarcar: ${st.cancelled.n} (${st.cancelled.came} acabou(aram) vindo). ` : ''}
-          ${st.noReminder.n ? `Sem lembrete enviado: ${st.noReminder.n} consulta(s), ${p(st.noReminder.rate)} vieram. ` : ''}
-          ${st.pending ? html`<strong>${st.pending} consulta(s) ainda sem comparecimento marcado</strong> ficam fora da conta (aba “Confirmar comparecimento”).` : ''}
-        </p>
+
+        <h3 class="calc-step">Como terminou cada grupo</h3>
+        <div class="table-wrap"><table class="table outcome-table">
+          <thead><tr><th>Resposta ao lembrete</th><th class="num">Consultas</th><th class="num">Vieram</th><th class="num">Faltaram</th><th class="num">Desmarcaram no dia</th><th class="num">A marcar</th></tr></thead>
+          <tbody>
+            ${[['✅ Confirmaram', st.confirmed], ['⏳ Não responderam', st.silent], ['Sem lembrete enviado', st.noReminder]].filter(([, g]) => g.n).map(([l, g]) => html`
+              <tr>
+                <td>${l}</td><td class="num">${g.n}</td>
+                <td class="num">${g.came}${g.rate != null ? html` <span class="muted small">(${g.rate}%)</span>` : ''}</td>
+                <td class="num">${g.missed ? html`<span class="text-danger">${g.missed}</span>` : 0}${g.late ? html`<div class="muted small">${g.late} desmarcou(aram) depois de confirmar</div>` : ''}</td>
+                <td class="num">${g.dayCancel}</td>
+                <td class="num">${g.pending ? html`<strong>${g.pending}</strong>` : 0}</td>
+              </tr>`)}
+          </tbody>
+        </table></div>
+        <p class="muted small">Quem <strong>confirmou</strong> e depois cancelou ou remarcou conta como <strong>falta</strong>. Quem não respondeu e desmarcou no dia aparece em “Desmarcaram no dia”.
+          ${st.pending ? html` <strong>${st.pending} consulta(s) ainda sem marcação</strong> ficam fora das porcentagens (aba “Confirmar comparecimento”).` : ''}</p>
+
+        ${(st.askedResched.n > 0 || st.saidNo.n > 0) && html`
+          <h3 class="calc-step">Avisaram pelo link do lembrete</h3>
+          <div class="table-wrap"><table class="table outcome-table">
+            <thead><tr><th>Resposta</th><th class="num">Consultas</th><th class="num">Marcaram de novo</th><th>Ainda sem nova consulta</th></tr></thead>
+            <tbody>
+              ${[['📅 Pediram para remarcar', st.askedResched], ['❌ Disseram que não iam', st.saidNo]].filter(([, g]) => g.n).map(([l, g]) => html`
+                <tr>
+                  <td>${l}</td><td class="num">${g.n}</td><td class="num">${g.rebooked}</td>
+                  <td>${g.gone.length === 0 ? html`<span class="muted">—</span>` : g.gone.map((i, k) => html`${k ? ', ' : ''}<a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a>`)}</td>
+                </tr>`)}
+            </tbody>
+          </table></div>
+          <p class="muted small">Esses não precisam de “veio / faltou”: o lembrete vai na véspera, então contam como desmarcação em cima da hora. “Ainda sem nova consulta” = não aparece nenhuma consulta depois dessa, nem marcada.</p>`}
+
         ${ranking.length > 0 && html`
           <h3 class="calc-step">Quem mais falta</h3>
+          <p class="muted small" style="margin-top:0">Inclui quem confirmou e depois desmarcou.</p>
           <table class="table">
             <thead><tr><th>Paciente</th><th class="num">Faltas</th><th class="num">Consultas</th></tr></thead>
             <tbody>${ranking.slice(0, 15).map((r) => html`

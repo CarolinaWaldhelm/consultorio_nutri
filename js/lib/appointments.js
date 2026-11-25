@@ -19,15 +19,17 @@ export function prefsText(prefs) {
 }
 
 /**
- * Comparecimento de uma consulta que já passou: marcação manual ('veio' | 'faltou'); sem marcação,
- * "veio" se houver consulta registrada no software para o paciente nesse dia; senão, null (a confirmar).
+ * Comparecimento de uma consulta: marcação manual; "veio" se houver consulta registrada no software nesse dia;
+ * se o paciente respondeu pelo link que quer remarcar / não vai, já fica resolvido (não precisa marcar veio/faltou);
+ * cancelada que reapareceu em outra data = remarcada; senão, null (a marcar).
  */
-export function attendanceOf(ev, attendanceByKey, consultDays) {
+export function attendanceOf(ev, attendanceByKey, consultDays, reminder = null) {
   const manual = attendanceByKey.get(ev.key);
   if (manual) return { status: manual.status, auto: false, row: manual };
-  // Cancelada (sumiu da agenda): se o mesmo evento foi para outra data, conta como remarcada; senão, falta o motivo.
-  if (ev.cancelled) return ev.movedTo ? { status: 'remarcou', auto: true } : { status: null, auto: false };
   if (ev.patient && consultDays.has(`${ev.patient.id}|${ev.start}`)) return { status: 'veio', auto: true };
+  if (reminder?.response === 'remarcar') return { status: 'remarcou', auto: true, byLink: true };
+  if (reminder?.response === 'nao_vai') return { status: 'cancelou', auto: true, byLink: true };
+  if (ev.cancelled && ev.movedTo) return { status: 'remarcou', auto: true };
   return { status: null, auto: false };
 }
 
@@ -44,38 +46,46 @@ export function effectiveStatus(i) {
 }
 
 /**
- * Estatísticas de um período. items: consultas que já passaram, com { reminder, attendance }.
+ * Estatísticas de um período. items: consultas que já passaram, com { reminder, attendance, rebooked }.
+ * Agrupa pela resposta ao lembrete e mostra como cada grupo terminou.
  */
 export function attendanceStats(items) {
-  // Comparecimento conta só veio/faltou; canceladas e remarcadas aparecem à parte.
-  const known = items.filter((i) => ['veio', 'faltou'].includes(effectiveStatus(i)));
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
-  const came = (list) => list.filter((i) => effectiveStatus(i) === 'veio').length;
+  const st = (i) => effectiveStatus(i);
+  const resp = (i) => (i.reminder ? i.reminder.response || null : 'none');
+  // Grupos que precisam de "veio / faltou": confirmaram, não responderam, sem lembrete.
+  const outcome = (list) => {
+    const came = list.filter((i) => st(i) === 'veio').length;
+    const missed = list.filter((i) => st(i) === 'faltou').length;
+    const late = list.filter(lateAfterConfirm).length;
+    const dayCancel = list.filter((i) => !lateAfterConfirm(i) && ['cancelou', 'remarcou'].includes(st(i))).length;
+    const pending = list.filter((i) => !st(i)).length;
+    return { n: list.length, came, missed, late, dayCancel, pending, rate: pct(came, came + missed) };
+  };
+  // Grupos que avisaram pelo link: remarcaram depois ou sumiram?
+  const followUp = (list) => {
+    const rebooked = list.filter((i) => i.rebooked);
+    return { n: list.length, rebooked: rebooked.length, gone: list.filter((i) => !i.rebooked) };
+  };
+  const confirmed = outcome(items.filter((i) => resp(i) === 'confirmado'));
+  const silent = outcome(items.filter((i) => resp(i) === null));
+  const noReminder = outcome(items.filter((i) => resp(i) === 'none'));
+  const askedResched = followUp(items.filter((i) => resp(i) === 'remarcar'));
+  const saidNo = followUp(items.filter((i) => resp(i) === 'nao_vai'));
   const reminded = items.filter((i) => i.reminder);
-  const byResp = (r) => known.filter((i) => (i.reminder?.response || null) === r && i.reminder);
-  const confirmed = byResp('confirmado');
-  const silent = byResp(null);
-  const cancelled = known.filter((i) => ['nao_vai', 'remarcar'].includes(i.reminder?.response));
-  const noReminder = known.filter((i) => !i.reminder);
-  const missed = known.filter((i) => effectiveStatus(i) === 'faltou');
+  const known = items.filter((i) => ['veio', 'faltou'].includes(st(i)));
+  const missed = known.filter((i) => st(i) === 'faltou').length;
+  // Em cima da hora: avisou pelo link (o lembrete vai na véspera) ou desmarcou no dia.
+  const lastMinute = askedResched.n + saidNo.n + confirmed.late + silent.dayCancel + noReminder.dayCancel;
   return {
     total: items.length,
-    pending: items.filter((i) => !i.attendance.status).length,
-    known: known.length,
+    pending: confirmed.pending + silent.pending + noReminder.pending,
     reminded: reminded.length,
     confirmRate: pct(reminded.filter((i) => i.reminder.response === 'confirmado').length, reminded.length),
     answeredRate: pct(reminded.filter((i) => i.reminder.response).length, reminded.length),
-    confirmed: { n: confirmed.length, came: came(confirmed), rate: pct(came(confirmed), confirmed.length) },
-    silent: { n: silent.length, came: came(silent), rate: pct(came(silent), silent.length) },
-    cancelled: { n: cancelled.length, came: came(cancelled), rate: pct(came(cancelled), cancelled.length) },
-    noReminder: { n: noReminder.length, came: came(noReminder), rate: pct(came(noReminder), noReminder.length) },
-    missed: missed.length,
-    lateCancel: items.filter((i) => lateAfterConfirm(i) && i.attendance.status === 'cancelou').length,
-    lateReschedule: items.filter((i) => lateAfterConfirm(i) && i.attendance.status === 'remarcou').length,
-    cancelledByPatient: items.filter((i) => !lateAfterConfirm(i) && i.attendance.status === 'cancelou').length,
-    rescheduled: items.filter((i) => !lateAfterConfirm(i) && i.attendance.status === 'remarcou').length,
-    cancelledNoReason: items.filter((i) => i.cancelled && !i.attendance.status).length,
-    missRate: pct(missed.length, known.length),
+    confirmed, silent, noReminder, askedResched, saidNo,
+    known: known.length, missed, missRate: pct(missed, known.length),
+    lastMinute, lastMinuteRate: pct(lastMinute, items.length),
   };
 }
 

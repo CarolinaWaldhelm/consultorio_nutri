@@ -69,7 +69,11 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    confirmação): para quem perdeu o acesso à Nutrium ou não tem como receber mensagem. O paciente sai do alerta, da
    lista "Todos os pacientes" e dos questionários; na busca aparece com a etiqueta "🚫 perdido". Volta sozinho se marcar
    consulta de novo (consulta depois da data marcada ou consulta agendada). Abaixo do alerta, `▸ Pacientes perdidos (N)`
-   abre a lista com `[Desfazer]`.
+   abre a lista com `[Desfazer]`. **Na importação da Nutrium**, o perdido continua perdido (não volta para as listas;
+   aviso no resumo); só volta se tiver consulta feita ou marcada depois da data em que foi marcado como perdido. Depois de
+   100 dias sem consulta, segue a regra normal (é removido na importação se não tiver anotações suas).
+   Coluna **"Último contato seu"**: data da última mensagem de retorno enviada pelos botões (e "há N dias"), ou
+   "nenhum ainda".
    A mensagem de retorno usa [Nome] (primeiro nome) e [Dias] (desde a última consulta) e é editável em
    Lembretes de consulta → Mensagem. Ao copiar ou abrir no WhatsApp, a data fica anotada (coluna `return_msg_at`,
    "✉️ 24/11" na linha). 15 visíveis, `[Mostrar mais]` de 10 em 10 e
@@ -385,7 +389,10 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    paciente (✅ confirmou, 📅 quer remarcar com dias/horários e recado, ❌ não vai, ⏳ sem resposta, ou "sem lembrete
    enviado"), resumo com as contagens e "(já passou)" para as que terminaram. Coluna **"Compareceu?"** com
    `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` para marcar ao vivo (mesma tabela `appointment_attendance`, entra nas
-   estatísticas); "veio" automático se houver consulta registrada no dia.
+   estatísticas); "veio" automático se houver consulta registrada no dia. **Veio/Faltou só para quem confirmou, não
+   respondeu ou não recebeu lembrete**: quem respondeu pelo link "quero remarcar" ou "não vou" já fica resolvido
+   ("pediu para remarcar pelo link", entra nas estatísticas). O recado do paciente aparece cortado (~70 letras) com
+   `ver tudo` / `ver menos`, para não estragar a tabela.
    **Consultas canceladas continuam na lista** com a etiqueta **🚫 Cancelada** (horário riscado) e o motivo para
    escolher: `[Não apareceu]` (conta como **falta**) · `[Paciente cancelou]` · `[Pediu para remarcar]` (esses dois
    **não** contam como falta), **exceto se o paciente tinha confirmado pelo lembrete**: quem confirmou e depois
@@ -405,9 +412,14 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
 2. **✔ Confirmar comparecimento:** consultas que já passaram (7, 14, 30 ou 90 dias), "A confirmar" e "Já marcadas",
    botões `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` (tabela `appointment_attendance`). Se houver consulta registrada
    no software para o paciente no dia ("Iniciar consulta"), conta **"veio" automaticamente**.
-3. **📊 Estatísticas** (30 dias, 90 dias, desde o início): **dos que confirmaram, quantos vieram**; dos que não
-   responderam, quantos vieram; taxa de confirmação pelo link; faltas no geral; quem mais falta. Consultas sem
-   comparecimento marcado ficam fora da conta (e aparecem contadas). Canceladas aparecem também em "Confirmar
+3. **📊 Estatísticas** (30 dias, 90 dias, desde o início). Quadros: **dos que confirmaram, quantos vieram**; dos que
+   não responderam, quantos vieram; **desmarcaram em cima da hora** (avisaram pelo link na véspera + desmarcaram no dia);
+   faltas no geral (com a taxa de resposta ao lembrete). Tabela **"Como terminou cada grupo"** (✅ confirmaram,
+   ⏳ não responderam, sem lembrete): consultas, vieram, faltaram (com "desmarcou depois de confirmar"), desmarcaram no
+   dia, a marcar. Tabela **"Avisaram pelo link do lembrete"** (📅 pediram para remarcar, ❌ disseram que não iam):
+   quantos **marcaram de novo** e os nomes de quem **ainda não tem nova consulta** (nenhuma consulta depois, nem
+   marcada, pela agenda, Nutrium ou software). "Quem mais falta" inclui quem confirmou e depois desmarcou. Consultas sem
+   comparecimento marcado ficam fora das porcentagens (e aparecem contadas). Canceladas aparecem também em "Confirmar
    comparecimento" (com os mesmos três motivos); "Não apareceu" entra nas faltas, as outras aparecem só contadas.
 4. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
    evento) e **[Link de confirmação]** (avisa se o link de confirmação ficar de fora).

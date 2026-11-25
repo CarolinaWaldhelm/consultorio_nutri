@@ -196,7 +196,7 @@ export function Home() {
   }
 
   async function markLost(p) {
-    if (!window.confirm(`Marcar ${p.name} como paciente perdido?\n\nEle sai deste alerta, da lista de pacientes e dos questionários. Se marcar consulta de novo, volta sozinho. Dá para desfazer em “Pacientes perdidos”.`)) return;
+    if (!window.confirm(`Marcar ${p.name} como paciente perdido?\n\nEle sai deste alerta, da lista de pacientes e dos questionários, e a importação da Nutrium não o traz de volta. Se marcar consulta de novo, volta sozinho. Dá para desfazer em “Pacientes perdidos”.`)) return;
     await updatePatient(p.id, { lost_at: today });
   }
 
@@ -265,15 +265,17 @@ export function Home() {
           <a class="btn btn-sm btn-ghost" href="#/lembretes/mensagem" title="Mudar o texto da mensagem de retorno (vale para todos)">✏️ Editar mensagem</a>
         </div>
         <table class="table">
-          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem contato</th><th></th></tr></thead>
+          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem retorno</th><th>Último contato seu</th><th></th></tr></thead>
           <tbody>
             ${overdueShown.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
                 <td>${fmtDate(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtDate(p.last_response)}</div>` : ''}</td>
                 <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
+                <td>${p.return_msg_at
+                  ? html`✉️ ${fmtDate(p.return_msg_at)}<div class="muted small">${daysBetween(p.return_msg_at, today) === 0 ? 'hoje' : `há ${daysBetween(p.return_msg_at, today)} dia(s)`}</div>`
+                  : html`<span class="muted small">nenhum ainda</span>`}</td>
                 <td class="row-actions">
-                  ${p.return_msg_at && html`<span class="muted small" title="Última mensagem de retorno">✉️ ${fmtDate(p.return_msg_at).slice(0, 5)}</span>`}
                   <button class="btn btn-sm" title="Copia a mensagem de retorno para colar no app de mensagens da Nutrium" onClick=${() => returnMessage(p, 'copy')}>${copiedFor === p.id ? '✓ Copiada' : '📋 Copiar mensagem'}</button>
                   <button class="btn btn-sm" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem pronta' : 'Sem telefone no cadastro'} onClick=${() => returnMessage(p, 'whatsapp')}>📲 WhatsApp</button>
                   <button class="btn btn-sm btn-ghost" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
