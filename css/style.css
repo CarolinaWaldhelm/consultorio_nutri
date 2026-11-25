@@ -438,6 +438,8 @@ textarea { resize: vertical; min-height: 44px; }
 
 .cal-ev.is-cancelled .cal-ev-name, .cal-chip.is-cancelled .cal-ev-name { text-decoration: line-through; }
 
-.rebook-actions { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
-.rebook-actions > div { flex-basis: 100%; }
+.rebook-actions { margin-top: 4px; display: flex; gap: 4px; align-items: center; }
+.icon-btn { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 1px 6px; font-size: .9rem; line-height: 1.4; cursor: pointer; }
+.icon-btn:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
 .sent-ok { color: var(--primary-dark); font-weight: 600; }

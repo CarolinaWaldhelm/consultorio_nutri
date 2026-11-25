@@ -244,9 +244,9 @@ function TodayCard({ data }) {
     const sentAt = contacted[ev.patient.id] && contacted[ev.patient.id] >= ev.start ? contacted[ev.patient.id] : null;
     return html`
       <div class="rebook-actions">
-        <button class="btn btn-sm" title="Copia a mensagem perguntando se quer remarcar, para colar na Nutrium" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓ Copiada' : '📋 Mensagem para remarcar'}</button>
-        <button class="btn btn-sm" disabled=${!whatsappNumber(ev.patient.phone)} onClick=${() => rebookMsg(ev, 'whatsapp')}>📲 WhatsApp</button>
-        <div class="small ${sentAt ? 'sent-ok' : 'muted'}">${sentAt ? `✉️ Mensagem enviada em ${fmtDate(sentAt).slice(0, 5)}` : 'Mensagem ainda não enviada'}</div>
+        <button class="icon-btn" title="Copiar a mensagem para remarcar (para colar na Nutrium)" aria-label="Copiar mensagem para remarcar" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓' : '📋'}</button>
+        <button class="icon-btn" disabled=${!whatsappNumber(ev.patient.phone)} title=${whatsappNumber(ev.patient.phone) ? 'Abrir o WhatsApp com a mensagem para remarcar' : 'Sem telefone no cadastro'} aria-label="Enviar pelo WhatsApp" onClick=${() => rebookMsg(ev, 'whatsapp')}>📲</button>
+        <span class=${'small ' + (sentAt ? 'sent-ok' : 'muted')} title=${sentAt ? 'Mensagem para remarcar enviada' : 'Mensagem para remarcar ainda não enviada'}>${sentAt ? `✉️ ${fmtDate(sentAt).slice(0, 5)}` : 'não enviada'}</span>
       </div>`;
   };
   const [now, setNow] = useState(nowHM());
