@@ -99,10 +99,11 @@ export function planSends({ patients, sends, soonIds, frequency = DEFAULT_FREQUE
 
     // Próximo envio: 7 dias depois do último questionário enviado (desde a consulta) ou, se ainda não houve
     // nenhum, 7 dias depois da última consulta.
-    // A contagem nunca começa antes da data de início dos questionários.
+    // Só entra quem foi atendido a partir da data de início dos questionários (quem foi atendido antes
+    // só volta a entrar depois de uma nova consulta).
+    if (startDate && p.last_consult < startDate) continue;
     const lastSend = sinceConsult[0];
-    let anchor = lastSend ? dateOf(lastSend.sent_at) : p.last_consult;
-    if (startDate && anchor < startDate) anchor = startDate;
+    const anchor = lastSend ? dateOf(lastSend.sent_at) : p.last_consult;
     if (daysBetween(anchor, today) < frequency) continue;
 
     const lastTwo = sinceConsult.slice(0, AUTO_PAUSE_UNANSWERED);

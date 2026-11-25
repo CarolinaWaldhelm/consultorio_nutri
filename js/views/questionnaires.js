@@ -624,7 +624,7 @@ function ConfigTab({ data, reload }) {
     <section class="card">
       <h2 class="card-title">Frequência</h2>
       <label class="adjust-row">Enviar a cada <input type="number" min="1" max="60" value=${freq} onInput=${(e) => setFreq(e.target.value)} /> dias, contados a partir da última consulta ou do último questionário.</label>
-      <label class="adjust-row">Começar a contar a partir de <input type="date" style="width:auto" value=${start} onInput=${(e) => setStart(e.target.value)} /> <span class="muted small">(antes dessa data não conta prazo; o primeiro envio sai ${freq} dias depois dela)</span></label>
+      <label class="adjust-row">Começar a contar a partir de <input type="date" style="width:auto" value=${start} onInput=${(e) => setStart(e.target.value)} /> <span class="muted small">(só recebe questionário quem foi atendido a partir desta data; o primeiro envio sai ${freq} dias depois da consulta)</span></label>
       <p class="muted small">Envia N dias depois da última consulta ou do último questionário, até a véspera da próxima consulta; no dia da consulta não envia. A consulta zera a contagem. Quem não responde 2 seguidos para de receber até a próxima consulta. Quem não responde em 3 dias aparece na lista de lembretes.</p>
     </section>
     <section class="card">

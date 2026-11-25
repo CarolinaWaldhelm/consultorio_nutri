@@ -358,8 +358,10 @@ Lista cronológica das consultas (data e tipo). Clicando, abre a íntegra.
 4. Fez a consulta: **zera a contagem** e volta a enviar 7 dias depois.
 5. **Não respondeu 2 questionários seguidos: para de enviar** (volta depois da próxima consulta).
 6. Mais de 100 dias sem consulta: não envia.
-7. **Data de início:** a contagem nunca começa antes de **19/11/2026** (configurável em "Mensagem e frequência",
-   chave `questionnaire_start_date`). Quem não recebeu nenhum questionário só entra na lista 7 dias depois dessa data.
+7. **Data de início** (configurável em "Mensagem e frequência", chave `questionnaire_start_date`; a nutricionista usa
+   **18/11/2026**): **só recebe questionário quem foi atendido nessa data ou depois**. Quem teve a última consulta
+   antes dela não entra na lista (volta a entrar depois de uma nova consulta). O primeiro envio sai 7 dias depois da
+   consulta.
 8. **"Não enviar para este paciente"** (na lista de envio, no pedido de telefone e em "Não responderam os 2 últimos"):
    pausa os questionários daquele paciente, que sai das listas em vez de ficar pendente. Reativa na ficha.
 
