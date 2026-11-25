@@ -2,7 +2,7 @@
 // Nunca incluem nome, e-mail, telefone ou CPF: o paciente aparece só pelo código, sexo e idade.
 import { fmtDate, ageFrom, patientCode, SEX_LABEL, OBJECTIVE_LABEL, todayISO } from './util.js';
 import { FIELDS, TYPE_LABEL } from '../views/anamnesis.js';
-import { referenceStatus, referenceFor } from './labs.js';
+import { referenceStatus, referenceFor, ageAt } from './labs.js';
 
 function patientLine(patient) {
   const age = ageFrom(patient.birth_date);
@@ -56,7 +56,7 @@ export function historyText({ patient, consultations, measurements, appointments
       }
     }
   }
-  if (labResults.length) out.push('', labsText(labResults, patient.sex));
+  if (labResults.length) out.push('', labsText(labResults, patient.sex, patient.birth_date));
   const height = measurements.filter((m) => m.metric === 'altura').sort((a, b) => b.date.localeCompare(a.date))[0];
   if (height) out.push(`ALTURA: ${height.value} cm`);
   return out.join('\n');
@@ -90,16 +90,17 @@ ${historyText(data)}`;
 }
 
 /** Exames: os 3 registros mais recentes de cada biomarcador. */
-function labsText(labResults, sex) {
+function labsText(labResults, sex, birthDate = null) {
+  const ageNow = ageAt(birthDate, todayISO());
   const by = new Map();
   const flag = { low: ' (abaixo da ref.)', high: ' (acima da ref.)', ok: '' };
   for (const r of [...labResults].sort((a, b) => b.date.localeCompare(a.date))) {
     if (!by.has(r.label)) by.set(r.label, { marker: r.marker, values: [] });
-    const st = referenceStatus(r.marker, r.value, r.unit, sex);
+    const st = referenceStatus(r.marker, r.value, r.unit, sex, ageAt(birthDate, r.date));
     if (by.get(r.label).values.length < 3) by.get(r.label).values.push(`${fmtDate(r.date)}: ${String(r.value).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}${st ? flag[st] : ''}`);
   }
-  return ['EXAMES LABORATORIAIS (até 3 resultados mais recentes de cada; referência geral para adultos entre colchetes):',
-    ...[...by].map(([l, x]) => `${l}${referenceFor(x.marker, sex) ? ` [${referenceFor(x.marker, sex).text}]` : ''}: ${x.values.join(' | ')}`)].join('\n');
+  return ['EXAMES LABORATORIAIS (até 3 resultados mais recentes de cada; referência geral, ajustada por sexo e idade, entre colchetes):',
+    ...[...by].map(([l, x]) => `${l}${referenceFor(x.marker, sex, ageNow) ? ` [${referenceFor(x.marker, sex, ageNow).text}]` : ''}: ${x.values.join(' | ')}`)].join('\n');
 }
 
 /** Quadro de insights: condutas baseadas em evidência para o perfil do paciente. */

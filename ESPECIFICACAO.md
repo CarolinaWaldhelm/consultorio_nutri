@@ -316,17 +316,32 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   resposta ("Nome: valor unidade", "Data: DD/MM/AAAA") → **revisão** (corrige, apaga, acrescenta) → salvar.
 - **O arquivo do laudo não é guardado** (decisão da nutricionista). Fica guardada a resposta da IA (coluna `notes`),
   com o botão "Ver resposta da IA".
-- Lista padrão de ~30 biomarcadores com unidade padrão (glicemia, HbA1c, insulina, perfil lipídico, TGO/TGP/GGT,
-  creatinina, ureia, ácido úrico, TSH/T4L, hemograma básico, ferritina, ferro, vitamina D, B12, ácido fólico, PCR,
-  eletrólitos, zinco). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e triglicerídeos;
-  nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
+- Lista padrão de **~55 biomarcadores** com unidade padrão: glicose (glicemia de jejum, HbA1c, **glicose média estimada**,
+  insulina, HOMA-IR), lipídios (total, HDL, LDL, **VLDL**, não-HDL, triglicerídeos), fígado e pâncreas (TGO, TGP, GGT,
+  **amilase, lipase**), rins (creatinina, ureia, ácido úrico), tireoide (TSH, T4L) e **PTH**, **hemograma completo**
+  (eritrócitos, hemoglobina, hematócrito, VCM, HCM, CHCM, RDW, leucócitos, neutrófilos, eosinófilos, basófilos,
+  linfócitos, monócitos, plaquetas, VPM), ferro (ferritina, ferro, **transferrina**), vitaminas (D, B12, ácido fólico),
+  PCR, eletrólitos (sódio, potássio, cálcio, **cálcio iônico**, magnésio, zinco) e **urina** (urocultura, densidade, pH,
+  leucócitos na urina, hemácias na urina). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e
+  triglicerídeos; nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
+- **Leitura dos nomes sem confusão:** o nome do laudo precisa ser **igual** a um nome conhecido (sem acento, maiúsculas,
+  parênteses e hífens; também vale o nome sem o trecho entre parênteses). Nunca "começa com": assim "Glicose média
+  estimada" não vira "Glicemia de jejum", "VLDL-colesterol" não vira "Colesterol total", "Cálcio iônico" não vira
+  "Cálcio" e "Leucócitos (urina tipo I)" não vira o leucócito do sangue. O pedido para a IA traz esses avisos.
+- **Contagens com ponto de milhar** ("6.500 /µL", "250.000 /µL", "50.000 UFC/mL") são lidas como 6500, 250000, 50000
+  (só em contagens; "1.019" na densidade continua 1,019).
 - A seção pode ser **recolhida** (clique no título). A tabela mostra **10 linhas**, com `[Mostrar tudo]` e
   `[Mostrar só 10 linhas]`.
 - Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),
   mesmo que um exame antigo seja lançado depois; a lista de exames segue a mesma ordem. Gráficos dos que têm 2+ resultados.
-- **Valores de referência** (base geral para adultos, em `js/lib/labs.js` → `REFERENCES`; lipídios pelos alvos
-  desejáveis da SBC 2017, vitamina D pela SBPC/SBEM; faixas por sexo em TGO, TGP, GGT, creatinina, ácido úrico,
-  hemoglobina, hematócrito, ferritina e ferro). Coluna "Referência" na tabela e na revisão.
+- **Valores de referência** (em `js/lib/labs.js` → `REFERENCES`; lipídios pelos alvos desejáveis da SBC 2017,
+  glicose pela SBD/ADA, vitamina D pela SBPC/SBEM 2017, anemia pela OMS; faixas por sexo em TGO, TGP, GGT,
+  creatinina, ácido úrico, eritrócitos, hemoglobina, hematócrito, ferritina e ferro). **Ajustadas pela idade** do
+  paciente (data de nascimento do cadastro; idade em cada coleta) onde a faixa muda: lipídios até 19 anos (SBC),
+  triglicerídeos até 9 e de 10 a 19 anos, hemoglobina até 11 e de 12 a 17 anos, ureia e vitamina D a partir de 60
+  anos (vitamina D: 20 ng/mL para adultos saudáveis, 30 ng/mL para 60+ / grupos de risco), TSH a partir de 65 anos,
+  ferritina feminina a partir de 50 anos. Coluna "Referência" na tabela (com a faixa de idade, ex.: "(65 anos ou
+  mais)") e na revisão; observações no ⓘ.
 - **Cores:** valor **verde** dentro da faixa, **vermelho com ↑ ou ↓** fora (a seta garante a leitura sem cor).
   Fica sem cor quando não há referência, quando a faixa depende do sexo e o sexo não está no cadastro, ou quando
   a unidade é diferente da padrão. Vale sempre a referência do laudo em caso de dúvida.

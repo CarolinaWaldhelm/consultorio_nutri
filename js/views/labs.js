@@ -3,7 +3,7 @@
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
-import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus } from '../lib/labs.js';
+import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt } from '../lib/labs.js';
 import { copyText } from '../lib/prompts.js';
 import { Modal, ErrorBox, AutoText } from './common.js';
 import { MetricChart } from './charts.js';
@@ -15,12 +15,15 @@ const ARROW = { low: '↓', high: '↑' };
 const STATUS_TITLE = { ok: 'Dentro da referência', low: 'Abaixo da referência', high: 'Acima da referência' };
 
 /** Valor com cor e seta: verde dentro, vermelho fora (↑ acima, ↓ abaixo). */
-export function LabValue({ marker, value, unit, sex }) {
-  const st = referenceStatus(marker, value, unit, sex);
+export function LabValue({ marker, value, unit, sex, age = null }) {
+  const st = referenceStatus(marker, value, unit, sex, age);
   return html`<span class=${'lab-val' + (st ? ' lab-' + (st === 'ok' ? 'ok' : 'out') : '')} title=${st ? STATUS_TITLE[st] : ''}>${fmt(value)}${st && st !== 'ok' ? ' ' + ARROW[st] : ''}</span>`;
 }
 
-export function LabsCard({ patientId, sex, exams, results, onChanged }) {
+export function LabsCard({ patientId, sex, birthDate = null, exams, results, onChanged }) {
+  // Referências por idade: idade do paciente em cada coleta (e hoje, para a coluna de referência).
+  const ageOn = (d) => ageAt(birthDate, d);
+  const ageNow = ageAt(birthDate, todayISO());
   const [adding, setAdding] = useState(false);
   const [showCharts, setShowCharts] = useState(false);
   const [open, setOpen] = useState(true); // recolher/abrir a seção
@@ -68,8 +71,9 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
               ${(allRows ? rows : rows.slice(0, ROWS)).map((r) => html`
                 <tr>
                   <td>${r.label} <span class="muted small">${r.unit || ''}</span></td>
-                  <td class="ref muted small" title=${referenceFor(r.marker, sex)?.note || ''}>${referenceFor(r.marker, sex)?.text || '—'}${referenceFor(r.marker, sex)?.note ? ' ⓘ' : ''}</td>
-                  ${shownDates.map((d) => html`<td class="num">${r.byDate[d] ? html`<${LabValue} marker=${r.marker} value=${r.byDate[d].value} unit=${r.byDate[d].unit} sex=${sex} />` : ''}</td>`)}
+                  ${(() => { const ref = referenceFor(r.marker, sex, ageNow); return html`
+                  <td class="ref muted small" title=${ref?.note || ''}>${ref?.text || '—'}${ref?.ageLabel ? html` <span class="age-ref">(${ref.ageLabel})</span>` : ''}${ref?.note ? ' ⓘ' : ''}</td>`; })()}
+                  ${shownDates.map((d) => html`<td class="num">${r.byDate[d] ? html`<${LabValue} marker=${r.marker} value=${r.byDate[d].value} unit=${r.byDate[d].unit} sex=${sex} age=${ageOn(d)} />` : ''}</td>`)}
                 </tr>`)}
             </tbody>
           </table>
@@ -80,7 +84,7 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
           </button>`}
         <p class="muted small lab-legend">
           <span class="lab-val lab-ok">verde</span>${' dentro da referência · '}<span class="lab-val lab-out">vermelho ↑↓</span>${' acima ou abaixo. '}
-          Referências gerais para adultos${sex ? '' : ' (o sexo não está no cadastro: faixas que variam por sexo ficam sem cor)'};
+          Referências gerais, ajustadas por sexo e idade${birthDate ? '' : ' (sem data de nascimento no cadastro: usa a faixa de adulto)'}${sex ? '' : ' (o sexo não está no cadastro: faixas que variam por sexo ficam sem cor)'};
           cada laboratório tem as suas, e em caso de dúvida vale a do laudo. Passe o mouse no ⓘ para ver observações.
           ${dates.length > shownDates.length ? ` Mostrando as 6 coletas mais recentes de ${dates.length}.` : ''}
         </p>`}
@@ -101,10 +105,10 @@ export function LabsCard({ patientId, sex, exams, results, onChanged }) {
       `}
     </section>
     ${viewing && html`<${Modal} title=${`Exame de ${fmtDate(viewing.date)} · resposta da IA`} onClose=${() => setViewing(null)}><div class="qa-a">${viewing.notes}</div><//>`}
-    ${adding && html`<${LabModal} patientId=${patientId} sex=${sex} onClose=${() => setAdding(false)} onSaved=${() => { setAdding(false); onChanged(); }} />`}`;
+    ${adding && html`<${LabModal} patientId=${patientId} sex=${sex} age=${ageNow} onClose=${() => setAdding(false)} onSaved=${() => { setAdding(false); onChanged(); }} />`}`;
 }
 
-function LabModal({ patientId, sex, onClose, onSaved }) {
+function LabModal({ patientId, sex, age = null, onClose, onSaved }) {
   const [text, setText] = useState('');
   const [date, setDate] = useState(todayISO());
   const [rows, setRows] = useState(null);
@@ -183,7 +187,7 @@ function LabModal({ patientId, sex, onClose, onSaved }) {
                   const def = findMarker(r.label);
                   const v = Number(String(r.value).replace(',', '.'));
                   if (!def || !Number.isFinite(v)) return '—';
-                  return html`${referenceFor(def.key, sex)?.text || '—'} <${LabValue} marker=${def.key} value=${v} unit=${r.unit} sex=${sex} />`;
+                  return html`${referenceFor(def.key, sex, age)?.text || '—'} <${LabValue} marker=${def.key} value=${v} unit=${r.unit} sex=${sex} age=${age} />`;
                 })()}</td>
                 <td><button class="btn btn-sm btn-ghost" onClick=${() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
               </tr>`)}

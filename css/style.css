@@ -459,3 +459,5 @@ textarea { resize: vertical; min-height: 44px; }
 .today-card .name-cell { white-space: nowrap; }
 .today-card .msg-cell { white-space: nowrap; }
 .today-card .rebook-actions { margin-top: 0; }
+
+.age-ref { color: var(--primary-dark); white-space: nowrap; }

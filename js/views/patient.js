@@ -145,7 +145,7 @@ export function PatientPage({ id }) {
         onToggle=${(v) => setData((d) => ({ ...d, patient: { ...d.patient, questionnaires_active: v } }))}
       />
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
-      <${LabsCard} patientId=${id} sex=${patient.sex} exams=${data.labExams} results=${data.labResults} onChanged=${load} />
+      <${LabsCard} patientId=${id} sex=${patient.sex} birthDate=${patient.birth_date} exams=${data.labExams} results=${data.labResults} onChanged=${load} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
     </div>
 
