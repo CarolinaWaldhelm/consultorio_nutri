@@ -131,3 +131,10 @@ export async function copyText(text) {
     return false;
   }
 }
+
+/** Copia o texto; se o navegador não deixar, mostra numa caixinha para copiar à mão. */
+export async function copyOrShow(text) {
+  if (await copyText(text)) return true;
+  window.prompt('Não consegui copiar sozinho. Copie o texto abaixo (Ctrl+C):', text);
+  return true;
+}

@@ -8,6 +8,7 @@ import {
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
+import { copyOrShow } from '../lib/prompts.js';
 
 export async function loadQuestionnaireData() {
   const [patients, questionnaires, sends, settingsRows] = await Promise.all([
@@ -81,18 +82,24 @@ function SendsTab({ data, reload, goModels }) {
   const pending = plan.due.filter((d) => !sent[d.patient.id]);
   const allOn = pending.length > 0 && pending.every((d) => selected.has(d.patient.id));
 
-  async function sendOne(p) {
-    // Abre a janela já no clique (o navegador bloqueia janelas abertas depois).
-    const win = window.open('', '_blank');
+  // via 'whatsapp': abre a conversa; via 'copy': copia a mensagem para colar no chat da Nutrium.
+  // Nos dois casos o envio já fica registrado.
+  async function sendOne(p, via = 'whatsapp') {
+    const token = newToken();
+    const text = fillMessage(message, p.name, formLink(token));
+    // Abre a janela / copia já no clique (o navegador bloqueia depois).
+    const win = via === 'whatsapp' ? window.open('', '_blank') : null;
+    if (via === 'copy') await copyOrShow(text);
     try {
-      const token = newToken();
       const [row] = await run(supabase.from('questionnaire_sends').insert({ patient_id: p.id, questionnaire_id: def.id, token }).select('*'));
       // O link anterior, se ainda não respondido, vence.
       await run(supabase.from('questionnaire_sends').update({ expired_at: new Date().toISOString() })
         .eq('patient_id', p.id).is('answered_at', null).is('expired_at', null).neq('id', row.id));
-      setSent((d) => ({ ...d, [p.id]: row }));
-      const url = whatsappUrl(p.phone, fillMessage(message, p.name, formLink(token)));
-      if (win) win.location.href = url; else window.open(url, '_blank');
+      setSent((d) => ({ ...d, [p.id]: { ...row, via } }));
+      if (via === 'whatsapp') {
+        const url = whatsappUrl(p.phone, text);
+        if (win) win.location.href = url; else window.open(url, '_blank');
+      }
       return true;
     } catch (err) {
       win?.close();
@@ -105,9 +112,9 @@ function SendsTab({ data, reload, goModels }) {
     const ids = plan.due.map((d) => d.patient.id).filter((id) => selected.has(id) && !sent[id]);
     if (ids.length) setQueue({ ids, pos: 0 });
   }
-  async function queueSend() {
+  async function queueSend(via = 'whatsapp') {
     const p = byId.get(queue.ids[queue.pos]);
-    if (await sendOne(p)) setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
+    if (await sendOne(p, via)) setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
   }
   const queueSkip = () => setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
 
@@ -124,13 +131,17 @@ function SendsTab({ data, reload, goModels }) {
     setSent((d) => { const n = { ...d }; delete n[p.id]; return n; });
   }
 
-  async function remind({ patient, send: s }) {
-    const win = window.open('', '_blank');
+  async function remind({ patient, send: s }, via = 'whatsapp') {
+    const text = fillMessage(reminder, patient.name, formLink(s.token));
+    const win = via === 'whatsapp' ? window.open('', '_blank') : null;
+    if (via === 'copy') await copyOrShow(text);
     try {
       await run(supabase.from('questionnaire_sends').update({ resent_at: new Date().toISOString() }).eq('id', s.id));
-      setSent((d) => ({ ...d, ['r:' + patient.id]: true }));
-      const url = whatsappUrl(patient.phone, fillMessage(reminder, patient.name, formLink(s.token)));
-      if (win) win.location.href = url; else window.open(url, '_blank');
+      setSent((d) => ({ ...d, ['r:' + patient.id]: via }));
+      if (via === 'whatsapp') {
+        const url = whatsappUrl(patient.phone, text);
+        if (win) win.location.href = url; else window.open(url, '_blank');
+      }
     } catch (err) {
       win?.close();
       setError(err);
@@ -157,9 +168,10 @@ function SendsTab({ data, reload, goModels }) {
       <section class="card send-queue">
         <div class="muted small">Enviando ${queue.pos + 1} de ${queue.ids.length}</div>
         <h2>${current.name}</h2>
-        <p class="muted small">O WhatsApp abre na conversa com a mensagem pronta: aperte enviar lá e volte aqui para o próximo.</p>
+        <p class="muted small">📲 abre o WhatsApp com a mensagem pronta. 📋 copia a mensagem para você colar no chat da Nutrium. Nos dois, o envio já fica anotado; depois volte aqui para o próximo.</p>
         <div class="row-actions" style="justify-content:flex-start">
-          <button class="btn btn-primary" onClick=${queueSend}>📲 Abrir WhatsApp de ${current.name.split(' ')[0]}</button>
+          <button class="btn btn-primary" onClick=${() => queueSend('copy')}>📋 Copiar para a Nutrium</button>
+          <button class="btn btn-primary" disabled=${!whatsappNumber(current.phone)} onClick=${() => queueSend('whatsapp')}>📲 Abrir WhatsApp de ${current.name.split(' ')[0]}</button>
           <button class="btn btn-ghost" onClick=${queueSkip}>Pular</button>
           <button class="btn btn-ghost" onClick=${() => setQueue(null)}>Parar</button>
         </div>
@@ -176,7 +188,7 @@ function SendsTab({ data, reload, goModels }) {
           <button class="btn btn-sm" disabled=${!pending.length} onClick=${() => setSelected(new Set(pending.map((d) => d.patient.id)))}>☑ Marcar todos</button>
           <button class="btn btn-sm" disabled=${!selCount} onClick=${() => setSelected(new Set())}>☐ Desmarcar todos</button>
           <span class="spacer"></span>
-          <button class="btn btn-primary" disabled=${!selCount || !!queue} onClick=${startQueue}>📲 Enviar para os selecionados (${selCount})</button>
+          <button class="btn btn-primary" disabled=${!selCount || !!queue} onClick=${startQueue}>Enviar para os selecionados (${selCount})</button>
         </div>
         <table class="table">
           <thead><tr><th style="width:36px"><input type="checkbox" aria-label="Marcar ou desmarcar todos" checked=${allOn} disabled=${!pending.length}
@@ -190,17 +202,19 @@ function SendsTab({ data, reload, goModels }) {
                 <td class="muted small">${dueBy[p.id]?.fromSend ? `último questionário em ${fmtDate(dueBy[p.id].anchor)}` : 'primeiro após a consulta'}</td>
                 <td class="row-actions">
                   ${sent[p.id]
-                    ? html`<span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`
-                    : html`<button class="btn btn-sm btn-ghost" title="Tira este paciente dos envios (dá para reativar na ficha)" onClick=${() => stopFor(p)}>Não enviar para este paciente</button>`}
+                    ? html`<span class="badge badge-green">✓ Enviado${sent[p.id].via === 'copy' ? ' (copiado)' : ''}</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`
+                    : html`<button class="btn btn-sm" title="Copia a mensagem para colar no chat da Nutrium e já marca como enviado" onClick=${() => sendOne(p, 'copy')}>📋 Copiar</button>
+                      <button class="btn btn-sm btn-ghost" title="Tira este paciente dos envios (dá para reativar na ficha)" onClick=${() => stopFor(p)}>Não enviar para este paciente</button>`}
                 </td>
               </tr>`)}
           </tbody>
         </table>
         <p class="muted small">Confira a lista, desmarque quem não deve receber e clique em “Enviar para os selecionados”.
-          O WhatsApp exige um clique por pessoa (o envio sai do seu número), então o sistema vai abrindo um de cada vez.</p>`}
+          O sistema vai um paciente por vez: em cada um você escolhe 📋 copiar (para colar na Nutrium) ou 📲 WhatsApp.
+          O “📋 Copiar” da linha faz o mesmo só para aquele paciente. Copiou, já conta como enviado.</p>`}
     </section>
 
-    ${plan.noPhone.length > 0 && html`<${PhoneRequest} items=${plan.noPhone} onSaved=${reload} onStop=${stopFor} />`}
+    ${plan.noPhone.length > 0 && html`<${PhoneRequest} items=${plan.noPhone} onSaved=${reload} onStop=${stopFor} onCopy=${(p) => sendOne(p, 'copy')} sent=${sent} />`}
 
     ${plan.reminders.length > 0 && html`
       <section class="card">
@@ -213,8 +227,9 @@ function SendsTab({ data, reload, goModels }) {
                 <td class="muted small">enviado em ${fmtDate(dateOf(r.send.sent_at))}</td>
                 <td class="row-actions">
                   ${sent['r:' + r.patient.id]
-                    ? html`<span class="badge badge-green">✓ Lembrete enviado</span>`
-                    : html`<button class="btn btn-sm" onClick=${() => remind(r)}>📲 Reenviar lembrete</button>`}
+                    ? html`<span class="badge badge-green">✓ Lembrete enviado${sent['r:' + r.patient.id] === 'copy' ? ' (copiado)' : ''}</span>`
+                    : html`<button class="btn btn-sm" title="Copia o lembrete para colar no chat da Nutrium e já marca como enviado" onClick=${() => remind(r, 'copy')}>📋 Copiar lembrete</button>
+                      <button class="btn btn-sm" disabled=${!whatsappNumber(r.patient.phone)} onClick=${() => remind(r)}>📲 WhatsApp</button>`}
                 </td>
               </tr>`)}
           </tbody>
@@ -243,7 +258,7 @@ function SendsTab({ data, reload, goModels }) {
 }
 
 /** Pede o telefone de quem deveria receber hoje: digitou e salvou, o paciente vai para a lista de envio. */
-function PhoneRequest({ items, onSaved, onStop }) {
+function PhoneRequest({ items, onSaved, onStop, onCopy, sent = {} }) {
   const [values, setValues] = useState({});
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -267,8 +282,9 @@ function PhoneRequest({ items, onSaved, onStop }) {
   return html`
     <section class="card phone-request">
       <h2 class="card-title">📞 Atualize os telefones para enviar <span class="muted small">(${items.length} deveriam receber hoje)</span></h2>
-      <p class="muted small">Estes pacientes já estão no prazo do questionário, mas não têm telefone. Digite o WhatsApp com DDD e salve:
-        o paciente entra na lista de envio acima, já marcado. Se não quiser enviar para alguém, use “Não enviar para este paciente”.</p>
+      <p class="muted small">Estes pacientes já estão no prazo do questionário, mas não têm telefone. Use “📋 Copiar” para mandar pela Nutrium
+        (já conta como enviado) ou digite o WhatsApp com DDD e salve: o paciente entra na lista de envio acima, já marcado.
+        Se não quiser enviar para alguém, use “Não enviar para este paciente”.</p>
       <${ErrorBox} error=${error} />
       <table class="table">
         <tbody>
@@ -279,6 +295,9 @@ function PhoneRequest({ items, onSaved, onStop }) {
                 onInput=${(e) => setValues({ ...values, [p.id]: e.target.value })}
                 onKeyDown=${(e) => e.key === 'Enter' && save(p)} /></td>
               <td class="row-actions">
+                ${sent[p.id]
+                  ? html`<span class="badge badge-green">✓ Enviado (copiado)</span>`
+                  : html`<button class="btn btn-sm" title="Copia a mensagem para colar no chat da Nutrium e já marca como enviado" onClick=${() => onCopy(p)}>📋 Copiar</button>`}
                 <button class="btn btn-sm btn-ghost" title="Tira este paciente dos envios (dá para reativar na ficha)" onClick=${() => onStop(p)}>Não enviar para este paciente</button>
                 <button class="btn btn-sm btn-primary" disabled=${busy === p.id || !(values[p.id] || '').trim()} onClick=${() => save(p)}>${busy === p.id ? 'Salvando…' : 'Salvar'}</button>
               </td>

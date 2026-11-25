@@ -377,10 +377,15 @@ Outras regras:
 
 - Aba **Questionários → "Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
   com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.
-- `[📲 Enviar para os selecionados (N)]` abre uma fila: "Enviando 1 de N: Maria — [Abrir WhatsApp]". Cada clique
+- `[Enviar para os selecionados (N)]` abre uma fila: "Enviando 1 de N: Maria — [Abrir WhatsApp]". Cada clique
   abre o WhatsApp na conversa do paciente com a mensagem pronta e o link dele (`https://wa.me/55DDDNUMERO?text=...`);
   ela aperta enviar lá e o sistema passa para o próximo (`[Pular]` e `[Parar]` disponíveis). O WhatsApp exige um
   clique por pessoa, porque o envio sai do número pessoal dela. Cada envio pode ser desfeito.
+- **📋 Copiar para a Nutrium** (a nutricionista é remunerada pelas mensagens enviadas na Nutrium e não quer lotar o
+  WhatsApp): na fila há `[📋 Copiar para a Nutrium]` ao lado de `[📲 Abrir WhatsApp]`, e cada linha tem `[📋 Copiar]`.
+  Copia a mensagem com o link do paciente para colar no chat da Nutrium e **já marca como enviado** ("✓ Enviado
+  (copiado)", com Desfazer). Vale também para os **reenvios** (`[📋 Copiar lembrete]`), para quem está **sem telefone**
+  (não precisa de telefone pela Nutrium) e para os **lembretes de consulta** (fila, linha e "Sem telefone").
 - Lista separada de **reenvios**.
 - **Pedido de telefone:** quem já está no prazo mas não tem telefone aparece em "📞 Atualize os telefones para
   enviar", com um campo para digitar o WhatsApp ali mesmo; ao salvar, entra na lista de envio já marcado.

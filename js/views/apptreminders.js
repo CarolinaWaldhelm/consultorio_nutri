@@ -8,6 +8,7 @@ import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToke
 import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm, effectiveStatus } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading } from './common.js';
+import { copyOrShow } from '../lib/prompts.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 function plusDays(iso, n) { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
@@ -68,14 +69,18 @@ export function ApptRemindersTab({ data, reload }) {
   const allOn = groups.toSend.length > 0 && selCount === groups.toSend.length;
   const toggle = (k) => setSelected((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  async function sendOne(ev) {
-    const win = window.open('', '_blank');
+  // via 'whatsapp' abre a conversa; via 'copy' copia para colar no chat da Nutrium. Nos dois, fica registrado.
+  async function sendOne(ev, via = 'whatsapp') {
+    const token = newToken();
+    const text = fillApptMessage(template, { name: ev.patient.name, date: ev.start, time: ev.time, link: ev.meet, confirm: confirmLink(token) }, today);
+    const win = via === 'whatsapp' ? window.open('', '_blank') : null;
+    if (via === 'copy') await copyOrShow(text);
     try {
-      const token = newToken();
       await run(supabase.from('appointment_reminders').insert({ patient_id: ev.patient.id, event_key: ev.key, event_date: ev.start, event_time: ev.time || null, token }));
-      const text = fillApptMessage(template, { name: ev.patient.name, date: ev.start, time: ev.time, link: ev.meet, confirm: confirmLink(token) }, today);
-      const url = whatsappUrl(ev.patient.phone, text);
-      if (win) win.location.href = url; else window.open(url, '_blank');
+      if (via === 'whatsapp') {
+        const url = whatsappUrl(ev.patient.phone, text);
+        if (win) win.location.href = url; else window.open(url, '_blank');
+      }
       await load();
       return true;
     } catch (err) {
@@ -84,9 +89,9 @@ export function ApptRemindersTab({ data, reload }) {
       return false;
     }
   }
-  async function queueSend() {
+  async function queueSend(via = 'whatsapp') {
     const ev = byKey.get(queue.ids[queue.pos]);
-    if (!ev || (await sendOne(ev))) setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
+    if (!ev || (await sendOne(ev, via))) setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
   }
   const queueSkip = () => setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
   async function undo(row) {
@@ -127,8 +132,10 @@ export function ApptRemindersTab({ data, reload }) {
         <div class="send-queue card">
           <div class="muted small">Enviando ${queue.pos + 1} de ${queue.ids.length}</div>
           <h2>${current.patient.name} <span class="muted small">· ${current.time || ''}</span></h2>
+          <p class="muted small">📋 copia a mensagem para colar no chat da Nutrium · 📲 abre o WhatsApp. Nos dois, já fica marcado como enviado.</p>
           <div class="row-actions" style="justify-content:flex-start">
-            <button class="btn btn-primary" onClick=${queueSend}>📲 Abrir WhatsApp de ${current.patient.name.split(' ')[0]}</button>
+            <button class="btn btn-primary" onClick=${() => queueSend('copy')}>📋 Copiar para a Nutrium</button>
+            <button class="btn btn-primary" disabled=${!whatsappNumber(current.patient.phone)} onClick=${() => queueSend('whatsapp')}>📲 Abrir WhatsApp de ${current.patient.name.split(' ')[0]}</button>
             <button class="btn btn-ghost" onClick=${queueSkip}>Pular</button>
             <button class="btn btn-ghost" onClick=${() => setQueue(null)}>Parar</button>
           </div>
@@ -140,7 +147,7 @@ export function ApptRemindersTab({ data, reload }) {
           <button class="btn btn-sm" disabled=${!selCount} onClick=${() => setSelected(new Set())}>☐ Desmarcar todos</button>
           <span class="spacer"></span>
           <button class="btn btn-primary" disabled=${!selCount || !!queue}
-            onClick=${() => setQueue({ ids: groups.toSend.filter((e) => selected.has(e.key)).map((e) => e.key), pos: 0 })}>📲 Enviar para os selecionados (${selCount})</button>
+            onClick=${() => setQueue({ ids: groups.toSend.filter((e) => selected.has(e.key)).map((e) => e.key), pos: 0 })}>Enviar para os selecionados (${selCount})</button>
         </div>`}
 
       ${(groups.toSend.length > 0 || groups.sent.length > 0) && html`
@@ -158,7 +165,7 @@ export function ApptRemindersTab({ data, reload }) {
                 <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>${ev.meet ? html` <span class="badge" title=${ev.meet}>🎥 link</span>` : ''}</td>
                 <td class="muted small">${ev.patient.phone}</td>
                 <td class="muted small">—</td>
-                <td></td>
+                <td class="row-actions"><button class="btn btn-sm" title="Copia a mensagem para colar no chat da Nutrium e já marca como enviado" onClick=${() => sendOne(ev, 'copy')}>📋 Copiar</button></td>
               </tr>`)}
             ${groups.sent.map((ev) => html`
               <tr class="row-sent">
@@ -180,7 +187,7 @@ export function ApptRemindersTab({ data, reload }) {
     ${groups.noPhone.length > 0 && html`
       <section class="card phone-request">
         <h2 class="card-title">📞 Sem telefone <span class="muted small">(${groups.noPhone.length} com consulta nesta data)</span></h2>
-        <p class="muted small">Digite o WhatsApp com DDD e salve: o paciente entra na lista de envio acima.</p>
+        <p class="muted small">Use “📋 Copiar” para mandar pela Nutrium (já conta como enviado) ou digite o WhatsApp com DDD e salve: o paciente entra na lista de envio acima.</p>
         <table class="table">
           <tbody>
             ${groups.noPhone.map((ev) => html`
@@ -189,7 +196,10 @@ export function ApptRemindersTab({ data, reload }) {
                 <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a></td>
                 <td><input type="tel" class="phone-input" placeholder="11 98765-4321" value=${phones[ev.key] || ''}
                   onInput=${(e) => setPhones({ ...phones, [ev.key]: e.target.value })} onKeyDown=${(e) => e.key === 'Enter' && savePhone(ev)} /></td>
-                <td class="row-actions"><button class="btn btn-sm btn-primary" disabled=${!(phones[ev.key] || '').trim()} onClick=${() => savePhone(ev)}>Salvar</button></td>
+                <td class="row-actions">
+                  <button class="btn btn-sm" title="Copia a mensagem para colar no chat da Nutrium e já marca como enviado" onClick=${() => sendOne(ev, 'copy')}>📋 Copiar</button>
+                  <button class="btn btn-sm btn-primary" disabled=${!(phones[ev.key] || '').trim()} onClick=${() => savePhone(ev)}>Salvar</button>
+                </td>
               </tr>`)}
           </tbody>
         </table>
