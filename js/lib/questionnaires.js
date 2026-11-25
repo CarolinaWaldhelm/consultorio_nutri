@@ -245,11 +245,11 @@ export function fillReturnMessage(template, name, days) {
   return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[dias\]/gi, String(days ?? ''));
 }
 
-// ---------- Mensagem para quem desmarcou e não remarcou ----------
+// ---------- Mensagem para quem cancelou (Lembretes de consulta → Consultas de hoje) ----------
 
 export const DEFAULT_REBOOK_MESSAGE = `Oi, [Nome], tudo bem? 😊
 
-Vi que a sua consulta de [Data] foi desmarcada. Quer remarcar? Me conta os dias e horários que ficam melhores para você que eu te mando as opções. 🌱`;
+Vi que você cancelou a sua consulta de [Data]. Caso queira remarcar, é só me chamar por aqui ou escolher um horário direto pela minha agenda. Fico à disposição! 🌱`;
 
 /** [Nome] = primeiro nome; [Data] = data da consulta desmarcada (dd/mm). */
 export function fillRebookMessage(template, name, dateISO) {

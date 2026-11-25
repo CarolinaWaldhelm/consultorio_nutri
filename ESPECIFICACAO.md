@@ -60,12 +60,8 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
      cancelada ou disse que não vai. Dois sinais: **⚡ cancelou em cima da hora** (cancelada no próprio dia da consulta
      ou depois de ter confirmado pelo lembrete) e **📩 pediu pelo lembrete para cancelar** (respondeu "não vou" e a
      consulta ainda está na agenda: falta cancelar na Nutrium).
-   - **🔄 Desmarcaram e não remarcaram** (logo abaixo do calendário): quem teve consulta cancelada ou respondeu "não
-     vou" pelo lembrete e **não tem nova consulta** (nem feita depois, nem marcada). Mostra a data (com ⚡ / 📩), o último
-     contato e `[📋 Copiar mensagem]` / `[📲 WhatsApp]` com a **mensagem para remarcar** ([Nome], [Data]; editável em
-     Lembretes de consulta → Mensagem, chave `whatsapp_rebook_message`), que anota o contato (`return_msg_at`), e
-     `[Tirar da lista]` (chave `rebook_dismissed`). Sai sozinho ao remarcar, ao ser marcado como perdido ou 30 dias
-     depois da consulta desmarcada.
+   - (O quadro "Desmarcaram e não remarcaram" foi retirado a pedido: a mensagem para quem cancelou fica em
+     Lembretes de consulta → Consultas de hoje.)
 3. **🔁 Rotinas** (coluna lateral, acima dos lembretes; tabela `routines`): tarefas que se repetem **todo dia** ou
    **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
    Ficam na lista até serem ticadas; ticada, a diária volta no dia seguinte e a mensal no mês seguinte (a mensal
@@ -426,12 +422,18 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    ("pediu para remarcar pelo link", entra nas estatísticas). O recado do paciente aparece cortado (~70 letras) com
    `ver tudo` / `ver menos`, para não estragar a tabela.
    **Consultas canceladas continuam na lista** com a etiqueta **🚫 Cancelada** (horário riscado) e o motivo para
-   escolher: `[Não apareceu]` (conta como **falta**) · `[Paciente cancelou]` · `[Pediu para remarcar]` (esses dois
-   **não** contam como falta), **exceto se o paciente tinha confirmado pelo lembrete**: quem confirmou e depois
-   cancelou ou pediu para remarcar teve a chance de avisar pelo link e não avisou, então **conta como falta** (a linha
-   mostra "⚠️ Tinha confirmado no lembrete: conta como falta"; nas estatísticas, entra em "Não apareceram", em "Dos que
-   confirmaram, vieram" e em "Quem mais falta", com a contagem à parte). Se a mesma consulta reaparecer na agenda em outra data, mostra "remarcada para dd/mm"
-   e já entra como "pediu para remarcar". Como funciona: o Google tira da agenda as consultas canceladas no Nutrium,
+   escolher: `[Faltou]` (conta como **falta**) · `[Cancelou]` (pela Nutrium ou pelo lembrete; não conta como falta,
+   **exceto se o paciente tinha confirmado pelo lembrete**: aí conta como falta e a linha mostra "⚠️ Tinha confirmado no
+   lembrete: conta como falta"). Não há botão de "pediu para remarcar": se a mesma consulta reaparece em outra data,
+   mostra só "remarcada para dd/mm"; quem pediu para remarcar pelo link aparece como "pediu para remarcar pelo link".
+   Quem respondeu "não vou" pelo link aparece como "🚫 Cancelou pelo lembrete" (com "cancele na Nutrium" enquanto a
+   consulta ainda estiver na agenda).
+   Em toda consulta cancelada (e em quem cancelou pelo lembrete): `[📋 Mensagem para remarcar]` e `[📲 WhatsApp]` com a
+   mensagem genérica perguntando se quer remarcar ([Nome], [Data]; editável em Mensagem → "Mensagem para quem cancelou",
+   chave `whatsapp_rebook_message`), e o aviso "✉️ Mensagem enviada em dd/mm" ou "Mensagem ainda não enviada" (usa a
+   coluna `return_msg_at`, a mesma do "último contato"). Se a paciente remarcar, resolvido; se não responder, depois de
+   50 dias sem consulta entra no alerta "Sem retorno", onde aparece a data do último contato.
+   Como funciona: o Google tira da agenda as consultas canceladas no Nutrium,
    então o software guarda uma **"fotografia" da agenda** (tabela `calendar_snapshot`, de 3 dias atrás a 60 dias à
    frente, atualizada no máximo a cada 2 minutos ao abrir a tela inicial ou os lembretes). Uma consulta que estava na
    fotografia e sumiu da agenda vira "cancelada". Limitação: só reconhece consultas que o software já tinha visto

@@ -4,7 +4,7 @@ import { html, useState, useEffect, useRef, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
-import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
+import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE, fillRebookMessage, DEFAULT_REBOOK_MESSAGE } from '../lib/questionnaires.js';
 import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm, effectiveStatus } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, CopyName } from './common.js';
@@ -226,6 +226,29 @@ export function ApptRemindersTab({ data, reload }) {
 function TodayCard({ data }) {
   const today = todayISO();
   const [items, setItems] = useState(null);
+  // Mensagem para quem cancelou: data do último envio por paciente (coluna return_msg_at).
+  const [contacted, setContacted] = useState(() => Object.fromEntries(data.patients.filter((p) => p.return_msg_at).map((p) => [p.id, p.return_msg_at])));
+  const [copiedKey, setCopiedKey] = useState(null);
+  async function rebookMsg(ev, via) {
+    const text = fillRebookMessage(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE, ev.patient.name, ev.start);
+    if (via === 'whatsapp') window.open(whatsappUrl(ev.patient.phone, text), '_blank');
+    else {
+      await copyOrShow(text);
+      setCopiedKey(ev.key);
+      setTimeout(() => setCopiedKey((x) => (x === ev.key ? null : x)), 4000);
+    }
+    await run(supabase.from('patients').update({ return_msg_at: today }).eq('id', ev.patient.id)).catch(() => {});
+    setContacted((c) => ({ ...c, [ev.patient.id]: today }));
+  }
+  const RebookActions = (ev) => {
+    const sentAt = contacted[ev.patient.id] && contacted[ev.patient.id] >= ev.start ? contacted[ev.patient.id] : null;
+    return html`
+      <div class="rebook-actions">
+        <button class="btn btn-sm" title="Copia a mensagem perguntando se quer remarcar, para colar na Nutrium" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓ Copiada' : '📋 Mensagem para remarcar'}</button>
+        <button class="btn btn-sm" disabled=${!whatsappNumber(ev.patient.phone)} onClick=${() => rebookMsg(ev, 'whatsapp')}>📲 WhatsApp</button>
+        <div class="small ${sentAt ? 'sent-ok' : 'muted'}">${sentAt ? `✉️ Mensagem enviada em ${fmtDate(sentAt).slice(0, 5)}` : 'Mensagem ainda não enviada'}</div>
+      </div>`;
+  };
   const [now, setNow] = useState(nowHM());
   const [err, setErr] = useState(null);
   const load = async () => {
@@ -282,7 +305,7 @@ function TodayCard({ data }) {
       <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length})</span></h2>
       ${items.length === 0 && html`<p class="muted">Nenhuma consulta hoje.</p>`}
       ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}
-        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, não apareceram ${missed}</span>` : ''}
+        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, faltaram ${missed}</span>` : ''}
         ${cancelledN ? html`<span class="muted"> · 🚫 ${cancelledN} cancelada(s)</span>` : ''}</p>`}
       <${ErrorBox} error=${err} />
       ${items.length > 0 && html`
@@ -304,14 +327,21 @@ function TodayCard({ data }) {
                     ${r?.response_note ? html`<${PatientNote} text=${r.response_note} />` : ''}
                   </td>
                   <td class="attend-cell">
-                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : !ev.reminder && ev.attendance.status !== 'veio' ? html`<span class="muted small">sem lembrete: fora das estatísticas</span>` : ev.attendance.byLink ? html`
-                      <span class="muted small">${ev.cancelled ? '🚫 Cancelada · ' : ''}${ev.attendance.status === 'remarcou' ? 'pediu para remarcar pelo link' : 'avisou pelo link que não vem'}<br />(entra nas estatísticas)</span>` : ev.cancelled ? html`
-                      <div class="muted small">Motivo do cancelamento:</div>
-                      ${CANCEL_REASONS.map(([k, l]) => html`
-                        <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
-                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(ev)}>Limpar</button>`}
-                      ${ev.attendance.auto && ev.attendance.status === 'remarcou' && html`<div class="muted small">(remarcada: detectado pela agenda)</div>`}
-                      ${lateAfterConfirm(ev) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}` : html`
+                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>`
+                    : ev.movedTo || (ev.attendance.byLink && ev.attendance.status === 'remarcou') ? html`
+                      <span class="muted small">${ev.movedTo ? `remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}` : 'pediu para remarcar pelo link'}</span>`
+                    : ev.cancelled || (ev.attendance.byLink && ev.attendance.status === 'cancelou') ? html`
+                      ${ev.attendance.byLink
+                        ? html`<div class="muted small">🚫 Cancelou pelo lembrete${ev.cancelled ? '' : ' (cancele na Nutrium)'}</div>`
+                        : html`
+                          <div class="muted small">Motivo do cancelamento:</div>
+                          ${CANCEL_REASONS.map(([k, l]) => html`
+                            <button class=${'btn btn-sm' + (ev.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(ev, k)}>${ev.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
+                          ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(ev)}>Limpar</button>`}
+                          ${lateAfterConfirm(ev) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}`}
+                      ${RebookActions(ev)}`
+                    : !ev.reminder && ev.attendance.status !== 'veio' ? html`<span class="muted small">sem lembrete: fora das estatísticas</span>`
+                    : html`
                       ${ev.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${ev.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
                       ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
                       ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}

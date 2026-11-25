@@ -11,7 +11,6 @@ import { TodoCard } from './todos.js';
 import { RoutinesCard } from './routines.js';
 import { CalendarCard } from './calendar.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
-import { RebookCard, rebookList } from './rebook.js';
 import { PatientPeek } from './peek.js';
 
 const ALERT_DAYS = 50;
@@ -57,17 +56,17 @@ export function Home() {
     run(supabase.from('nutrium_appointments').select('*').gte('date', windowDays(-120).to)).then(setNutAppts).catch(() => {});
     run(supabase.from('appointment_reminders').select('event_key').eq('event_date', windowDays(1).to)).then(setApptSent).catch(() => setApptSent(null));
     Promise.all([
-      run(supabase.from('appointment_reminders').select('event_key, response, patient_id, event_date').gte('event_date', windowDays(-120).to)),
+      run(supabase.from('appointment_reminders').select('event_key, response').gte('event_date', windowDays(-120).to)),
       run(supabase.from('appointment_attendance').select('event_key, status').gte('event_date', windowDays(-120).to)),
-    ]).then(([rem, att]) => setApptMeta({ rem: new Map(rem.map((r) => [r.event_key, r.response || 'sem_resposta'])), att: new Map(att.map((r) => [r.event_key, r.status])), saidNo: rem.filter((r) => r.response === 'nao_vai') }))
+    ]).then(([rem, att]) => setApptMeta({ rem: new Map(rem.map((r) => [r.event_key, r.response || 'sem_resposta'])), att: new Map(att.map((r) => [r.event_key, r.status])) }))
       .catch(() => {});
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
-      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at', 'whatsapp_return_message', 'whatsapp_rebook_message', 'rebook_dismissed'])),
+      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at', 'whatsapp_return_message'])),
     ]).then(([sends, defs, sets]) => {
       const get = (k) => sets.find((x) => x.key === k)?.value;
-      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, returnMessage: get('whatsapp_return_message') || DEFAULT_RETURN_MESSAGE, rebookMessage: get('whatsapp_rebook_message') || null, rebookDismissed: get('rebook_dismissed') || [], lastBackup: get('last_backup_at') || null });
+      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, returnMessage: get('whatsapp_return_message') || DEFAULT_RETURN_MESSAGE, lastBackup: get('last_backup_at') || null });
     })
       .catch(() => setQdata(null));
 
@@ -133,21 +132,6 @@ export function Home() {
   const lostList = useMemo(() => (patients || []).filter(lost).sort((a, b) => b.lost_at.localeCompare(a.lost_at)), [patients, scheduled]);
   const [showLost, setShowLost] = useState(false);
 
-  // Desmarcaram e não remarcaram.
-  const [dismissed, setDismissed] = useState(null);
-  const dismissedSet = useMemo(() => new Set(dismissed || qdata?.rebookDismissed || []), [dismissed, qdata]);
-  const rebookItems = useMemo(() => {
-    if (!patients || agenda.state !== 'ok') return [];
-    const active = consultationEvents(agenda.events, windowDays(-30).to, windowDays(120).to).map((ev) => ({ ...ev, ...matchEvent(ev, patients) }));
-    const byId = new Map(patients.map((p) => [p.id, p]));
-    const fresh = (ev) => ({ ...ev, patient: ev.patient ? byId.get(ev.patient.id) || ev.patient : null });
-    return rebookList({ cancelled: cancelSnap.map(fresh), saidNo: apptMeta.saidNo || [], activeEvents: active, patients, isLost: lost, dismissed: dismissedSet, lastMinute, today });
-  }, [patients, agenda, cancelSnap, apptMeta, dismissedSet, scheduled]);
-  async function dismissRebook(key) {
-    const next = [...dismissedSet, key].slice(-300);
-    setDismissed(next);
-    await run(supabase.from('app_settings').upsert({ key: 'rebook_dismissed', value: next })).catch(() => {});
-  }
 
   // Última atividade: consulta ou resposta de questionário.
   const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
@@ -275,10 +259,6 @@ export function Home() {
         onPatient=${setPeek}
         onPeriod=${setCalPeriod}
       />`}
-
-    ${!q && html`<${RebookCard} items=${rebookItems} message=${qdata?.rebookMessage}
-      onSent=${(id, d) => setPatients((ps) => ps.map((x) => (x.id === id ? { ...x, return_msg_at: d } : x)))}
-      onDismiss=${dismissRebook} />`}
 
     ${!q && overdue.length > 0 && html`
       <section class="card">

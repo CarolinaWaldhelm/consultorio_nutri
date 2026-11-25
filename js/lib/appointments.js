@@ -2,8 +2,9 @@
 import { todayISO, daysBetween } from './util.js';
 
 export const RESPONSE_LABEL = { confirmado: '✅ Confirmou', remarcar: '📅 Quer remarcar', nao_vai: '❌ Não vai', null: '⏳ Sem resposta' };
-export const STATUS_LABEL = { veio: '✔ Veio', faltou: '✖ Não apareceu', cancelou: '🚫 Paciente cancelou', remarcou: '📅 Remarcou' };
-export const CANCEL_REASONS = [['faltou', 'Não apareceu'], ['cancelou', 'Paciente cancelou'], ['remarcou', 'Pediu para remarcar']];
+export const STATUS_LABEL = { veio: '✔ Veio', faltou: '✖ Faltou', cancelou: '🚫 Cancelou', remarcou: '📅 Remarcou' };
+// Motivo de uma consulta cancelada: faltou (conta como falta) ou cancelou (pela Nutrium ou pelo lembrete).
+export const CANCEL_REASONS = [['faltou', 'Faltou'], ['cancelou', 'Cancelou']];
 export const RESPONSE_SHORT = { confirmado: 'confirmou', remarcar: 'quer remarcar', nao_vai: 'não vai' };
 
 const DAY_SHORT = { seg: 'seg', ter: 'ter', qua: 'qua', qui: 'qui', sex: 'sex', sab: 'sáb' };

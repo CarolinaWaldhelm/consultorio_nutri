@@ -437,3 +437,7 @@ textarea { resize: vertical; min-height: 44px; }
 .copy-name.ok { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-soft); }
 
 .cal-ev.is-cancelled .cal-ev-name, .cal-chip.is-cancelled .cal-ev-name { text-decoration: line-through; }
+
+.rebook-actions { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.rebook-actions > div { flex-basis: 100%; }
+.sent-ok { color: var(--primary-dark); font-weight: 600; }

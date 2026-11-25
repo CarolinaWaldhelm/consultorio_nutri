@@ -211,9 +211,9 @@ function MessageTab({ data, reload }) {
       </div>
     </section>
     <section class="card">
-      <h2 class="card-title">Mensagem para remarcar (desmarcaram e não remarcaram)</h2>
-      <p class="muted small">Usada no quadro “Desmarcaram e não remarcaram”, na tela inicial. Use <strong>[Nome]</strong> para o primeiro nome e
-        <strong>[Data]</strong> para a data da consulta desmarcada.</p>
+      <h2 class="card-title">Mensagem para quem cancelou</h2>
+      <p class="muted small">Usada no botão “📋 Mensagem para remarcar” das consultas canceladas, em “Consultas de hoje”. Use <strong>[Nome]</strong> para o primeiro nome e
+        <strong>[Data]</strong> para a data da consulta cancelada.</p>
       <${AutoText} rows=${6} value=${reb} onInput=${setReb} />
       <h3 class="calc-step">Como fica</h3>
       <div class="quote">${fillRebookMessage(reb, 'Maria Silva', todayISO())}</div>
