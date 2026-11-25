@@ -52,7 +52,9 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
      `[Abrir ficha do paciente →]`. Numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
      nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
    - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
-   - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻.
+   - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻;
+   - **cores pela resposta ao lembrete** (com legenda embaixo do calendário): 🟩 verde = confirmou; 🟧 laranja = quer
+     remarcar; 🟨 amarelo = lembrete enviado, sem resposta; 🟥 vermelho = não vai; cinza = sem lembrete.
 3. **🔁 Rotinas** (coluna lateral, acima dos lembretes; tabela `routines`): tarefas que se repetem **todo dia** ou
    **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
    Ficam na lista até serem ticadas; ticada, a diária volta no dia seguinte e a mensal no mês seguinte (a mensal
@@ -76,9 +78,11 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    "nenhum ainda".
    A mensagem de retorno usa [Nome] (primeiro nome) e [Dias] (desde a última consulta) e é editável em
    Lembretes de consulta → Mensagem. Ao copiar ou abrir no WhatsApp, a data fica anotada (coluna `return_msg_at`,
-   "✉️ 24/11" na linha). 15 visíveis, `[Mostrar mais]` de 10 em 10 e
+   coluna "Último contato seu"). **Ordem em fila:** primeiro quem nunca recebeu mensagem de retorno; quem recebeu vai para o
+   **fim da fila**; quando todos já tiverem recebido, o contato mais antigo volta para a frente. 15 visíveis, `[Mostrar mais]` de 10 em 10 e
    `[Mostrar menos]` (volta aos 15).
-5. **Todos os pacientes**: 15 visíveis, `[Mostrar mais]` de 10 em 10 e `[Mostrar menos]`.
+5. **Todos os pacientes**: 15 visíveis, `[Mostrar mais]` de 10 em 10 e `[Mostrar menos]`. Filtro **"Atendidos há
+   [exatamente | até] [N] dias"** (digita a quantidade de dias; conta da última consulta até hoje) com `[Limpar]`.
    **Não existe ativo/inativo** (decisão da nutricionista: o paciente não formaliza o fim do acompanhamento).
 6. **Regra dos 100 dias, na hora:** paciente com mais de 100 dias da última consulta e nada marcado sai da lista
    de pacientes, do alerta de 50 dias e dos questionários, sem esperar a importação. Continua aparecendo **na busca

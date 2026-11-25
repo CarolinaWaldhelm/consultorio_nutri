@@ -72,7 +72,7 @@ function layoutDay(evs) {
 function EventBlock({ it, top, height, past, onOpen }) {
   const { ev } = it;
   const first = ev.patient && !ev.patient.last_consult;
-  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : '', ev.attendance === 'faltou' ? 'missed' : ''].join(' ');
+  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : '', ev.attendance === 'faltou' ? 'missed' : '', ev.confirm ? 'st-' + ev.confirm : ''].join(' ');
   const conf = { confirmado: ' ✅', remarcar: ' 📅', nao_vai: ' ❌' }[ev.confirm] || '';
   const w = 100 / it.lanes;
   return html`
@@ -142,7 +142,7 @@ function MonthGrid({ period, byDate, today, onOpen, onDay }) {
           <div class=${'cal-mday' + (other ? ' other' : '') + (d === today ? ' today' : '')}>
             <button class="cal-mnum" onClick=${() => onDay(d)} title="Ver o dia">${parse(d).getUTCDate()}</button>
             ${evs.slice(0, 3).map((ev) => html`
-              <button class=${'cal-chip' + (ev.patient ? '' : ' unlinked') + (d < today ? ' past' : '')} onClick=${() => onOpen(ev)}>
+              <button class=${'cal-chip' + (ev.patient ? '' : ' unlinked') + (d < today ? ' past' : '') + (ev.confirm ? ' st-' + ev.confirm : '')} onClick=${() => onOpen(ev)}>
                 ${ev.time ? ev.time + ' ' : ''}${ev.patient?.name || ev.patientName}
               </button>`)}
             ${evs.length > 3 && html`<button class="cal-more" onClick=${() => onDay(d)}>+${evs.length - 3} consulta(s)</button>`}
@@ -204,7 +204,14 @@ export function CalendarCard({ events, source, state, error, onRefresh, onUnlink
       <p class="muted small cal-foot">
         ${count} consulta(s) neste período · clique numa consulta para ver o resumo do paciente
         ${events.some((e) => !e.patient && e.start >= period.from && e.start <= period.to) ? ' · ⚠️ = não vinculada (clique para vincular)' : ''}${' '}
-        · <span class="cal-badge">1ª</span> primeira consulta · ✅ confirmou · 📅 quer remarcar · ❌ não vai
+        · <span class="cal-badge">1ª</span> primeira consulta
       </p>
+      <div class="cal-legend small">
+        <span><i class="dot st-confirmado"></i> Confirmou</span>
+        <span><i class="dot st-remarcar"></i> Quer remarcar</span>
+        <span><i class="dot st-sem_resposta"></i> Lembrete enviado, sem resposta</span>
+        <span><i class="dot st-nao_vai"></i> Não vai</span>
+        <span><i class="dot st-none"></i> Sem lembrete</span>
+      </div>
     </section>`;
 }

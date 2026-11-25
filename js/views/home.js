@@ -80,7 +80,7 @@ export function Home() {
     Promise.all([
       run(supabase.from('appointment_reminders').select('event_key, response').gte('event_date', windowDays(-120).to)),
       run(supabase.from('appointment_attendance').select('event_key, status').gte('event_date', windowDays(-120).to)),
-    ]).then(([rem, att]) => setApptMeta({ rem: new Map(rem.map((r) => [r.event_key, r.response])), att: new Map(att.map((r) => [r.event_key, r.status])) }))
+    ]).then(([rem, att]) => setApptMeta({ rem: new Map(rem.map((r) => [r.event_key, r.response || 'sem_resposta'])), att: new Map(att.map((r) => [r.event_key, r.status])) }))
       .catch(() => {});
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
@@ -148,7 +148,9 @@ export function Home() {
     .filter((p) => !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
     .filter((p) => !scheduled.has(p.id))
     .filter((p) => !p.snooze_until || p.snooze_until <= today)
-    .sort((a, b) => lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
+    // Fila: primeiro quem nunca recebeu mensagem de retorno; quem recebeu vai para o fim (o contato mais antigo volta
+    // para a frente quando todos já tiverem recebido).
+    .sort((a, b) => (a.return_msg_at || '').localeCompare(b.return_msg_at || '') || lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
 
   // Consultas de amanhã ainda sem lembrete (só com a agenda conectada).
   const apptToRemind = useMemo(() => {
@@ -168,16 +170,26 @@ export function Home() {
     return { due: plan.due.length, reminders: plan.reminders.length };
   }, [qdata, patients, agenda]);
 
+  // Filtro "atendidos há N dias": exatamente N dias ou até N dias.
+  const [daysN, setDaysN] = useState('');
+  const [daysMode, setDaysMode] = useState('exato');
+  const nDays = /^\d+$/.test(daysN.trim()) ? Number(daysN.trim()) : null;
   const list = useMemo(() => {
     const nq = norm(q);
     // Na busca aparecem todos (inclusive os que passaram do prazo); na lista, só os atuais.
     return (patients || [])
       .filter((p) => (nq ? norm(p.name).includes(nq) : !isArchived(p)))
+      .filter((p) => {
+        if (nDays == null) return true;
+        if (!p.last_consult) return false;
+        const d = daysBetween(p.last_consult, today);
+        return daysMode === 'exato' ? d === nDays : d <= nDays;
+      })
       .sort((a, b) => (b.last_consult || '').localeCompare(a.last_consult || '') || a.name.localeCompare(b.name));
-  }, [patients, q, scheduled]);
+  }, [patients, q, scheduled, nDays, daysMode]);
 
   const [overdueShown, overdueMore] = usePaged(overdue, 'overdue');
-  const [listShown, listMore] = usePaged(list, q);
+  const [listShown, listMore] = usePaged(list, q + "|" + daysN + "|" + daysMode);
 
   const [copiedFor, setCopiedFor] = useState(null);
   // Mensagem de retorno: copiar (para mandar pelo app da Nutrium) ou abrir no WhatsApp. Anota a data.
@@ -312,6 +324,16 @@ export function Home() {
       <section class="card">
         <div class="card-title-row">
           <h2 class="card-title">${q ? `Resultados para “${q}”` : 'Todos os pacientes'} <span class="muted small">(${list.length})</span></h2>
+          <div class="days-filter">
+            Atendidos há
+            <select value=${daysMode} onChange=${(e) => setDaysMode(e.target.value)} aria-label="Tipo de filtro">
+              <option value="exato">exatamente</option>
+              <option value="ate">até</option>
+            </select>
+            <input type="number" min="0" inputmode="numeric" placeholder="dias" value=${daysN} onInput=${(e) => setDaysN(e.target.value)} aria-label="Quantidade de dias" />
+            dias
+            ${daysN && html`<button class="btn btn-sm btn-ghost" onClick=${() => setDaysN('')}>Limpar</button>`}
+          </div>
         </div>
         ${list.length === 0 && html`
           <p class="muted">Nenhum paciente encontrado.

@@ -407,3 +407,22 @@ textarea { resize: vertical; min-height: 44px; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--primary-dark); text-decoration: underline; cursor: pointer; font-size: inherit; }
 .table-wrap { overflow-x: auto; }
 .outcome-table td, .outcome-table th { vertical-align: top; }
+
+/* Cores do calendário pela resposta ao lembrete */
+.cal-ev.st-confirmado, .cal-chip.st-confirmado { background: #dcf3e3; border-color: #86cfa0; border-left-color: #16a34a; }
+.cal-ev.st-remarcar, .cal-chip.st-remarcar { background: #ffe8d1; border-color: #f5b777; border-left-color: #ea7a0c; }
+.cal-ev.st-sem_resposta, .cal-chip.st-sem_resposta { background: #fff6c7; border-color: #ecd56a; border-left-color: #d4a800; }
+.cal-ev.st-nao_vai, .cal-chip.st-nao_vai { background: #fde4e2; border-color: #f0a8a2; border-left-color: var(--danger); }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; color: var(--muted); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cal-legend .dot { width: 14px; height: 14px; border-radius: 4px; border: 1px solid #b7dcc8; border-left: 3px solid var(--primary); background: #eef8f2; display: inline-block; }
+.cal-legend .dot.st-confirmado { background: #dcf3e3; border-color: #86cfa0; border-left-color: #16a34a; }
+.cal-legend .dot.st-remarcar { background: #ffe8d1; border-color: #f5b777; border-left-color: #ea7a0c; }
+.cal-legend .dot.st-sem_resposta { background: #fff6c7; border-color: #ecd56a; border-left-color: #d4a800; }
+.cal-legend .dot.st-nao_vai { background: #fde4e2; border-color: #f0a8a2; border-left-color: var(--danger); }
+.days-filter { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .9rem; }
+.days-filter input { width: 70px; }
+/* Sem lembrete: cinza neutro, para não confundir com "confirmou" */
+.cal-ev:not([class*="st-"]):not(.unlinked), .cal-chip:not([class*="st-"]):not(.unlinked) { background: #f1f3f5; border-color: #d3d9de; border-left-color: #8a96a3; }
+.cal-ev:not([class*="st-"]):not(.unlinked):hover { background: #e7ebee; }
+.cal-legend .dot.st-none { background: #f1f3f5; border-color: #d3d9de; border-left-color: #8a96a3; }
