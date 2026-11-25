@@ -438,7 +438,11 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    mensagem genérica perguntando se quer remarcar ([Nome], [Data] — “consulta de [Data]” vira “de hoje”, “de amanhã”,
    “de ontem” ou “do dia 25/11”; editável em Mensagem → "Mensagem para quem cancelou",
    chave `whatsapp_rebook_message`), e ao lado o aviso curto "✉️ dd/mm" (enviada) ou "não enviada" (usa a
-   coluna `return_msg_at`, a mesma do "último contato"). Se a paciente remarcar, resolvido; se não responder, depois de
+   coluna `return_msg_at`, a mesma do "último contato").
+   **Quem faltou** (marcado `[Faltou]`, numa consulta normal ou cancelada) recebe outra mensagem nos mesmos ícones 📋 📲:
+   "te aguardei [Minutos] minutos na chamada, mas você não compareceu…", com **[Minutos] = 10 na primeira consulta e 5 no
+   retorno** (ela não pode esperar mais sem atrasar as seguintes; primeira consulta = sem consulta anterior registrada).
+   Editável em Mensagem → "Mensagem para quem faltou" (chave `whatsapp_noshow_message`). Se a paciente remarcar, resolvido; se não responder, depois de
    50 dias sem consulta entra no alerta "Sem retorno", onde aparece a data do último contato.
    Como funciona: o Google tira da agenda as consultas canceladas no Nutrium,
    então o software guarda uma **"fotografia" da agenda** (tabela `calendar_snapshot`, de 3 dias atrás a 60 dias à

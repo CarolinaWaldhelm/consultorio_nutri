@@ -3,7 +3,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
-import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_RECENT_RETURN_MESSAGE, RECENT_RETURN_DAYS, DEFAULT_REBOOK_MESSAGE, fillRebookMessage } from '../lib/questionnaires.js';
+import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_RECENT_RETURN_MESSAGE, RECENT_RETURN_DAYS, DEFAULT_REBOOK_MESSAGE, fillRebookMessage, DEFAULT_NOSHOW_MESSAGE, fillNoShowMessage, WAIT_FIRST_MIN, WAIT_RETURN_MIN } from '../lib/questionnaires.js';
 import { attendanceOf, missRanking, reminderOutcomes } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText, usePeriod } from './common.js';
@@ -148,6 +148,7 @@ function MessageTab({ data, reload }) {
   const [ret, setRet] = useState(data.settings.whatsapp_return_message || DEFAULT_RETURN_MESSAGE);
   const [recent, setRecent] = useState(data.settings.whatsapp_return_message_recent || DEFAULT_RECENT_RETURN_MESSAGE);
   const [reb, setReb] = useState(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE);
+  const [noshow, setNoshow] = useState(data.settings.whatsapp_noshow_message || DEFAULT_NOSHOW_MESSAGE);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
   const tomorrow = (() => { const d = new Date(todayISO() + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
@@ -155,7 +156,7 @@ function MessageTab({ data, reload }) {
 
   async function save() {
     try {
-      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }, { key: 'whatsapp_return_message_recent', value: recent }, { key: 'whatsapp_rebook_message', value: reb }]));
+      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }, { key: 'whatsapp_return_message_recent', value: recent }, { key: 'whatsapp_rebook_message', value: reb }, { key: 'whatsapp_noshow_message', value: noshow }]));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       reload();
@@ -218,6 +219,21 @@ function MessageTab({ data, reload }) {
         <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
         ${saved && html`<span class="muted small">✓ Salvo</span>`}
         <button class="btn btn-ghost btn-sm" onClick=${() => setReb(DEFAULT_REBOOK_MESSAGE)}>Voltar ao texto original</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="card-title">Mensagem para quem faltou</h2>
+      <p class="muted small">Aparece (📋 e 📲) quando você marca <strong>Faltou</strong> em “Consultas de hoje”. Use <strong>[Nome]</strong> e
+        <strong>[Minutos]</strong>: vira sozinho ${WAIT_FIRST_MIN} na primeira consulta e ${WAIT_RETURN_MIN} no retorno.</p>
+      <${AutoText} rows=${6} value=${noshow} onInput=${setNoshow} />
+      <h3 class="calc-step">Como fica (primeira consulta)</h3>
+      <div class="quote">${fillNoShowMessage(noshow, 'Maria Silva', true)}</div>
+      <h3 class="calc-step">Como fica (retorno)</h3>
+      <div class="quote">${fillNoShowMessage(noshow, 'Maria Silva', false)}</div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
+        ${saved && html`<span class="muted small">✓ Salvo</span>`}
+        <button class="btn btn-ghost btn-sm" onClick=${() => setNoshow(DEFAULT_NOSHOW_MESSAGE)}>Voltar ao texto original</button>
       </div>
     </section>`;
 }

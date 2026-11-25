@@ -284,3 +284,19 @@ export function fillRebookMessage(template, name, dateISO, today = todayISO()) {
     .replace(/\bde \[data\]/gi, rel ? `de ${rel}` : `do dia ${ddmm}`)
     .replace(/\[data\]/gi, rel || ddmm);
 }
+
+// ---------- Mensagem para quem faltou (botão "Faltou" em Consultas de hoje) ----------
+
+/** Quanto ela espera na chamada: 10 minutos na primeira consulta, 5 no retorno. */
+export const WAIT_FIRST_MIN = 10;
+export const WAIT_RETURN_MIN = 5;
+
+export const DEFAULT_NOSHOW_MESSAGE = `Oi, [Nome], tudo bem? 😊
+
+Te aguardei [Minutos] minutos na chamada, mas você não compareceu. Imagino que tenha acontecido alguma coisa! Não deixe de falar comigo para remarcarmos a sua consulta. 🌱`;
+
+/** [Nome] = primeiro nome; [Minutos] = 10 (primeira consulta) ou 5 (retorno). */
+export function fillNoShowMessage(template, name, isFirst) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[minutos\]/gi, String(isFirst ? WAIT_FIRST_MIN : WAIT_RETURN_MIN));
+}

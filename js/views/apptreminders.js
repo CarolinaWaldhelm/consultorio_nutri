@@ -4,7 +4,7 @@ import { html, useState, useEffect, useRef, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
-import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE, fillRebookMessage, DEFAULT_REBOOK_MESSAGE } from '../lib/questionnaires.js';
+import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE, fillRebookMessage, DEFAULT_REBOOK_MESSAGE, fillNoShowMessage, DEFAULT_NOSHOW_MESSAGE } from '../lib/questionnaires.js';
 import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, CopyName } from './common.js';
@@ -229,8 +229,12 @@ function TodayCard({ data }) {
   // Mensagem para quem cancelou: data do último envio por paciente (coluna return_msg_at).
   const [contacted, setContacted] = useState(() => Object.fromEntries(data.patients.filter((p) => p.return_msg_at).map((p) => [p.id, p.return_msg_at])));
   const [copiedKey, setCopiedKey] = useState(null);
+  // Faltou: "te aguardei 10 min (primeira consulta) / 5 min (retorno)". Cancelou: "vi que você cancelou".
+  const isFirstConsult = (ev) => !ev.patient.last_consult || ev.patient.last_consult >= ev.start;
   async function rebookMsg(ev, via) {
-    const text = fillRebookMessage(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE, ev.patient.name, ev.start);
+    const text = ev.attendance?.status === 'faltou'
+      ? fillNoShowMessage(data.settings.whatsapp_noshow_message || DEFAULT_NOSHOW_MESSAGE, ev.patient.name, isFirstConsult(ev))
+      : fillRebookMessage(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE, ev.patient.name, ev.start);
     if (via === 'whatsapp') window.open(whatsappUrl(ev.patient.phone, text), '_blank');
     else {
       await copyOrShow(text);
@@ -244,7 +248,7 @@ function TodayCard({ data }) {
     const sentAt = contacted[ev.patient.id] && contacted[ev.patient.id] >= ev.start ? contacted[ev.patient.id] : null;
     return html`
       <div class="rebook-actions">
-        <button class="icon-btn" title="Copiar a mensagem para remarcar (para colar na Nutrium)" aria-label="Copiar mensagem para remarcar" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓' : '📋'}</button>
+        <button class="icon-btn" title=${ev.attendance?.status === 'faltou' ? 'Copiar a mensagem para quem faltou (para colar na Nutrium)' : 'Copiar a mensagem para remarcar (para colar na Nutrium)'} aria-label="Copiar mensagem para remarcar" onClick=${() => rebookMsg(ev, 'copy')}>${copiedKey === ev.key ? '✓' : '📋'}</button>
         <button class="icon-btn" disabled=${!whatsappNumber(ev.patient.phone)} title=${whatsappNumber(ev.patient.phone) ? 'Abrir o WhatsApp com a mensagem para remarcar' : 'Sem telefone no cadastro'} aria-label="Enviar pelo WhatsApp" onClick=${() => rebookMsg(ev, 'whatsapp')}>📲</button>
         <span class=${'small ' + (sentAt ? 'sent-ok' : 'muted')} title=${sentAt ? 'Mensagem para remarcar enviada' : 'Mensagem para remarcar ainda não enviada'}>${sentAt ? `✉️ ${fmtDate(sentAt).slice(0, 5)}` : 'não enviada'}</span>
       </div>`;
@@ -337,7 +341,8 @@ function TodayCard({ data }) {
                       ${ev.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Faltou</span>`}
                       ${ev.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'veio')}>✔ Veio</button>`}
                       ${ev.attendance.status !== 'faltou' && html`<button class="btn btn-sm" onClick=${() => mark(ev, 'faltou')}>✖ Faltou</button>`}
-                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(ev)}>Limpar</button>`}`}
+                      ${ev.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(ev)}>Limpar</button>`}
+                      ${ev.attendance.status === 'faltou' && RebookActions(ev)}`}
                   </td>
                 </tr>`;
             })}
