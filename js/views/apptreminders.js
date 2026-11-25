@@ -5,7 +5,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE, fillRebookMessage, DEFAULT_REBOOK_MESSAGE } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm, effectiveStatus } from '../lib/appointments.js';
+import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, CopyName } from './common.js';
 import { copyOrShow } from '../lib/prompts.js';
@@ -293,20 +293,11 @@ function TodayCard({ data }) {
   }
 
   if (!items) return html`<section class="card"><h2 class="card-title">📋 Consultas de hoje</h2><p class="muted">Carregando…</p></section>`;
-  const count = (r) => items.filter((i) => (r === 'none' ? !i.reminder : i.reminder && (i.reminder.response || null) === r)).length;
-  const summary = [['confirmado', '✅ confirmaram'], ['remarcar', '📅 querem remarcar'], ['nao_vai', '❌ não vão'], [null, '⏳ sem resposta'], ['none', 'sem lembrete']]
-    .map(([k, l]) => [count(k), l]).filter(([n]) => n > 0);
-  const came = items.filter((i) => i.attendance?.status === 'veio').length;
-  const missed = items.filter((i) => effectiveStatus(i) === 'faltou').length;
-  const cancelledN = items.filter((i) => i.cancelled).length;
 
   return html`
     <section class="card today-card">
-      <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length})</span></h2>
+      <h2 class="card-title">📋 Consultas de hoje <span class="muted small">(${weekday(today)}, ${fmtDate(today)} · ${items.length} consulta${items.length === 1 ? '' : 's'})</span></h2>
       ${items.length === 0 && html`<p class="muted">Nenhuma consulta hoje.</p>`}
-      ${summary.length > 0 && html`<p class="today-summary">${summary.map(([n, l], i) => html`${i ? ' · ' : ''}<strong>${n}</strong> ${l}`)}
-        ${(came || missed) ? html`<span class="muted"> — compareceram ${came}, faltaram ${missed}</span>` : ''}
-        ${cancelledN ? html`<span class="muted"> · 🚫 ${cancelledN} cancelada(s)</span>` : ''}</p>`}
       <${ErrorBox} error=${err} />
       ${items.length > 0 && html`
         <table class="table">

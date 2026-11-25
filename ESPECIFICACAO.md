@@ -415,7 +415,8 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
 
 1. **📋 Consultas de hoje** (no topo da primeira aba, sempre visível): cada consulta do dia com a resposta do
    paciente (✅ confirmou, 📅 quer remarcar com dias/horários e recado, ❌ não vai, ⏳ sem resposta, ou "sem lembrete
-   enviado"), resumo com as contagens e "(já passou)" para as que terminaram. Coluna **"Compareceu?"** com
+   enviado") e "(já passou)" para as que terminaram. Título: "Consultas de hoje (quarta, 25/11/2026 · 8 consultas)";
+   sem linha de resumo com as contagens (retirada a pedido: ela já lê na tabela). Coluna **"Compareceu?"** com
    `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` para marcar ao vivo (mesma tabela `appointment_attendance`, entra nas
    estatísticas); "veio" automático se houver consulta registrada no dia. **Veio/Faltou só para quem confirmou ou não
    respondeu** (sem lembrete: "fora das estatísticas"): quem respondeu pelo link "quero remarcar" ou "não vou" já fica resolvido
