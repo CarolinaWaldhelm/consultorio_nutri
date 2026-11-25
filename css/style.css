@@ -427,3 +427,7 @@ textarea { resize: vertical; min-height: 44px; }
 .cal-ev:not([class*="st-"]):not(.unlinked), .cal-chip:not([class*="st-"]):not(.unlinked) { background: #f1f3f5; border-color: #d3d9de; border-left-color: #8a96a3; }
 .cal-ev:not([class*="st-"]):not(.unlinked):hover { background: #e7ebee; }
 .cal-legend .dot.st-none { background: #f1f3f5; border-color: #d3d9de; border-left-color: #8a96a3; }
+
+/* Ações da tabela de sem retorno: quebram linha dentro da célula, sem sair do quadro */
+.actions-cell { width: 1%; }
+.actions-cell .row-actions { justify-content: flex-start; min-width: 300px; }

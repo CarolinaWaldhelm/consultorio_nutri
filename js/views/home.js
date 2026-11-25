@@ -1,6 +1,6 @@
 import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
-import { norm, fmtDate, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
+import { norm, fmtDate, fmtShort, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, whatsappUrl, whatsappNumber } from '../lib/questionnaires.js';
 import { copyText } from '../lib/prompts.js';
@@ -22,13 +22,7 @@ function dayLabel(iso) {
   const d = new Date(iso + 'T12:00:00');
   return `${WEEKDAY[d.getDay()]} ${fmtDate(iso).slice(0, 5)}`;
 }
-function plusDays(iso, n) {
-  const d = new Date(iso + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
-/** Lista com os primeiros 15 itens, "Mostrar mais" de 10 em 10 e "Mostrar menos" (volta aos 15). */
 export function Home() {
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);
@@ -131,7 +125,6 @@ export function Home() {
   const overdue = useMemo(() => (patients || [])
     .filter((p) => !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
     .filter((p) => !scheduled.has(p.id))
-    .filter((p) => !p.snooze_until || p.snooze_until <= today)
     // Fila: primeiro quem nunca recebeu mensagem de retorno; quem recebeu vai para o fim (o contato mais antigo volta
     // para a frente quando todos já tiverem recebido).
     .sort((a, b) => (a.return_msg_at || '').localeCompare(b.return_msg_at || '') || lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
@@ -266,17 +259,16 @@ export function Home() {
             ${overdueShown.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
-                <td>${fmtDate(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtDate(p.last_response)}</div>` : ''}</td>
+                <td>${fmtShort(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtShort(p.last_response)}</div>` : ''}</td>
                 <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
                 <td>${p.return_msg_at
-                  ? html`✉️ ${fmtDate(p.return_msg_at)}<div class="muted small">${daysBetween(p.return_msg_at, today) === 0 ? 'hoje' : `há ${daysBetween(p.return_msg_at, today)} dia(s)`}</div>`
+                  ? html`✉️ ${fmtShort(p.return_msg_at)}<div class="muted small">${daysBetween(p.return_msg_at, today) === 0 ? 'hoje' : `há ${daysBetween(p.return_msg_at, today)} dia(s)`}</div>`
                   : html`<span class="muted small">nenhum ainda</span>`}</td>
-                <td class="row-actions">
+                <td class="actions-cell"><div class="row-actions">
                   <button class="btn btn-sm" title="Copia a mensagem de retorno para colar no app de mensagens da Nutrium" onClick=${() => returnMessage(p, 'copy')}>${copiedFor === p.id ? '✓ Copiada' : '📋 Copiar mensagem'}</button>
                   <button class="btn btn-sm" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem pronta' : 'Sem telefone no cadastro'} onClick=${() => returnMessage(p, 'whatsapp')}>📲 WhatsApp</button>
-                  <button class="btn btn-sm btn-ghost" title="Some deste alerta por 7 dias" onClick=${() => updatePatient(p.id, { snooze_until: plusDays(today, 7) })}>Lembrar em 7 dias</button>
                   <button class="btn btn-sm btn-ghost text-danger" title="Sem acesso à Nutrium / sem como mandar mensagem: tira o paciente das listas" onClick=${() => markLost(p)}>🚫 Perdi este paciente</button>
-                </td>
+                </div></td>
               </tr>`)}
           </tbody>
         </table>
@@ -296,7 +288,7 @@ export function Home() {
             <tbody>${lostList.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
-                <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
+                <td>${p.last_consult ? fmtShort(p.last_consult) : '–'}</td>
                 <td>${fmtDate(p.lost_at)}</td>
                 <td class="row-actions"><button class="btn btn-sm" onClick=${() => updatePatient(p.id, { lost_at: null })}>Desfazer</button></td>
               </tr>`)}</tbody>
@@ -334,9 +326,9 @@ export function Home() {
                     ${!p.phone && html` <span class="badge badge-warn" title="Sem telefone: necessário para os questionários">sem telefone</span>`}
                     ${lost(p) ? html` <span class="badge badge-red" title="Marcado como paciente perdido">🚫 perdido</span>` : isArchived(p) && html` <span class="badge" title="Mais de ${ACTIVE_DAYS} dias sem consulta e nada marcado: fora das listas e dos questionários">+${ACTIVE_DAYS} dias</span>`}
                   </td>
-                  <td>${p.last_consult ? fmtDate(p.last_consult) : '–'}</td>
+                  <td>${p.last_consult ? fmtShort(p.last_consult) : '–'}</td>
                   <td class=${p.last_consult && daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysAgoLabel(p.last_consult)}</td>
-                  <td class="hide-sm">${p.next_consult ? fmtDate(p.next_consult) : ''}</td>
+                  <td class="hide-sm">${p.next_consult ? fmtShort(p.next_consult) : ''}</td>
                 </tr>`)}
             </tbody>
           </table>

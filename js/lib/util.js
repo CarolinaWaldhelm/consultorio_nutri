@@ -24,6 +24,13 @@ export function fmtDate(iso) {
   return `${d}/${m}/${y}`;
 }
 
+/** Data curta com ano de dois dígitos: 20/08/26. */
+export function fmtShort(iso) {
+  if (!iso) return '';
+  const [y, m, d] = String(iso).slice(0, 10).split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
 /** Dias entre duas datas AAAA-MM-DD (b − a). */
 export function daysBetween(a, b) {
   const t = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
