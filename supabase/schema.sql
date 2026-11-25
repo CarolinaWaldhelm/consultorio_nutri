@@ -260,6 +260,24 @@ create trigger consultations_touch before update on public.consultations
   for each row execute function public.touch_updated_at();
 
 -- ---------- Visão geral para a tela inicial ----------
+-- Uma data da planilha do Nutrium só conta como consulta feita (ou marcada) se NÃO foi cancelada (sumiu do Google
+-- Agenda, pela fotografia calendar_snapshot) nem marcada como "Faltou" / "Cancelou" em Consultas de hoje.
+-- Consultas registradas no próprio software (Iniciar consulta) sempre contam.
+create or replace function public.nutrium_slot_off(pid uuid, d date) returns boolean
+language sql stable security invoker set search_path = public as $$
+  select exists (
+      select 1 from public.appointment_attendance t
+      where t.patient_id = pid and t.event_date = d and t.status in ('faltou', 'cancelou'))
+    or (exists (
+          select 1 from public.calendar_snapshot c
+          where c.patient_id = pid and c.event_date = d and c.cancelled_at is not null)
+        and not exists (
+          select 1 from public.calendar_snapshot c
+          where c.patient_id = pid and c.event_date = d and c.cancelled_at is null));
+$$;
+revoke all on function public.nutrium_slot_off(uuid, date) from public, anon;
+grant execute on function public.nutrium_slot_off(uuid, date) to authenticated;
+
 create or replace view public.patient_overview with (security_invoker = true) as
 select
   p.id, p.code, p.name, p.phone, p.birth_date, p.status, p.questionnaires_active,
@@ -282,10 +300,12 @@ left join lateral (
 left join lateral (
   select max(date) as last_date from public.nutrium_appointments
   where patient_id = p.id and date < (now() at time zone 'America/Sao_Paulo')::date
+    and not public.nutrium_slot_off(p.id, date)
 ) a on true
 left join lateral (
   select date, start_time from public.nutrium_appointments
   where patient_id = p.id and date >= (now() at time zone 'America/Sao_Paulo')::date
+    and not public.nutrium_slot_off(p.id, date)
   order by date, start_time
   limit 1
 ) n on true;

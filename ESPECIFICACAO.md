@@ -541,6 +541,11 @@ Final do dia (montagem dos planos)
 
 - **A partir do uso do software:** última consulta iniciada no software (`[Iniciar consulta]`).
 - **Histórico anterior:** aba "Consultas" da planilha do Nutrium, considerando só datas até hoje.
+- **Consulta que não aconteceu não conta** (a planilha do Nutrium não diz se a consulta foi cancelada): uma data da
+  planilha é ignorada, como última consulta e como próxima consulta, se **sumiu do Google Agenda** (fotografia
+  `calendar_snapshot`) ou foi marcada **Faltou / Cancelou** em Consultas de hoje (função `nutrium_slot_off` na visão
+  `patient_overview`). Vale daqui para frente: cancelamentos de antes da fotografia (iniciada em 24/11/2026) não são
+  reconhecidos (decisão da nutricionista: não precisa corrigir os antigos).
   Datas repetidas no mesmo dia contam como uma consulta.
 - *A verificar:* se consultas canceladas aparecem na exportação. Se aparecerem, o sistema usa a agenda
   para descartá-las.
