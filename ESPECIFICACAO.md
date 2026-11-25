@@ -429,7 +429,8 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    Quem respondeu "não vou" pelo link aparece como "🚫 Cancelou pelo lembrete" (com "cancele na Nutrium" enquanto a
    consulta ainda estiver na agenda).
    Em toda consulta cancelada (e em quem cancelou pelo lembrete): `[📋 Mensagem para remarcar]` e `[📲 WhatsApp]` com a
-   mensagem genérica perguntando se quer remarcar ([Nome], [Data]; editável em Mensagem → "Mensagem para quem cancelou",
+   mensagem genérica perguntando se quer remarcar ([Nome], [Data] — “consulta de [Data]” vira “de hoje”, “de amanhã”,
+   “de ontem” ou “do dia 25/11”; editável em Mensagem → "Mensagem para quem cancelou",
    chave `whatsapp_rebook_message`), e o aviso "✉️ Mensagem enviada em dd/mm" ou "Mensagem ainda não enviada" (usa a
    coluna `return_msg_at`, a mesma do "último contato"). Se a paciente remarcar, resolvido; se não responder, depois de
    50 dias sem consulta entra no alerta "Sem retorno", onde aparece a data do último contato.

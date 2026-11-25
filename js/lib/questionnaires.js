@@ -251,9 +251,18 @@ export const DEFAULT_REBOOK_MESSAGE = `Oi, [Nome], tudo bem? 😊
 
 Vi que você cancelou a sua consulta de [Data]. Caso queira remarcar, é só me chamar por aqui ou escolher um horário direto pela minha agenda. Fico à disposição! 🌱`;
 
-/** [Nome] = primeiro nome; [Data] = data da consulta desmarcada (dd/mm). */
-export function fillRebookMessage(template, name, dateISO) {
+/**
+ * [Nome] = primeiro nome; [Data] = quando era a consulta cancelada, em linguagem natural:
+ * "sua consulta de [Data]" vira "sua consulta de hoje", "de amanhã", "de ontem" ou "do dia 25/11".
+ */
+export function fillRebookMessage(template, name, dateISO, today = todayISO()) {
   const first = String(name || '').trim().split(/\s+/)[0] || '';
   const [, m, d] = String(dateISO || '').split('-');
-  return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[data\]/gi, d && m ? `${d}/${m}` : '');
+  const ddmm = d && m ? `${d}/${m}` : '';
+  const diff = dateISO ? daysBetween(today, dateISO) : null;
+  const rel = diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : diff === -1 ? 'ontem' : null;
+  return template
+    .replace(/\[(nome|primeiro nome)\]/gi, first)
+    .replace(/\bde \[data\]/gi, rel ? `de ${rel}` : `do dia ${ddmm}`)
+    .replace(/\[data\]/gi, rel || ddmm);
 }

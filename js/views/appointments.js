@@ -213,7 +213,7 @@ function MessageTab({ data, reload }) {
     <section class="card">
       <h2 class="card-title">Mensagem para quem cancelou</h2>
       <p class="muted small">Usada no botão “📋 Mensagem para remarcar” das consultas canceladas, em “Consultas de hoje”. Use <strong>[Nome]</strong> para o primeiro nome e
-        <strong>[Data]</strong> para a data da consulta cancelada.</p>
+        <strong>[Data]</strong> para quando era a consulta: vira sozinho “de hoje”, “de amanhã”, “de ontem” ou “do dia 25/11”.</p>
       <${AutoText} rows=${6} value=${reb} onInput=${setReb} />
       <h3 class="calc-step">Como fica</h3>
       <div class="quote">${fillRebookMessage(reb, 'Maria Silva', todayISO())}</div>
