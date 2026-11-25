@@ -313,7 +313,7 @@ function TodayCard({ data }) {
               return html`
                 <tr class=${past ? 'row-sent' : ''}>
                   <td><strong class=${ev.cancelled ? 'strike' : ''}>${ev.time || '—'}</strong>${ev.cancelled
-                    ? html` <span class="badge badge-red">🚫 Cancelada</span>${ev.movedTo ? html` <span class="badge badge-blue">remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}</span>` : ''}`
+                    ? html` <span class="badge badge-red">🚫 Cancelada</span>`
                     : past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
                   <td class="name-cell">${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} />` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
                   <td class=${'resp resp-' + (r?.response || 'none')}>
@@ -324,7 +324,7 @@ function TodayCard({ data }) {
                   <td class="attend-cell">
                     ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>`
                     : ev.movedTo || (ev.attendance.byLink && ev.attendance.status === 'remarcou') ? html`
-                      <span class="muted small">${ev.movedTo ? `remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}` : 'pediu para remarcar pelo link'}</span>`
+                      ${ev.movedTo ? html`<span class="badge badge-blue">📅 Remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}</span>` : html`<span class="muted small">pediu para remarcar pelo link</span>`}`
                     : ev.cancelled || (ev.attendance.byLink && ev.attendance.status === 'cancelou') ? html`
                       ${ev.attendance.byLink
                         ? html`<div class="muted small">🚫 Cancelou pelo lembrete${ev.cancelled ? '' : ' (cancele na Nutrium)'}</div>`

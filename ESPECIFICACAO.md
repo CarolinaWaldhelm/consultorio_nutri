@@ -434,7 +434,7 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    escolher: `[Faltou]` (conta como **falta**) · `[Cancelou]` (pela Nutrium ou pelo lembrete; não conta como falta,
    **exceto se o paciente tinha confirmado pelo lembrete**: aí conta como falta e a linha mostra "⚠️ Tinha confirmado no
    lembrete: conta como falta"). Não há botão de "pediu para remarcar": se a mesma consulta reaparece em outra data,
-   mostra só "remarcada para dd/mm"; quem pediu para remarcar pelo link aparece como "pediu para remarcar pelo link".
+   mostra só a etiqueta "📅 Remarcada para dd/mm" (uma vez, na coluna Compareceu?; no Horário fica só "🚫 Cancelada"); quem pediu para remarcar pelo link aparece como "pediu para remarcar pelo link".
    Quem respondeu "não vou" pelo link aparece como "🚫 Cancelou pelo lembrete" (com "cancele na Nutrium" enquanto a
    consulta ainda estiver na agenda).
    Em toda consulta cancelada (e em quem cancelou pelo lembrete): dois botões só com ícone, `[📋]` (copiar) e `[📲]` (WhatsApp), com a
