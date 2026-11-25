@@ -456,7 +456,7 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
 2. **📊 Estatísticas**. Período: `[30 dias | 90 dias | Por mês | Desde o início]`; em "Por mês", escolhe **de [mês] até
    [mês]** (um mês só ou vários, ex.: ago/26 a dez/26). **Contam só as consultas que receberam lembrete, a partir do
-   primeiro lembrete enviado.** Quadros simples, com número e porcentagem:
+   primeiro lembrete enviado.** Uma **tabela compacta** (Situação · Consultas · % · Como conta), em grupos:
    - ✅ **Confirmou e veio** / **Confirmou e faltou** (inclui quem desmarcou depois de confirmar);
    - ⏳ **Não respondeu e veio** / **Não respondeu e faltou**;
    - ⚡ **Desmarcou em cima da hora** (cancelada no próprio dia da consulta, ou depois de confirmar);

@@ -103,8 +103,8 @@ function StatsTab({ data }) {
   const st = useMemo(() => reminderOutcomes(items), [items]);
   const ranking = useMemo(() => missRanking(items), [items]);
   const p = (v) => (v == null ? '–' : `${v}%`);
-  const Tile = (label, n, rate, sub, cls = '') => html`
-    <div class=${'stat ' + cls}><div class="stat-label">${label}</div><div class="stat-value">${n}</div><div class="stat-sub">${rate != null ? `${rate}% · ` : ''}${sub}</div></div>`;
+  const Row = (label, n, rate, note, tone) => html`
+    <tr><td>${label}</td><td class=${'num strong ' + (tone ? 'tone-' + tone : '')}>${n}</td><td class="num">${p(rate)}</td><td class="muted small hide-sm">${note}</td></tr>`;
 
   return html`
     <section class="card">
@@ -114,21 +114,20 @@ function StatsTab({ data }) {
       </div>
       ${first && html`<p class="muted small" style="margin-top:0">Só as consultas que receberam lembrete, desde o primeiro lembrete (${fmtDate(first)}).</p>`}
       ${!past ? html`<${Loading} />` : st.total === 0 ? html`<p class="muted">Nenhuma consulta com lembrete neste período.</p>` : html`
-        <h3 class="calc-step">✅ Confirmaram <span class="muted small">(${st.confirmed.n})</span></h3>
-        <div class="stats">
-          ${Tile('Confirmou e veio', st.confirmed.came, st.confirmed.cameRate, 'dos que confirmaram', 'stat-good')}
-          ${Tile('Confirmou e faltou', st.confirmed.missed, st.confirmed.missedRate, 'inclui quem desmarcou depois de confirmar', 'stat-bad')}
-        </div>
-        <h3 class="calc-step">⏳ Não responderam ao lembrete <span class="muted small">(${st.silent.n})</span></h3>
-        <div class="stats">
-          ${Tile('Não respondeu e veio', st.silent.came, st.silent.cameRate, 'dos que não responderam', 'stat-good')}
-          ${Tile('Não respondeu e faltou', st.silent.missed, st.silent.missedRate, 'dos que não responderam', 'stat-bad')}
-        </div>
-        <h3 class="calc-step">Desmarcações e faltas <span class="muted small">(de ${st.total} consulta(s) com lembrete)</span></h3>
-        <div class="stats">
-          ${Tile('⚡ Desmarcou em cima da hora', st.lastMinute, st.lastMinuteRate, 'cancelou no dia da consulta ou depois de confirmar')}
-          ${Tile('✖ Falta sem aviso', st.noShow, st.noShowRate, 'não avisou, não pediu para remarcar, não apareceu', 'stat-bad')}
-        </div>
+        <table class="table stats-table">
+          <thead><tr><th>Situação</th><th class="num">Consultas</th><th class="num">%</th><th class="hide-sm">Como conta</th></tr></thead>
+          <tbody>
+            <tr class="group-row"><td colspan="4">✅ Confirmaram <span class="muted small">(${st.confirmed.n})</span></td></tr>
+            ${Row('Confirmou e veio', st.confirmed.came, st.confirmed.cameRate, 'dos que confirmaram', 'good')}
+            ${Row('Confirmou e faltou', st.confirmed.missed, st.confirmed.missedRate, 'inclui quem desmarcou depois de confirmar', 'bad')}
+            <tr class="group-row"><td colspan="4">⏳ Não responderam ao lembrete <span class="muted small">(${st.silent.n})</span></td></tr>
+            ${Row('Não respondeu e veio', st.silent.came, st.silent.cameRate, 'dos que não responderam', 'good')}
+            ${Row('Não respondeu e faltou', st.silent.missed, st.silent.missedRate, 'dos que não responderam', 'bad')}
+            <tr class="group-row"><td colspan="4">Desmarcações e faltas <span class="muted small">(de ${st.total} consulta(s) com lembrete)</span></td></tr>
+            ${Row('⚡ Desmarcou em cima da hora', st.lastMinute, st.lastMinuteRate, 'cancelou no dia da consulta ou depois de confirmar', '')}
+            ${Row('✖ Falta sem aviso', st.noShow, st.noShowRate, 'não avisou, não pediu para remarcar, não apareceu', 'bad')}
+          </tbody>
+        </table>
         ${st.pending > 0 && html`<p class="muted small">${st.pending} consulta(s) ficaram sem “Veio / Faltou” marcado e estão fora das porcentagens.</p>`}
         ${ranking.length > 0 && html`
           <h3 class="calc-step">Quem mais falta</h3>

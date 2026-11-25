@@ -450,3 +450,8 @@ textarea { resize: vertical; min-height: 44px; }
 
 .stat-good .stat-value { color: #15803d; }
 .stat-bad .stat-value { color: var(--danger); }
+
+.stats-table .group-row td { background: #f6f8f6; font-weight: 700; color: var(--primary-dark); padding-top: 8px; padding-bottom: 8px; }
+.stats-table td.strong { font-weight: 700; }
+.tone-good { color: #15803d; }
+.tone-bad { color: var(--danger); }
