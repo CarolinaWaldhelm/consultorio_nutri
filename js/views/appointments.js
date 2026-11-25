@@ -3,7 +3,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
-import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_REBOOK_MESSAGE, fillRebookMessage } from '../lib/questionnaires.js';
+import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_RECENT_RETURN_MESSAGE, RECENT_RETURN_DAYS, DEFAULT_REBOOK_MESSAGE, fillRebookMessage } from '../lib/questionnaires.js';
 import { attendanceOf, missRanking, reminderOutcomes } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText, usePeriod } from './common.js';
@@ -146,6 +146,7 @@ function StatsTab({ data }) {
 function MessageTab({ data, reload }) {
   const [appt, setAppt] = useState(data.settings.whatsapp_appt_message || DEFAULT_APPT_MESSAGE);
   const [ret, setRet] = useState(data.settings.whatsapp_return_message || DEFAULT_RETURN_MESSAGE);
+  const [recent, setRecent] = useState(data.settings.whatsapp_return_message_recent || DEFAULT_RECENT_RETURN_MESSAGE);
   const [reb, setReb] = useState(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
@@ -154,7 +155,7 @@ function MessageTab({ data, reload }) {
 
   async function save() {
     try {
-      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }, { key: 'whatsapp_rebook_message', value: reb }]));
+      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }, { key: 'whatsapp_return_message_recent', value: recent }, { key: 'whatsapp_rebook_message', value: reb }]));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       reload();
@@ -181,8 +182,21 @@ function MessageTab({ data, reload }) {
       </div>
     </section>
     <section class="card">
-      <h2 class="card-title">Mensagem de retorno (sem retorno há mais de 50 dias)</h2>
-      <p class="muted small">Usada nos botões “Copiar mensagem” e “WhatsApp” da tabela de sem retorno, na tela inicial.
+      <h2 class="card-title">Mensagem de retorno — até ${RECENT_RETURN_DAYS} dias da última consulta</h2>
+      <p class="muted small">Usada na lista “Sem consulta remarcada” para quem teve a última consulta há ${RECENT_RETURN_DAYS} dias ou menos
+        (ainda dentro do prazo de retorno). Use <strong>[Nome]</strong> e <strong>[Dias]</strong>.</p>
+      <${AutoText} rows=${6} value=${recent} onInput=${setRecent} />
+      <h3 class="calc-step">Como fica</h3>
+      <div class="quote">${fillReturnMessage(recent, 'Maria Silva', 35)}</div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
+        ${saved && html`<span class="muted small">✓ Salvo</span>`}
+        <button class="btn btn-ghost btn-sm" onClick=${() => setRecent(DEFAULT_RECENT_RETURN_MESSAGE)}>Voltar ao texto original</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="card-title">Mensagem de retorno — mais de ${RECENT_RETURN_DAYS} dias da última consulta</h2>
+      <p class="muted small">Usada na lista “Sem consulta remarcada” para quem teve a última consulta há mais de ${RECENT_RETURN_DAYS} dias.
         Use <strong>[Nome]</strong> para o primeiro nome e <strong>[Dias]</strong> para os dias desde a última consulta.</p>
       <${AutoText} rows=${7} value=${ret} onInput=${setRet} />
       <h3 class="calc-step">Como fica</h3>

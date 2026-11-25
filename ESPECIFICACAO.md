@@ -85,7 +85,10 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    100 dias sem consulta, segue a regra normal (é removido na importação se não tiver anotações suas).
    Coluna **"Último contato seu"**: data da última mensagem de retorno enviada pelos botões (e "há N dias"), ou
    "nenhum ainda".
-   A mensagem de retorno usa [Nome] (primeiro nome) e [Dias] (desde a última consulta) e é editável em
+   **Duas mensagens de retorno**, escolhidas sozinhas pelos dias desde a última consulta: **até 40 dias** (ainda no prazo
+   de retorno, que ela marca entre 30 e 40 dias: "já faz [Dias] dias… ainda não temos o seu retorno marcado. Vamos
+   agendar?"; chave `whatsapp_return_message_recent`) e **mais de 40 dias** ("senti sua falta…"; chave
+   `whatsapp_return_message`). As duas usam [Nome] (primeiro nome) e [Dias] (desde a última consulta) e são editáveis em
    Lembretes de consulta → Mensagem. Ao copiar ou abrir no WhatsApp, a data fica anotada (coluna `return_msg_at`,
    coluna "Último contato seu"). **Ordem em fila:** primeiro quem nunca recebeu mensagem de retorno; quem recebeu vai para o
    **fim da fila**; quando todos já tiverem recebido, o contato mais antigo volta para a frente. 15 visíveis, `[Mostrar mais]` de 10 em 10 e

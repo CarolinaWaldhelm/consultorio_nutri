@@ -2,7 +2,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { norm, fmtDate, fmtShort, daysAgoLabel, daysBetween, todayISO, onlyDigits, unique } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
-import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, whatsappUrl, whatsappNumber } from '../lib/questionnaires.js';
+import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_RECENT_RETURN_MESSAGE, RECENT_RETURN_DAYS, whatsappUrl, whatsappNumber } from '../lib/questionnaires.js';
 import { copyText } from '../lib/prompts.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS, isLost } from '../lib/nutrium.js';
@@ -63,10 +63,10 @@ export function Home() {
     Promise.all([
       run(supabase.from('questionnaire_sends').select('patient_id, created_at, sent_at, answered_at, expired_at, resent_at')),
       run(supabase.from('questionnaires').select('id').eq('is_default', true).eq('active', true)),
-      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at', 'whatsapp_return_message'])),
+      run(supabase.from('app_settings').select('*').in('key', ['questionnaire_frequency_days', 'questionnaire_start_date', 'last_backup_at', 'whatsapp_return_message', 'whatsapp_return_message_recent'])),
     ]).then(([sends, defs, sets]) => {
       const get = (k) => sets.find((x) => x.key === k)?.value;
-      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, returnMessage: get('whatsapp_return_message') || DEFAULT_RETURN_MESSAGE, lastBackup: get('last_backup_at') || null });
+      setQdata({ sends, hasDefault: defs.length > 0, frequency: Number(get('questionnaire_frequency_days')) || DEFAULT_FREQUENCY, startDate: get('questionnaire_start_date') || DEFAULT_START_DATE, returnMessage: get('whatsapp_return_message') || DEFAULT_RETURN_MESSAGE, recentReturnMessage: get('whatsapp_return_message_recent') || DEFAULT_RECENT_RETURN_MESSAGE, lastBackup: get('last_backup_at') || null });
     })
       .catch(() => setQdata(null));
 
@@ -184,7 +184,12 @@ export function Home() {
   const [copiedFor, setCopiedFor] = useState(null);
   // Mensagem de retorno: copiar (para mandar pelo app da Nutrium) ou abrir no WhatsApp. Anota a data.
   async function returnMessage(p, via) {
-    const text = fillReturnMessage(qdata?.returnMessage || DEFAULT_RETURN_MESSAGE, p.name, daysBetween(p.last_consult, today));
+    // Até 40 dias: ainda dentro do prazo de retorno ("ainda não marcamos"); depois: "senti sua falta".
+    const days = daysBetween(p.last_consult, today);
+    const template = days <= RECENT_RETURN_DAYS
+      ? qdata?.recentReturnMessage || DEFAULT_RECENT_RETURN_MESSAGE
+      : qdata?.returnMessage || DEFAULT_RETURN_MESSAGE;
+    const text = fillReturnMessage(template, p.name, days);
     if (via === 'whatsapp') {
       window.open(whatsappUrl(p.phone, text), '_blank');
     } else if (await copyText(text)) {
@@ -264,7 +269,7 @@ export function Home() {
       <section class="card">
         <div class="card-title-row">
           <h2 class="card-title">📅 Sem consulta remarcada <span class="muted small">(${overdue.length})</span></h2>
-          <a class="btn btn-sm btn-ghost" href="#/lembretes/mensagem" title="Mudar o texto da mensagem de retorno (vale para todos)">✏️ Editar mensagem</a>
+          <a class="btn btn-sm btn-ghost" href="#/lembretes/mensagem" title="Mudar os textos das mensagens de retorno (até 40 dias e mais de 40 dias)">✏️ Editar mensagens</a>
         </div>
         <table class="table">
           <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias desde a consulta</th><th>Último contato seu</th><th></th></tr></thead>
