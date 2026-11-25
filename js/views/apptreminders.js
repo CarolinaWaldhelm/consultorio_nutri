@@ -89,6 +89,12 @@ export function ApptRemindersTab({ data, reload }) {
       return false;
     }
   }
+  const [copiedKey, setCopiedKey] = useState(null);
+  async function copyAgain(ev) {
+    await copyOrShow(fillApptMessage(template, { name: ev.patient.name, date: ev.start, time: ev.time, link: ev.meet, confirm: confirmLink(ev.sentRow.token) }, today));
+    setCopiedKey(ev.key);
+    setTimeout(() => setCopiedKey((x) => (x === ev.key ? null : x)), 3000);
+  }
   async function queueSend(via = 'whatsapp') {
     const ev = byKey.get(queue.ids[queue.pos]);
     if (!ev || (await sendOne(ev, via))) setQueue((q) => (q.pos + 1 >= q.ids.length ? null : { ...q, pos: q.pos + 1 }));
@@ -178,7 +184,9 @@ export function ApptRemindersTab({ data, reload }) {
                   ${ev.sentRow.response === 'remarcar' && ev.sentRow.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(ev.sentRow.response_prefs)}</div>`}
                   ${ev.sentRow.response_note ? html`<${PatientNote} text=${ev.sentRow.response_note} />` : ''}
                 </td>
-                <td class="row-actions"><span class="badge badge-green">✓ Enviado</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
+                <td class="row-actions"><span class="badge badge-green">✓ Enviado</span>
+                  <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link de confirmação, para colar na Nutrium" onClick=${() => copyAgain(ev)}>${copiedKey === ev.key ? '✓ Copiada' : '📋 Copiar de novo'}</button>
+                  <button class="btn btn-sm btn-ghost" onClick=${() => undo(ev.sentRow)}>Desfazer</button></td>
               </tr>`)}
           </tbody>
         </table>`}

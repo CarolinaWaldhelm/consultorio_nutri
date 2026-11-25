@@ -6,7 +6,7 @@ import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAU
 import { copyText } from '../lib/prompts.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS, isLost } from '../lib/nutrium.js';
-import { Modal, Field, ErrorBox, Loading, go } from './common.js';
+import { Modal, Field, ErrorBox, Loading, go, usePaged } from './common.js';
 import { TodoCard } from './todos.js';
 import { RoutinesCard } from './routines.js';
 import { CalendarCard } from './calendar.js';
@@ -14,8 +14,6 @@ import { syncSnapshot } from '../lib/snapshot.js';
 import { PatientPeek } from './peek.js';
 
 const ALERT_DAYS = 50;
-const FIRST_PAGE = 15; // itens visíveis em cada lista
-const PAGE_STEP = 10; // "Mostrar mais"
 const WEEKDAY = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 function dayLabel(iso) {
   const n = daysBetween(todayISO(), iso);
@@ -31,20 +29,6 @@ function plusDays(iso, n) {
 }
 
 /** Lista com os primeiros 15 itens, "Mostrar mais" de 10 em 10 e "Mostrar menos" (volta aos 15). */
-function usePaged(items, resetKey) {
-  const [n, setN] = useState(FIRST_PAGE);
-  useEffect(() => setN(FIRST_PAGE), [resetKey]);
-  const more = items.length - n;
-  const buttons = more > 0 || n > FIRST_PAGE
-    ? html`
-      <div class="show-more">
-        ${more > 0 && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(n + PAGE_STEP)}>Mostrar mais ${Math.min(PAGE_STEP, more)} (faltam ${more})</button>`}
-        ${n > FIRST_PAGE && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(FIRST_PAGE)}>Mostrar menos</button>`}
-      </div>`
-    : null;
-  return [items.slice(0, n), buttons];
-}
-
 export function Home() {
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);

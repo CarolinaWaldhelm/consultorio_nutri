@@ -7,7 +7,7 @@ import {
   planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
-import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
+import { Modal, Field, ErrorBox, Loading, AutoText, usePaged } from './common.js';
 import { copyOrShow } from '../lib/prompts.js';
 
 export async function loadQuestionnaireData() {
@@ -41,6 +41,7 @@ export function QuestionnairesPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('envios');
+  const [justSent, setJustSent] = useState([]); // envios feitos agora (aparecem na lista sem recarregar a página)
 
   const reload = () => loadQuestionnaireData().then(setData).catch(setError);
   useEffect(() => { reload(); }, []);
@@ -48,19 +49,24 @@ export function QuestionnairesPage() {
   if (error) return html`<${ErrorBox} error=${error} />`;
   if (!data) return html`<${Loading} />`;
 
-  const tabs = [['envios', '📨 Envios de hoje'], ['log', '📋 Envios e respostas'], ['modelos', '🧩 Modelos'], ['config', '⚙️ Mensagem e frequência']];
+  const tabs = [['envios', '📨 Envios e respostas'], ['modelos', '🧩 Modelos'], ['config', '⚙️ Mensagem e frequência']];
+  const ids = new Set(data.sends.map((s) => s.id));
+  const sends = [...justSent.filter((s) => !ids.has(s.id)), ...data.sends].filter((s) => !s._undone);
+  const onSent = (row, undone = false) => setJustSent((l) => (undone ? l.filter((x) => x.id !== row.id) : [row, ...l]));
   return html`
     <div class="page-head"><h1>Questionários</h1></div>
-    <div class="seg tabs">${tabs.map(([k, l]) => html`<button class=${tab === k ? 'on' : ''} onClick=${() => { setTab(k); reload(); }}>${l}</button>`)}</div>
-    ${tab === 'envios' && html`<${SendsTab} data=${data} reload=${reload} goModels=${() => setTab('modelos')} />`}
-    ${tab === 'log' && html`<${LogTab} data=${data} />`}
+    <div class="seg tabs">${tabs.map(([k, l]) => html`<button class=${tab === k ? 'on' : ''} onClick=${() => { setTab(k); setJustSent([]); reload(); }}>${l}</button>`)}</div>
+    ${tab === 'envios' && html`
+      <${StatsCard} data=${{ ...data, sends }} />
+      <${SendsTab} data=${data} reload=${reload} goModels=${() => setTab('modelos')} onSent=${onSent} />
+      <${SentList} data=${{ ...data, sends }} />`}
     ${tab === 'modelos' && html`<${ModelsTab} data=${data} reload=${reload} />`}
     ${tab === 'config' && html`<${ConfigTab} data=${data} reload=${reload} />`}`;
 }
 
 // ---------------------------------------------------------------- Envios de hoje
 
-function SendsTab({ data, reload, goModels }) {
+function SendsTab({ data, reload, goModels, onSent = () => {} }) {
   const plan = useMemo(() => sendPlan(data), [data]);
   const [selected, setSelected] = useState(() => new Set(plan.due.map((d) => d.patient.id)));
   // Quem entrar na lista depois (ao atualizar) já vem marcado; desmarcados por você continuam desmarcados.
@@ -96,6 +102,7 @@ function SendsTab({ data, reload, goModels }) {
       await run(supabase.from('questionnaire_sends').update({ expired_at: new Date().toISOString() })
         .eq('patient_id', p.id).is('answered_at', null).is('expired_at', null).neq('id', row.id));
       setSent((d) => ({ ...d, [p.id]: { ...row, via } }));
+      onSent(row);
       if (via === 'whatsapp') {
         const url = whatsappUrl(p.phone, text);
         if (win) win.location.href = url; else window.open(url, '_blank');
@@ -129,6 +136,7 @@ function SendsTab({ data, reload, goModels }) {
     if (!confirm(`Desfazer o envio para ${p.name}? O link deixa de funcionar.`)) return;
     await run(supabase.from('questionnaire_sends').delete().eq('id', row.id));
     setSent((d) => { const n = { ...d }; delete n[p.id]; return n; });
+    onSent(row, true);
   }
 
   async function remind({ patient, send: s }, via = 'whatsapp') {
@@ -179,10 +187,10 @@ function SendsTab({ data, reload, goModels }) {
 
     <section class="card">
       <div class="card-title-row">
-        <h2 class="card-title">Para enviar hoje <span class="muted small">(${plan.due.length}${sentCount ? ` · ${sentCount} enviado(s)` : ''})</span></h2>
+        <h2 class="card-title">📨 Envios de hoje <span class="muted small">(${plan.due.length}${sentCount ? ` · ${sentCount} enviado(s)` : ''})</span></h2>
         <span class="muted small">Questionário: <strong>${def.name}</strong> · ${plan.frequency} dias após a última consulta ou o último questionário</span>
       </div>
-      ${plan.due.length === 0 && html`<p class="muted">Ninguém para receber hoje. 🎉</p>`}
+      ${plan.due.length === 0 && html`<p class="muted" style="margin:0">Ninguém para receber hoje. 🎉</p>`}
       ${plan.due.length > 0 && html`
         <div class="row-actions" style="justify-content:flex-start;margin-bottom:8px">
           <button class="btn btn-sm" disabled=${!pending.length} onClick=${() => setSelected(new Set(pending.map((d) => d.patient.id)))}>☑ Marcar todos</button>
@@ -322,6 +330,7 @@ function sinceFor(period) {
 function StatsCard({ data }) {
   const [period, setPeriod] = useState('30');
   const [showAll, setShowAll] = useState(false);
+  const [showPer, setShowPer] = useState(false);
   const since = sinceFor(period);
   const st = useMemo(() => responseStats(data.sends, { sinceISO: since }), [data, period]);
   const perPatient = useMemo(() => {
@@ -362,8 +371,8 @@ function StatsCard({ data }) {
             : 'Ainda não há lembretes enviados neste período para medir o efeito.'}${' '}Os questionários enviados há menos de 7 dias e ainda sem resposta ficam fora da conta.
         </p>
         ${perPatient.length > 0 && html`
-          <h3 class="calc-step">Por paciente <span class="muted small">(menor taxa primeiro)</span></h3>
-          <table class="table">
+          <button class="btn btn-sm btn-ghost" onClick=${() => setShowPer(!showPer)}>${showPer ? '▾' : '▸'} Taxa por paciente (${perPatient.length}, menor taxa primeiro)</button>
+          ${showPer && html`<table class="table">
             <thead><tr><th>Paciente</th><th class="num">Respondidos</th><th class="num">Taxa</th></tr></thead>
             <tbody>
               ${shown.map((r) => html`
@@ -373,52 +382,73 @@ function StatsCard({ data }) {
                   <td class="num"><span class=${'rate ' + (r.rate >= 70 ? 'rate-good' : r.rate >= 40 ? 'rate-mid' : 'rate-low')}>${r.rate}%</span></td>
                 </tr>`)}
             </tbody>
-          </table>
-          ${perPatient.length > 10 && html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setShowAll(!showAll)}>${showAll ? 'Mostrar menos' : `Mostrar todos (${perPatient.length})`}</button>`}`}`}
+          </table>`}
+          ${showPer && perPatient.length > 10 && html`<button class="btn btn-sm btn-ghost show-more" onClick=${() => setShowAll(!showAll)}>${showAll ? 'Mostrar menos' : `Mostrar todos (${perPatient.length})`}</button>`}`}`}
     </section>`;
 }
 
-function LogTab({ data }) {
+const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['vencido', '⚪ Sem resposta']];
+const WHEN_FILTERS = [['hoje', 'Hoje'], ['7', '7 dias'], ['30', '30 dias'], ['all', 'Tudo']];
+const statusOf = (s) => (s.answered_at ? 'respondido' : s.expired_at ? 'vencido' : 'pendente');
+
+/** Questionários já enviados, com filtro de situação e de período. "📋 Copiar de novo" para os pendentes. */
+function SentList({ data }) {
   const [viewing, setViewing] = useState(null);
-  const [onlyAnswered, setOnlyAnswered] = useState(false);
+  const [status, setStatus] = useState('todos');
+  const [when, setWhen] = useState('7');
+  const [copied, setCopied] = useState(null);
   const pById = useMemo(() => new Map(data.patients.map((p) => [p.id, p])), [data]);
   const qById = useMemo(() => new Map(data.questionnaires.map((q) => [q.id, q])), [data]);
   const today = todayISO();
-  const rows = data.sends.filter((s) => !onlyAnswered || s.answered_at).slice(0, 200);
+  const message = data.settings.whatsapp_message || DEFAULT_MESSAGE;
+  const inWhen = (s) => when === 'all' || (when === 'hoje' ? dateOf(s.sent_at) === today : daysBetween(dateOf(s.sent_at), today) < Number(when));
+  const inPeriod = data.sends.filter(inWhen);
+  const count = (k) => (k === 'todos' ? inPeriod.length : inPeriod.filter((s) => statusOf(s) === k).length);
+  const rows = inPeriod.filter((s) => status === 'todos' || statusOf(s) === status);
+  const [shown, more] = usePaged(rows, status + when);
+
+  async function copyAgain(s, p) {
+    await copyOrShow(fillMessage(message, p.name, formLink(s.token)));
+    setCopied(s.id);
+    setTimeout(() => setCopied((x) => (x === s.id ? null : x)), 3000);
+  }
 
   return html`
-    <${StatsCard} data=${data} />
     <section class="card">
       <div class="card-title-row">
-        <h2 class="card-title">Envios e respostas <span class="muted small">(${data.sends.length})</span></h2>
-        <label class="checkbox-line small"><input type="checkbox" checked=${onlyAnswered} onChange=${(e) => setOnlyAnswered(e.target.checked)} /> Só respondidos</label>
+        <h2 class="card-title">📋 Questionários enviados <span class="muted small">(${rows.length})</span></h2>
+        <div class="seg">${WHEN_FILTERS.map(([k, l]) => html`<button class=${when === k ? 'on' : ''} onClick=${() => setWhen(k)}>${l}</button>`)}</div>
       </div>
-      ${rows.length === 0 && html`<p class="muted">Nenhum envio ainda.</p>`}
+      <div class="seg" style="margin-bottom:8px">${STATUS_FILTERS.map(([k, l]) => html`<button class=${status === k ? 'on' : ''} onClick=${() => setStatus(k)}>${l} (${count(k)})</button>`)}</div>
+      ${rows.length === 0 && html`<p class="muted">Nenhum envio com esse filtro.</p>`}
       ${rows.length > 0 && html`
         <div class="table-scroll">
           <table class="table">
-            <thead><tr><th>Paciente</th><th>Questionário</th><th>Enviado em</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Paciente</th><th>Enviado em</th><th>Situação</th><th></th></tr></thead>
             <tbody>
-              ${rows.map((s) => {
+              ${shown.map((s) => {
                 const p = pById.get(s.patient_id);
                 const sent = dateOf(s.sent_at);
+                const st = statusOf(s);
                 return html`
                   <tr>
-                    <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a>` : '—'}</td>
-                    <td>${qById.get(s.questionnaire_id)?.name || '—'}</td>
-                    <td>${fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}</td>
+                    <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a>` : '—'}<div class="muted small">${qById.get(s.questionnaire_id)?.name || ''}</div></td>
+                    <td>${sent === today ? 'hoje' : fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}</td>
                     <td>
-                      ${s.answered_at
+                      ${st === 'respondido'
                         ? html`<button class="badge badge-green as-link" onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()}) · ver</button>`
-                        : s.expired_at
+                        : st === 'vencido'
                           ? html`<span class="badge">⚪ Sem resposta (link vencido)</span>`
-                          : html`<span class="badge badge-warn">🟡 Pendente (há ${daysBetween(sent, today)} dia(s))</span>`}
+                          : html`<span class="badge badge-warn">🟡 Pendente${sent === today ? '' : ` (há ${daysBetween(sent, today)} dia(s))`}</span>`}
                     </td>
+                    <td class="row-actions">${st === 'pendente' && p && html`
+                      <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link (não conta como novo envio)" onClick=${() => copyAgain(s, p)}>${copied === s.id ? '✓ Copiada' : '📋 Copiar de novo'}</button>`}</td>
                   </tr>`;
               })}
             </tbody>
           </table>
-        </div>`}
+        </div>
+        ${more}`}
     </section>
     ${viewing && html`<${ResponseModal} send=${viewing} questionnaire=${qById.get(viewing.questionnaire_id)} patient=${pById.get(viewing.patient_id)} onClose=${() => setViewing(null)} />`}`;
 }

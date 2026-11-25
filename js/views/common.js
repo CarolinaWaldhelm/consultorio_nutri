@@ -1,4 +1,4 @@
-import { html, render, useEffect, useLayoutEffect, useRef } from '../lib/preact.js';
+import { html, render, useEffect, useLayoutEffect, useRef, useState } from '../lib/preact.js';
 
 /**
  * Janela (modal). É desenhada direto no fim da página (fora do lugar onde foi aberta), para ficar sempre por cima
@@ -77,4 +77,21 @@ export function AutoText({ value, onInput, rows = 2, placeholder }) {
 
 export function go(path) {
   location.hash = path;
+}
+
+const FIRST_PAGE = 15; // itens visíveis em cada lista
+const PAGE_STEP = 10; // "Mostrar mais"
+/** Lista com 15 itens, "Mostrar mais" de 10 em 10 e "Mostrar menos". Devolve [itens visíveis, botões]. */
+export function usePaged(items, resetKey) {
+  const [n, setN] = useState(FIRST_PAGE);
+  useEffect(() => setN(FIRST_PAGE), [resetKey]);
+  const more = items.length - n;
+  const buttons = more > 0 || n > FIRST_PAGE
+    ? html`
+      <div class="show-more">
+        ${more > 0 && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(n + PAGE_STEP)}>Mostrar mais ${Math.min(PAGE_STEP, more)} (faltam ${more})</button>`}
+        ${n > FIRST_PAGE && html`<button class="btn btn-sm btn-ghost" onClick=${() => setN(FIRST_PAGE)}>Mostrar menos</button>`}
+      </div>`
+    : null;
+  return [items.slice(0, n), buttons];
 }

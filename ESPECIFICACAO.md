@@ -375,7 +375,14 @@ Outras regras:
 
 ### 4.3 Envio semiautomático pelo WhatsApp (número pessoal)
 
-- Aba **Questionários → "Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
+- **Página Questionários: três abas** — **📨 Envios e respostas** (tudo numa página só, de cima para baixo:
+  📊 Taxa de resposta → 📨 Envios de hoje + 🔔 Lembretes + telefones/pausados → 📋 Questionários enviados),
+  **🧩 Modelos** e **⚙️ Mensagem e frequência**.
+- **📋 Questionários enviados**: lista de quem já recebeu, com período `[Hoje | 7 dias | 30 dias | Tudo]` (padrão 7 dias)
+  e situação `[Todos | 🟢 Respondidos | 🟡 Pendentes | ⚪ Sem resposta]` com as contagens; 15 visíveis e "Mostrar
+  mais". Respondido abre as respostas; pendente tem `[📋 Copiar de novo]` (mesmo link, não conta como novo envio).
+  Envios feitos na hora já aparecem na lista.
+- Em **"Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
   com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.
 - `[Enviar para os selecionados (N)]` abre uma fila: "Enviando 1 de N: Maria — [Abrir WhatsApp]". Cada clique
   abre o WhatsApp na conversa do paciente com a mensagem pronta e o link dele (`https://wa.me/55DDDNUMERO?text=...`);
@@ -385,7 +392,8 @@ Outras regras:
   WhatsApp): na fila há `[📋 Copiar para a Nutrium]` ao lado de `[📲 Abrir WhatsApp]`, e cada linha tem `[📋 Copiar]`.
   Copia a mensagem com o link do paciente para colar no chat da Nutrium e **já marca como enviado** ("✓ Enviado
   (copiado)", com Desfazer). Vale também para os **reenvios** (`[📋 Copiar lembrete]`), para quem está **sem telefone**
-  (não precisa de telefone pela Nutrium) e para os **lembretes de consulta** (fila, linha e "Sem telefone").
+  (não precisa de telefone pela Nutrium) e para os **lembretes de consulta** (fila, linha e "Sem telefone"; nos já
+  enviados, `[📋 Copiar de novo]` com o mesmo link de confirmação).
 - Lista separada de **reenvios**.
 - **Pedido de telefone:** quem já está no prazo mas não tem telefone aparece em "📞 Atualize os telefones para
   enviar", com um campo para digitar o WhatsApp ali mesmo; ao salvar, entra na lista de envio já marcado.
@@ -459,12 +467,12 @@ Aviso na tela inicial: "N pacientes com consulta amanhã para lembrar".
 
 ### 4.4.1 Taxa de resposta
 
-- No topo de "Envios e respostas", com período (30 dias, 90 dias, desde o início):
+- No topo de "Envios e respostas" (acima dos envios de hoje), com período (30 dias, 90 dias, desde o início):
   - **taxa de resposta** (respondidos ÷ questionários "fechados": respondidos, vencidos ou enviados há 7+ dias;
     os em aberto ficam fora e aparecem separados);
   - **efeito do lembrete**: quantos responderam depois do lembrete e qual seria a taxa sem ele;
   - **tempo típico de resposta** (mediana);
-  - **taxa por paciente**, da menor para a maior (10 visíveis, "Mostrar todos").
+  - **taxa por paciente**, da menor para a maior, recolhida em `▸ Taxa por paciente` (10 visíveis, "Mostrar todos").
 - Na ficha (seção Questionários): taxa do paciente, tempo típico e respostas depois do lembrete.
 - Serve para a nutricionista avaliar, com dados, se o lembrete e a regra de envio estão funcionando.
 
@@ -494,7 +502,7 @@ Durante o dia
   └─ [Iniciar consulta] → anota a anamnese no painel lateral
 
 Envios
-  └─ Aba Questionários → "Envios de hoje" → conferir a lista → [Enviar para os selecionados]
+  └─ Questionários → "Envios e respostas" → "Envios de hoje" → conferir a lista → [Enviar para os selecionados]
 
 Final do dia (montagem dos planos)
   ├─ Exporta a planilha no Nutrium (chega por e-mail)
