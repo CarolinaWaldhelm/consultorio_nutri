@@ -53,7 +53,7 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
      nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
    - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
    - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻;
-   - **cores pela resposta ao lembrete** (com legenda embaixo do calendário): 🟩 verde = confirmou; 🟧 laranja = quer
+   - **cores pela resposta ao lembrete** (com legenda embaixo do calendário): 🟩 verde = confirmou; 🟦 azul = quer
      remarcar; 🟨 amarelo = lembrete enviado, sem resposta; 🟥 vermelho = não vai; cinza = sem lembrete.
 3. **🔁 Rotinas** (coluna lateral, acima dos lembretes; tabela `routines`): tarefas que se repetem **todo dia** ou
    **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
@@ -385,7 +385,7 @@ Outras regras:
 - **"⛔ Não responderam os 2 últimos"** fica visível na tela de envios, com as datas dos dois envios sem resposta
   (sugere contato pessoal). Esses pacientes não aparecem nos lembretes.
 
-### 4.3.1 Lembretes de consulta (página própria no menu: "Lembretes de consulta")
+### 4.3.1 Lembretes de consulta (página própria no menu: "Lembretes de consulta", logo depois de "Pacientes" e antes de "Questionários")
 
 Separada de "Questionários" (que fica só com o semanal). Três abas (a aba "Confirmar comparecimento" foi
 retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"):

@@ -47,8 +47,8 @@ function App() {
       <a class="brand" href="#/">🥗 Consultório Nutri</a>
       <nav>
         <a href="#/" class=${route.name === 'home' || route.name === 'patient' ? 'active' : ''}>Pacientes</a>
-        <a href="#/questionarios" class=${route.name === 'questionnaires' ? 'active' : ''}>Questionários</a>
         <a href="#/lembretes" class=${route.name === 'appointments' ? 'active' : ''}>Lembretes de consulta</a>
+        <a href="#/questionarios" class=${route.name === 'questionnaires' ? 'active' : ''}>Questionários</a>
         <a href="#/importar" class=${route.name === 'import' ? 'active' : ''}>Importar Nutrium</a>
         <a href="#/config" class=${route.name === 'config' ? 'active' : ''}>⚙️ Configurações</a>
       </nav>
