@@ -95,3 +95,15 @@ export function usePaged(items, resetKey) {
     : null;
   return [items.slice(0, n), buttons];
 }
+
+/** Botãozinho ao lado do nome: copia o nome do paciente (para colar na busca da Nutrium). */
+export function CopyName({ name }) {
+  const [ok, setOk] = useState(false);
+  async function copy(e) {
+    e.preventDefault(); e.stopPropagation();
+    try { await navigator.clipboard.writeText(name); } catch { window.prompt('Copie o nome (Ctrl+C):', name); }
+    setOk(true);
+    setTimeout(() => setOk(false), 1500);
+  }
+  return html`<button type="button" class=${'copy-name' + (ok ? ' ok' : '')} title=${'Copiar o nome: ' + name} aria-label=${'Copiar o nome de ' + name} onClick=${copy}>${ok ? '✓ copiado' : '⧉'}</button>`;
+}

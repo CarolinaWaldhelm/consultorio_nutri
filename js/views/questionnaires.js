@@ -7,7 +7,7 @@ import {
   planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
-import { Modal, Field, ErrorBox, Loading, AutoText, usePaged } from './common.js';
+import { Modal, Field, ErrorBox, Loading, AutoText, usePaged, CopyName } from './common.js';
 import { copyOrShow } from '../lib/prompts.js';
 
 export async function loadQuestionnaireData() {
@@ -205,7 +205,7 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
             ${plan.due.map(({ patient: p }) => html`
               <tr class=${sent[p.id] ? 'row-sent' : ''}>
                 <td><input type="checkbox" aria-label=${'Selecionar ' + p.name} disabled=${!!sent[p.id]} checked=${!!sent[p.id] || selected.has(p.id)} onChange=${() => toggle(p.id)} /></td>
-                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td>${fmtDate(p.last_consult)} <span class="muted small">(${daysAgoLabel(p.last_consult).toLowerCase()})</span></td>
                 <td class="muted small">${dueBy[p.id]?.fromSend ? `último questionário em ${fmtDate(dueBy[p.id].anchor)}` : 'primeiro após a consulta'}</td>
                 <td class="row-actions">
@@ -231,7 +231,7 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
           <tbody>
             ${plan.reminders.map((r) => html`
               <tr>
-                <td><a href=${'#/paciente/' + r.patient.id}>${r.patient.name}</a></td>
+                <td><a href=${'#/paciente/' + r.patient.id}>${r.patient.name}</a><${CopyName} name=${r.patient.name} /></td>
                 <td class="muted small">enviado em ${fmtDate(dateOf(r.send.sent_at))}</td>
                 <td class="row-actions">
                   ${sent['r:' + r.patient.id]
@@ -252,7 +252,7 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
           <tbody>
             ${plan.autoPaused.map(({ patient: p, sentDates }) => html`
               <tr>
-                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td class="muted small">sem resposta aos envios de ${sentDates.map((d) => fmtDate(d)).join(' e ')}</td>
                 <td class="muted small">última consulta ${fmtDate(p.last_consult)}</td>
                 <td class="row-actions"><button class="btn btn-sm btn-ghost" onClick=${() => stopFor(p)}>Não enviar para este paciente</button></td>
@@ -298,7 +298,7 @@ function PhoneRequest({ items, onSaved, onStop, onCopy, sent = {} }) {
         <tbody>
           ${shown.map(({ patient: p }) => html`
             <tr>
-              <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+              <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
               <td><input type="tel" class="phone-input" placeholder="11 98765-4321" value=${values[p.id] || ''}
                 onInput=${(e) => setValues({ ...values, [p.id]: e.target.value })}
                 onKeyDown=${(e) => e.key === 'Enter' && save(p)} /></td>
@@ -432,7 +432,7 @@ function SentList({ data }) {
                 const st = statusOf(s);
                 return html`
                   <tr>
-                    <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a>` : '—'}<div class="muted small">${qById.get(s.questionnaire_id)?.name || ''}</div></td>
+                    <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} />` : '—'}<div class="muted small">${qById.get(s.questionnaire_id)?.name || ''}</div></td>
                     <td>${sent === today ? 'hoje' : fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}</td>
                     <td>
                       ${st === 'respondido'

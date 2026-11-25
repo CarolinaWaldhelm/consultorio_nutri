@@ -6,7 +6,7 @@ import { planSends, consultSoonIds, DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAU
 import { copyText } from '../lib/prompts.js';
 import { BACKUP_EVERY_DAYS } from '../lib/backup.js';
 import { ACTIVE_DAYS, isLost } from '../lib/nutrium.js';
-import { Modal, Field, ErrorBox, Loading, go, usePaged } from './common.js';
+import { Modal, Field, ErrorBox, Loading, go, usePaged, CopyName } from './common.js';
 import { TodoCard } from './todos.js';
 import { RoutinesCard } from './routines.js';
 import { CalendarCard } from './calendar.js';
@@ -258,7 +258,7 @@ export function Home() {
           <tbody>
             ${overdueShown.map((p) => html`
               <tr>
-                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td>${fmtShort(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtShort(p.last_response)}</div>` : ''}</td>
                 <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
                 <td>${p.return_msg_at
@@ -287,7 +287,7 @@ export function Home() {
             <thead><tr><th>Paciente</th><th>Última consulta</th><th>Marcado como perdido em</th><th></th></tr></thead>
             <tbody>${lostList.map((p) => html`
               <tr>
-                <td><a href=${'#/paciente/' + p.id}>${p.name}</a></td>
+                <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td>${p.last_consult ? fmtShort(p.last_consult) : '–'}</td>
                 <td>${fmtDate(p.lost_at)}</td>
                 <td class="row-actions"><button class="btn btn-sm" onClick=${() => updatePatient(p.id, { lost_at: null })}>Desfazer</button></td>

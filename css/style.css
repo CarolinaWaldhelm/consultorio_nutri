@@ -431,3 +431,7 @@ textarea { resize: vertical; min-height: 44px; }
 /* Ações da tabela de sem retorno: quebram linha dentro da célula, sem sair do quadro */
 .actions-cell { width: 1%; }
 .actions-cell .row-actions { justify-content: flex-start; min-width: 300px; }
+
+.copy-name { border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 6px; padding: 0 6px; margin-left: 6px; font-size: .8rem; line-height: 1.5; cursor: pointer; vertical-align: middle; white-space: nowrap; }
+.copy-name:hover { color: var(--primary-dark); border-color: var(--primary); }
+.copy-name.ok { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-soft); }

@@ -7,7 +7,7 @@ import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/age
 import { apptReminderList, fillApptMessage, whatsappUrl, whatsappNumber, newToken, confirmLink, DEFAULT_APPT_MESSAGE } from '../lib/questionnaires.js';
 import { RESPONSE_LABEL, prefsText, attendanceOf, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm, effectiveStatus } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
-import { ErrorBox, Loading } from './common.js';
+import { ErrorBox, Loading, CopyName } from './common.js';
 import { copyOrShow } from '../lib/prompts.js';
 
 const WEEKDAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -168,7 +168,7 @@ export function ApptRemindersTab({ data, reload }) {
               <tr>
                 <td><input type="checkbox" aria-label=${'Selecionar ' + ev.patient.name} checked=${selected.has(ev.key)} onChange=${() => toggle(ev.key)} /></td>
                 <td><strong>${ev.time || '—'}</strong></td>
-                <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>${ev.meet ? html` <span class="badge" title=${ev.meet}>🎥 link</span>` : ''}</td>
+                <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} />${ev.meet ? html` <span class="badge" title=${ev.meet}>🎥 link</span>` : ''}</td>
                 <td class="muted small">${ev.patient.phone}</td>
                 <td class="muted small">—</td>
                 <td class="row-actions"><button class="btn btn-sm" title="Copia a mensagem para colar no chat da Nutrium e já marca como enviado" onClick=${() => sendOne(ev, 'copy')}>📋 Copiar</button></td>
@@ -177,7 +177,7 @@ export function ApptRemindersTab({ data, reload }) {
               <tr class="row-sent">
                 <td><input type="checkbox" checked disabled aria-label="Já enviado" /></td>
                 <td>${ev.time || '—'}</td>
-                <td>${ev.patient.name}</td>
+                <td>${ev.patient.name}<${CopyName} name=${ev.patient.name} /></td>
                 <td class="muted small">${ev.patient.phone || ''}</td>
                 <td class=${'resp resp-' + (ev.sentRow.response || 'none')} title=${ev.sentRow.response_note || ''}>
                   ${RESPONSE_LABEL[ev.sentRow.response || null]}
@@ -201,7 +201,7 @@ export function ApptRemindersTab({ data, reload }) {
             ${groups.noPhone.map((ev) => html`
               <tr>
                 <td>${ev.time || '—'}</td>
-                <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a></td>
+                <td><a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} /></td>
                 <td><input type="tel" class="phone-input" placeholder="11 98765-4321" value=${phones[ev.key] || ''}
                   onInput=${(e) => setPhones({ ...phones, [ev.key]: e.target.value })} onKeyDown=${(e) => e.key === 'Enter' && savePhone(ev)} /></td>
                 <td class="row-actions">
@@ -297,7 +297,7 @@ function TodayCard({ data }) {
                   <td><strong class=${ev.cancelled ? 'strike' : ''}>${ev.time || '—'}</strong>${ev.cancelled
                     ? html` <span class="badge badge-red">🚫 Cancelada</span>${ev.movedTo ? html` <span class="badge badge-blue">remarcada para ${fmtDate(ev.movedTo).slice(0, 5)}</span>` : ''}`
                     : past ? html` <span class="muted small">(já passou)</span>` : ''}</td>
-                  <td>${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a>` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
+                  <td>${ev.patient ? html`<a href=${'#/paciente/' + ev.patient.id}>${ev.patient.name}</a><${CopyName} name=${ev.patient.name} />` : html`${ev.patientName} <span class="badge badge-warn">não vinculado</span>`}</td>
                   <td class=${'resp resp-' + (r?.response || 'none')}>
                     ${r ? RESPONSE_LABEL[r.response || null] : html`<span class="muted">sem lembrete enviado</span>`}
                     ${r?.response === 'remarcar' && r.response_prefs && html`<div class="resp-prefs">🗓️ ${prefsText(r.response_prefs)}</div>`}
