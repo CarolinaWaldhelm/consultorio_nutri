@@ -140,8 +140,8 @@ export { dateOf };
  * 7 dias ou mais. Os ainda em aberto aparecem separados, para não puxar a taxa para baixo à toa.
  * sinceISO: só envios a partir dessa data (ou null para todos).
  */
-export function responseStats(sends, { sinceISO = null, today = todayISO() } = {}) {
-  const list = sends.filter((s) => !sinceISO || dateOf(s.sent_at) >= sinceISO);
+export function responseStats(sends, { sinceISO = null, untilISO = null, today = todayISO() } = {}) {
+  const list = sends.filter((s) => (!sinceISO || dateOf(s.sent_at) >= sinceISO) && (!untilISO || dateOf(s.sent_at) <= untilISO));
   const closed = list.filter((s) => s.answered_at || s.expired_at || daysBetween(dateOf(s.sent_at), today) >= 7);
   const answered = closed.filter((s) => s.answered_at);
   const withReminder = closed.filter((s) => s.resent_at);
@@ -150,6 +150,7 @@ export function responseStats(sends, { sinceISO = null, today = todayISO() } = {
   const hours = answered.map((s) => (new Date(s.answered_at) - new Date(s.sent_at)) / 36e5).sort((a, b) => a - b);
   const mid = Math.floor(hours.length / 2);
   const median = !hours.length ? null : hours.length % 2 ? hours[mid] : (hours[mid - 1] + hours[mid]) / 2;
+  const mean = !hours.length ? null : hours.reduce((a, b) => a + b, 0) / hours.length;
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
   return {
     total: list.length,
@@ -162,16 +163,26 @@ export function responseStats(sends, { sinceISO = null, today = todayISO() } = {
     reminderRate: pct(afterReminder.length, withReminder.length),
     answeredWithoutReminder: beforeReminderWindow.length,
     medianHours: median,
+    meanHours: mean,
   };
 }
 
-/** "em 5 horas", "em 2 dias" */
-export function durationLabel(hours) {
+/** Tempo exato e curto: "40 s", "3 min", "2 h 15 min", "1 dia 4 h". */
+export function durationText(hours) {
   if (hours == null) return '–';
-  if (hours < 1) return 'em menos de 1 hora';
-  if (hours < 24) return `em ${Math.round(hours)} hora${Math.round(hours) > 1 ? 's' : ''}`;
-  const d = Math.round(hours / 24);
-  return `em ${d} dia${d > 1 ? 's' : ''}`;
+  const sec = Math.round(hours * 3600);
+  if (sec < 60) return `${Math.max(sec, 1)} s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 24) return m ? `${h} h ${m} min` : `${h} h`;
+  const d = Math.floor(h / 24), hh = h % 24;
+  return `${d} dia${d > 1 ? 's' : ''}${hh ? ` ${hh} h` : ''}`;
+}
+
+/** "em 3 min", "em 2 h 15 min" */
+export function durationLabel(hours) {
+  return hours == null ? '–' : `em ${durationText(hours)}`;
 }
 
 // ---------- Lembrete de consulta (véspera) ----------

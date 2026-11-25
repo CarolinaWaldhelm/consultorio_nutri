@@ -4,10 +4,10 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
-  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel,
+  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel, durationText,
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
-import { Modal, Field, ErrorBox, Loading, AutoText, usePaged, CopyName } from './common.js';
+import { Modal, Field, ErrorBox, Loading, AutoText, usePaged, CopyName, usePeriod } from './common.js';
 import { copyOrShow } from '../lib/prompts.js';
 
 export async function loadQuestionnaireData() {
@@ -318,21 +318,16 @@ function PhoneRequest({ items, onSaved, onStop, onCopy, sent = {} }) {
 
 // ---------------------------------------------------------------- Log
 
-const PERIODS = [['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['all', 'Desde o início']];
-function sinceFor(period) {
-  if (period === 'all') return null;
-  const d = new Date(todayISO() + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() - Number(period));
-  return d.toISOString().slice(0, 10);
-}
 
 /** Taxa de resposta geral, efeito do lembrete e taxa por paciente. */
 function StatsCard({ data }) {
-  const [period, setPeriod] = useState('30');
+  const today = todayISO();
+  const first = useMemo(() => data.sends.map((s) => dateOf(s.sent_at)).sort()[0] || today, [data]);
+  const [range, picker, pkey] = usePeriod(first, today);
   const [showAll, setShowAll] = useState(false);
   const [showPer, setShowPer] = useState(false);
-  const since = sinceFor(period);
-  const st = useMemo(() => responseStats(data.sends, { sinceISO: since }), [data, period]);
+  const opts = { sinceISO: range.from, untilISO: range.to };
+  const st = useMemo(() => responseStats(data.sends, opts), [data, pkey]);
   const perPatient = useMemo(() => {
     const by = new Map();
     for (const s of data.sends) {
@@ -340,10 +335,10 @@ function StatsCard({ data }) {
       by.get(s.patient_id).push(s);
     }
     const names = new Map(data.patients.map((p) => [p.id, p.name]));
-    return [...by].map(([id, list]) => ({ id, name: names.get(id) || '—', ...responseStats(list, { sinceISO: since }) }))
+    return [...by].map(([id, list]) => ({ id, name: names.get(id) || '—', ...responseStats(list, opts) }))
       .filter((r) => r.closed > 0)
       .sort((a, b) => a.rate - b.rate || b.closed - a.closed || a.name.localeCompare(b.name));
-  }, [data, period]);
+  }, [data, pkey]);
   const shown = showAll ? perPatient : perPatient.slice(0, 10);
   const pctText = (v) => (v == null ? '–' : `${v}%`);
 
@@ -351,7 +346,7 @@ function StatsCard({ data }) {
     <section class="card">
       <div class="card-title-row">
         <h2 class="card-title">📊 Taxa de resposta</h2>
-        <div class="seg">${PERIODS.map(([k, l]) => html`<button class=${period === k ? 'on' : ''} onClick=${() => setPeriod(k)}>${l}</button>`)}</div>
+        ${picker}
       </div>
       ${st.total === 0 && html`<p class="muted">Nenhum envio neste período.</p>`}
       ${st.total > 0 && html`
@@ -360,8 +355,8 @@ function StatsCard({ data }) {
             <div class="stat-sub">${st.answered} de ${st.closed} questionário(s)</div></div>
           <div class="stat"><div class="stat-label">Responderam depois do lembrete</div><div class="stat-value">${pctText(st.reminderRate)}</div>
             <div class="stat-sub">${st.answeredAfterReminder} de ${st.reminders} lembrete(s)</div></div>
-          <div class="stat"><div class="stat-label">Tempo típico de resposta</div><div class="stat-value small-value">${durationLabel(st.medianHours)}</div>
-            <div class="stat-sub">metade responde nesse prazo</div></div>
+          <div class="stat"><div class="stat-label">Tempo médio de resposta</div><div class="stat-value small-value">${durationText(st.meanHours)}</div>
+            <div class="stat-sub">metade responde em até ${durationText(st.medianHours)}</div></div>
           <div class="stat"><div class="stat-label">Em aberto</div><div class="stat-value">${st.open}</div>
             <div class="stat-sub">enviados há menos de 7 dias</div></div>
         </div>

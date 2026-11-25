@@ -71,7 +71,9 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
    **✅ Lembretes** (coluna lateral fixa à direita; no celular, no topo): lista simples (tabela `todos`). Pendentes ficam até serem feitos, de um
    dia para o outro. Os marcados como feitos continuam visíveis, riscados, **até a meia-noite** do dia em que
    foram marcados; depois são apagados. Dá para desmarcar e apagar.
-4. **Sem retorno há mais de 50 dias**: só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
+4. **📅 Sem consulta remarcada** (antes "Sem retorno há mais de 50 dias"; a pedido, agora lista **todo mundo** atendido
+   nos últimos 100 dias, a partir do dia seguinte à consulta, **sem consulta marcada**, não importa há quantos dias;
+   coluna "Dias desde a consulta", em laranja acima de 50): só quem **não tem consulta marcada** (na agenda, nos próximos 90 dias, ou
    na planilha). Com consulta marcada, não há aviso. Contam como atualização uma consulta ou uma resposta de
    questionário. Ações: **`[📋 Copiar mensagem]`** (para colar no app de mensagens da Nutrium), **`[📲 WhatsApp]`**
    (abre a conversa com a mensagem pronta; desativado sem telefone). (O `[Lembrar em 7 dias]` foi retirado a pedido.) `[🚫 Perdi este paciente]` (coluna `lost_at`, com
@@ -445,16 +447,14 @@ retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"
    `[Marcar todos]` / `[Desmarcar todos]`, fila de envio pelo WhatsApp. Coluna **Resposta** do paciente
    (✅ confirmou, 📅 quer remarcar, ❌ não vai, ⏳ sem resposta, com o recado se houver). Sem telefone: campo para
    digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
-2. **📊 Estatísticas** (30 dias, 90 dias, desde o início). **Contam só as consultas que receberam lembrete, a partir
-   do primeiro lembrete enviado** (consultas sem lembrete ficam fora). Quadros: **dos que confirmaram, quantos vieram**; dos que
-   não responderam, quantos vieram; **desmarcaram em cima da hora** (avisaram pelo link na véspera + desmarcaram no dia);
-   faltas no geral (com a taxa de resposta ao lembrete). Tabela **"Como terminou cada grupo"** (✅ confirmaram,
-   ⏳ não responderam, sem lembrete): consultas, vieram, faltaram (com "desmarcou depois de confirmar"), desmarcaram no
-   dia, a marcar. Tabela **"Avisaram pelo link do lembrete"** (📅 pediram para remarcar, ❌ disseram que não iam):
-   quantos **marcaram de novo** e os nomes de quem **ainda não tem nova consulta** (nenhuma consulta depois, nem
-   marcada, pela agenda, Nutrium ou software). "Quem mais falta" inclui quem confirmou e depois desmarcou. Consultas sem
-   comparecimento marcado ficam fora das porcentagens (e aparecem contadas). Canceladas aparecem também em "Confirmar
-   comparecimento" (com os mesmos três motivos); "Não apareceu" entra nas faltas, as outras aparecem só contadas.
+2. **📊 Estatísticas**. Período: `[30 dias | 90 dias | Por mês | Desde o início]`; em "Por mês", escolhe **de [mês] até
+   [mês]** (um mês só ou vários, ex.: ago/26 a dez/26). **Contam só as consultas que receberam lembrete, a partir do
+   primeiro lembrete enviado.** Quadros simples, com número e porcentagem:
+   - ✅ **Confirmou e veio** / **Confirmou e faltou** (inclui quem desmarcou depois de confirmar);
+   - ⏳ **Não respondeu e veio** / **Não respondeu e faltou**;
+   - ⚡ **Desmarcou em cima da hora** (cancelada no próprio dia da consulta, ou depois de confirmar);
+   - ✖ **Falta sem aviso** (marcada como "Faltou": não avisou, não pediu para remarcar, não apareceu).
+   Mais "Quem mais falta". Consultas sem "Veio / Faltou" marcado ficam fora das porcentagens (aparece a contagem).
 3. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
    evento) e **[Link de confirmação]** (avisa se o link de confirmação ficar de fora).
 
@@ -483,11 +483,12 @@ Aviso na tela inicial: "N pacientes com consulta amanhã para lembrar".
 
 ### 4.4.1 Taxa de resposta
 
-- No topo de "Envios e respostas" (acima dos envios de hoje), com período (30 dias, 90 dias, desde o início):
+- No topo de "Envios e respostas" (acima dos envios de hoje), com o mesmo seletor de período das estatísticas dos lembretes
+  (`[30 dias | 90 dias | Por mês (de… até…) | Desde o início]`):
   - **taxa de resposta** (respondidos ÷ questionários "fechados": respondidos, vencidos ou enviados há 7+ dias;
     os em aberto ficam fora e aparecem separados);
   - **efeito do lembrete**: quantos responderam depois do lembrete e qual seria a taxa sem ele;
-  - **tempo típico de resposta** (mediana);
+  - **tempo médio de resposta** exato ("40 s", "3 min", "2 h 15 min"), com "metade responde em até…" (mediana);
   - **taxa por paciente**, da menor para a maior, recolhida em `▸ Taxa por paciente` (10 visíveis, "Mostrar todos").
 - Na ficha (seção Questionários): taxa do paciente, tempo típico e respostas depois do lembrete.
 - Serve para a nutricionista avaliar, com dados, se o lembrete e a regra de envio estão funcionando.

@@ -107,3 +107,44 @@ export function CopyName({ name }) {
   }
   return html`<button type="button" class=${'copy-name' + (ok ? ' ok' : '')} title=${'Copiar o nome: ' + name} aria-label=${'Copiar o nome de ' + name} onClick=${copy}>${ok ? '✓ copiado' : '⧉'}</button>`;
 }
+
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const monthLabel = (ym) => `${MONTHS[Number(ym.slice(5, 7)) - 1]}/${ym.slice(2, 4)}`;
+function monthsBetween(fromYM, toYM) {
+  const out = [];
+  let [y, m] = fromYM.split('-').map(Number);
+  const [ty, tm] = toYM.split('-').map(Number);
+  while (y < ty || (y === ty && m <= tm)) { out.push(`${y}-${String(m).padStart(2, '0')}`); m += 1; if (m > 12) { m = 1; y += 1; } }
+  return out;
+}
+const lastDay = (ym) => { const [y, m] = ym.split('-').map(Number); return `${ym}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`; };
+
+/**
+ * Período das estatísticas: últimos 30 / 90 dias, um mês ou vários (de… até…) ou desde o início.
+ * Devolve [{ from, to } (AAAA-MM-DD ou null), elemento]. firstISO: data mais antiga com dados (para a lista de meses).
+ */
+export function usePeriod(firstISO, today) {
+  const curYM = today.slice(0, 7);
+  const [mode, setMode] = useState('30');
+  const [fromYM, setFromYM] = useState(curYM);
+  const [toYM, setToYM] = useState(curYM);
+  const startYM = (firstISO || today).slice(0, 7) < curYM ? (firstISO || today).slice(0, 7) : curYM;
+  const months = monthsBetween(startYM, curYM).reverse();
+  const minus = (n) => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+  const [a, b] = fromYM <= toYM ? [fromYM, toYM] : [toYM, fromYM];
+  const range = mode === 'all' ? { from: null, to: null }
+    : mode === 'mes' ? { from: `${a}-01`, to: lastDay(b) }
+    : { from: minus(Number(mode)), to: null };
+  const el = html`
+    <div class="period-pick">
+      <div class="seg">${[['30', '30 dias'], ['90', '90 dias'], ['mes', 'Por mês'], ['all', 'Desde o início']].map(([k, l]) => html`
+        <button class=${mode === k ? 'on' : ''} onClick=${() => setMode(k)}>${l}</button>`)}</div>
+      ${mode === 'mes' && html`
+        <span class="period-months">
+          de <select value=${fromYM} onChange=${(e) => setFromYM(e.target.value)} aria-label="Mês inicial">${months.map((m) => html`<option value=${m}>${monthLabel(m)}</option>`)}</select>
+          até <select value=${toYM} onChange=${(e) => setToYM(e.target.value)} aria-label="Mês final">${months.map((m) => html`<option value=${m}>${monthLabel(m)}</option>`)}</select>
+        </span>`}
+    </div>`;
+  const key = `${mode}|${range.from}|${range.to}`;
+  return [range, el, key];
+}

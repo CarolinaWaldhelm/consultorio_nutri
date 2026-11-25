@@ -443,3 +443,10 @@ textarea { resize: vertical; min-height: 44px; }
 .icon-btn:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
 .icon-btn:disabled { opacity: .4; cursor: default; }
 .sent-ok { color: var(--primary-dark); font-weight: 600; }
+
+.period-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.period-months { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+.period-months select { width: auto; padding: 4px 8px; font-size: .9rem; }
+
+.stat-good .stat-value { color: #15803d; }
+.stat-bad .stat-value { color: var(--danger); }

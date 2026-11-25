@@ -90,6 +90,35 @@ export function attendanceStats(items) {
   };
 }
 
+/**
+ * Estatística simples dos lembretes (só consultas que receberam lembrete):
+ * confirmou e veio / confirmou e faltou / não respondeu e veio / não respondeu e faltou,
+ * desmarcou em cima da hora (cancelada no próprio dia, ou depois de confirmar) e faltas sem aviso
+ * (marcadas como "Faltou": não avisou nem pediu para remarcar).
+ */
+export function reminderOutcomes(items) {
+  const spDate = (ts) => (ts ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(ts)) : '');
+  const st = (i) => effectiveStatus(i);
+  const resp = (i) => i.reminder?.response || null;
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : null);
+  const group = (r) => {
+    const list = items.filter((i) => resp(i) === r);
+    const came = list.filter((i) => st(i) === 'veio').length;
+    const missed = list.filter((i) => st(i) === 'faltou').length;
+    return { n: list.length, came, missed, cameRate: pct(came, came + missed), missedRate: pct(missed, came + missed), pending: list.filter((i) => !st(i)).length };
+  };
+  const lastMinute = items.filter((i) => lateAfterConfirm(i) || (i.cancelled && spDate(i.cancelledAt) >= i.start)).length;
+  const noShow = items.filter((i) => i.attendance?.status === 'faltou' && !lateAfterConfirm(i)).length;
+  const confirmed = group('confirmado');
+  const silent = group(null);
+  return {
+    total: items.length, confirmed, silent,
+    lastMinute, lastMinuteRate: pct(lastMinute, items.length),
+    noShow, noShowRate: pct(noShow, items.length),
+    pending: confirmed.pending + silent.pending,
+  };
+}
+
 /** Pacientes que mais faltam (só quem faltou pelo menos 1 vez; cancelar depois de confirmar conta como falta). */
 export function missRanking(items) {
   const by = new Map();

@@ -133,14 +133,14 @@ export function Home() {
   const [showLost, setShowLost] = useState(false);
 
 
-  // Última atividade: consulta ou resposta de questionário.
-  const lastActivity = (p) => [p.last_consult, p.last_response].filter(Boolean).sort().pop() || null;
+  // Sem consulta remarcada: todo mundo atendido nos últimos 100 dias (a partir do dia seguinte à consulta)
+  // que não tem consulta marcada, não importa há quantos dias.
   const overdue = useMemo(() => (patients || [])
-    .filter((p) => !isArchived(p) && lastActivity(p) && daysBetween(lastActivity(p), today) > ALERT_DAYS)
+    .filter((p) => !isArchived(p) && p.last_consult && daysBetween(p.last_consult, today) >= 1)
     .filter((p) => !scheduled.has(p.id))
     // Fila: primeiro quem nunca recebeu mensagem de retorno; quem recebeu vai para o fim (o contato mais antigo volta
     // para a frente quando todos já tiverem recebido).
-    .sort((a, b) => (a.return_msg_at || '').localeCompare(b.return_msg_at || '') || lastActivity(a).localeCompare(lastActivity(b))), [patients, scheduled]);
+    .sort((a, b) => (a.return_msg_at || '').localeCompare(b.return_msg_at || '') || a.last_consult.localeCompare(b.last_consult)), [patients, scheduled]);
 
   // Consultas de amanhã ainda sem lembrete (só com a agenda conectada).
   const apptToRemind = useMemo(() => {
@@ -184,7 +184,7 @@ export function Home() {
   const [copiedFor, setCopiedFor] = useState(null);
   // Mensagem de retorno: copiar (para mandar pelo app da Nutrium) ou abrir no WhatsApp. Anota a data.
   async function returnMessage(p, via) {
-    const text = fillReturnMessage(qdata?.returnMessage || DEFAULT_RETURN_MESSAGE, p.name, daysBetween(lastActivity(p), today));
+    const text = fillReturnMessage(qdata?.returnMessage || DEFAULT_RETURN_MESSAGE, p.name, daysBetween(p.last_consult, today));
     if (via === 'whatsapp') {
       window.open(whatsappUrl(p.phone, text), '_blank');
     } else if (await copyText(text)) {
@@ -263,17 +263,17 @@ export function Home() {
     ${!q && overdue.length > 0 && html`
       <section class="card">
         <div class="card-title-row">
-          <h2 class="card-title">⏰ Sem retorno há mais de ${ALERT_DAYS} dias <span class="muted small">(${overdue.length}, sem consulta marcada)</span></h2>
+          <h2 class="card-title">📅 Sem consulta remarcada <span class="muted small">(${overdue.length})</span></h2>
           <a class="btn btn-sm btn-ghost" href="#/lembretes/mensagem" title="Mudar o texto da mensagem de retorno (vale para todos)">✏️ Editar mensagem</a>
         </div>
         <table class="table">
-          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias sem retorno</th><th>Último contato seu</th><th></th></tr></thead>
+          <thead><tr><th>Paciente</th><th>Última consulta</th><th>Dias desde a consulta</th><th>Último contato seu</th><th></th></tr></thead>
           <tbody>
             ${overdueShown.map((p) => html`
               <tr>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td>${fmtShort(p.last_consult)}${p.last_response && p.last_response > p.last_consult ? html`<div class="muted small">respondeu questionário em ${fmtShort(p.last_response)}</div>` : ''}</td>
-                <td class="text-warn">${daysBetween(lastActivity(p), today)}</td>
+                <td class=${daysBetween(p.last_consult, today) > ALERT_DAYS ? 'text-warn' : ''}>${daysBetween(p.last_consult, today)}</td>
                 <td>${p.return_msg_at
                   ? html`✉️ ${fmtShort(p.return_msg_at)}<div class="muted small">${daysBetween(p.return_msg_at, today) === 0 ? 'hoje' : `há ${daysBetween(p.return_msg_at, today)} dia(s)`}</div>`
                   : html`<span class="muted small">nenhum ainda</span>`}</td>
@@ -286,7 +286,7 @@ export function Home() {
           </tbody>
         </table>
         ${overdueMore}
-        <p class="muted small">Se o paciente marcar consulta (na agenda ou no Nutrium), ele sai deste alerta sozinho. Com mais de ${ACTIVE_DAYS} dias, sai de todas as listas.</p>
+        <p class="muted small">Todos os atendidos nos últimos ${ACTIVE_DAYS} dias que ainda não têm consulta marcada. Quem marcar consulta (na agenda ou no Nutrium) sai daqui sozinho; com mais de ${ACTIVE_DAYS} dias, sai de todas as listas.</p>
       </section>`}
 
     ${!q && lostList.length > 0 && html`
