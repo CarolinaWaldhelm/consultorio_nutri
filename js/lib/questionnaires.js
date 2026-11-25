@@ -244,3 +244,16 @@ export function fillReturnMessage(template, name, days) {
   const first = String(name || '').trim().split(/\s+/)[0] || '';
   return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[dias\]/gi, String(days ?? ''));
 }
+
+// ---------- Mensagem para quem desmarcou e não remarcou ----------
+
+export const DEFAULT_REBOOK_MESSAGE = `Oi, [Nome], tudo bem? 😊
+
+Vi que a sua consulta de [Data] foi desmarcada. Quer remarcar? Me conta os dias e horários que ficam melhores para você que eu te mando as opções. 🌱`;
+
+/** [Nome] = primeiro nome; [Data] = data da consulta desmarcada (dd/mm). */
+export function fillRebookMessage(template, name, dateISO) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  const [, m, d] = String(dateISO || '').split('-');
+  return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[data\]/gi, d && m ? `${d}/${m}` : '');
+}

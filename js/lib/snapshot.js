@@ -41,6 +41,6 @@ export async function cancelledEvents(from, to, patients) {
   return rows.map((r) => ({
     uid: r.uid, key: r.event_key, start: r.event_date, time: r.event_time, endDate: r.event_date, endTime: r.end_time,
     patient: (r.patient_id && byId.get(r.patient_id)) || null, patientName: r.patient_name || '',
-    cancelled: true, movedTo: r.moved_to || null,
+    cancelled: true, movedTo: r.moved_to || null, cancelledAt: r.cancelled_at || null,
   }));
 }

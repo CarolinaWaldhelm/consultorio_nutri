@@ -72,8 +72,8 @@ function layoutDay(evs) {
 function EventBlock({ it, top, height, past, onOpen }) {
   const { ev } = it;
   const first = ev.patient && !ev.patient.last_consult;
-  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : '', ev.attendance === 'faltou' ? 'missed' : '', ev.confirm ? 'st-' + ev.confirm : ''].join(' ');
-  const conf = { confirmado: ' ✅', remarcar: ' 📅', nao_vai: ' ❌' }[ev.confirm] || '';
+  const cls = ['cal-ev', past ? 'past' : '', ev.patient ? '' : 'unlinked', height < 34 ? 'compact' : '', ev.attendance === 'faltou' ? 'missed' : '', statusClass(ev)].join(' ');
+  const conf = statusIcons(ev);
   const w = 100 / it.lanes;
   return html`
     <button class=${cls} style=${`top:${top}px;height:${height}px;left:calc(${it.lane * w}% + 2px);width:calc(${w}% - 4px)`}
@@ -82,6 +82,20 @@ function EventBlock({ it, top, height, past, onOpen }) {
       <span class="cal-ev-time">${ev.time}–${fromMin(endMin(ev))}${first ? html` <span class="cal-badge">1ª</span>` : ''}${ev.patient ? '' : ' ⚠️'}${conf}${ev.attendance === 'faltou' ? ' · faltou' : ''}</span>
       <span class="cal-ev-name">${ev.patient?.name || ev.patientName}</span>
     </button>`;
+}
+
+/** Cor pela situação: cancelada (sumiu da agenda) ou resposta ao lembrete. */
+function statusClass(ev) {
+  if (ev.cancelled || ev.confirm === 'nao_vai') return 'st-cancelada' + (ev.cancelled ? ' is-cancelled' : '');
+  return ev.confirm ? 'st-' + ev.confirm : '';
+}
+/** ⚡ cancelou em cima da hora · 📩 pediu para cancelar pelo lembrete (falta cancelar na Nutrium) · → nova data. */
+function statusIcons(ev) {
+  let s = '';
+  if (ev.lastMinute) s += ' ⚡';
+  if (ev.confirm === 'nao_vai' && !ev.cancelled) s += ' 📩';
+  if (ev.cancelled && ev.movedTo) s += ` → ${fmtDate(ev.movedTo).slice(0, 5)}`;
+  return s;
 }
 
 function TimeGrid({ days, byDate, today, now, onOpen }) {
@@ -142,8 +156,8 @@ function MonthGrid({ period, byDate, today, onOpen, onDay }) {
           <div class=${'cal-mday' + (other ? ' other' : '') + (d === today ? ' today' : '')}>
             <button class="cal-mnum" onClick=${() => onDay(d)} title="Ver o dia">${parse(d).getUTCDate()}</button>
             ${evs.slice(0, 3).map((ev) => html`
-              <button class=${'cal-chip' + (ev.patient ? '' : ' unlinked') + (d < today ? ' past' : '') + (ev.confirm ? ' st-' + ev.confirm : '')} onClick=${() => onOpen(ev)}>
-                ${ev.time ? ev.time + ' ' : ''}${ev.patient?.name || ev.patientName}
+              <button class=${'cal-chip' + (ev.patient ? '' : ' unlinked') + (d < today ? ' past' : '') + ' ' + statusClass(ev)} onClick=${() => onOpen(ev)}>
+                ${ev.time ? ev.time + ' ' : ''}<span class="cal-ev-name">${ev.patient?.name || ev.patientName}</span>${statusIcons(ev)}
               </button>`)}
             ${evs.length > 3 && html`<button class="cal-more" onClick=${() => onDay(d)}>+${evs.length - 3} consulta(s)</button>`}
           </div>`;
@@ -207,11 +221,13 @@ export function CalendarCard({ events, source, state, error, onRefresh, onUnlink
         · <span class="cal-badge">1ª</span> primeira consulta
       </p>
       <div class="cal-legend small">
-        <span><i class="dot st-confirmado"></i> Confirmou</span>
-        <span><i class="dot st-remarcar"></i> Quer remarcar</span>
-        <span><i class="dot st-sem_resposta"></i> Lembrete enviado, sem resposta</span>
-        <span><i class="dot st-nao_vai"></i> Não vai</span>
         <span><i class="dot st-none"></i> Sem lembrete</span>
+        <span><i class="dot st-confirmado"></i> Confirmou</span>
+        <span><i class="dot st-sem_resposta"></i> Sem resposta</span>
+        <span><i class="dot st-remarcar"></i> Quer remarcar</span>
+        <span><i class="dot st-cancelada"></i> Cancelada / não vai</span>
+        <span>⚡ cancelou em cima da hora</span>
+        <span>📩 pediu pelo lembrete para cancelar (cancele na Nutrium)</span>
       </div>
     </section>`;
 }

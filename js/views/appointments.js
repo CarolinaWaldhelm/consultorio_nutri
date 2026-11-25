@@ -3,7 +3,7 @@ import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
-import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage } from '../lib/questionnaires.js';
+import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage, DEFAULT_REBOOK_MESSAGE, fillRebookMessage } from '../lib/questionnaires.js';
 import { attendanceOf, attendanceStats, missRanking, periodStart } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText } from './common.js';
@@ -163,6 +163,7 @@ function StatsTab({ data }) {
 function MessageTab({ data, reload }) {
   const [appt, setAppt] = useState(data.settings.whatsapp_appt_message || DEFAULT_APPT_MESSAGE);
   const [ret, setRet] = useState(data.settings.whatsapp_return_message || DEFAULT_RETURN_MESSAGE);
+  const [reb, setReb] = useState(data.settings.whatsapp_rebook_message || DEFAULT_REBOOK_MESSAGE);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
   const tomorrow = (() => { const d = new Date(todayISO() + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
@@ -170,7 +171,7 @@ function MessageTab({ data, reload }) {
 
   async function save() {
     try {
-      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }]));
+      await run(supabase.from('app_settings').upsert([{ key: 'whatsapp_appt_message', value: appt }, { key: 'whatsapp_return_message', value: ret }, { key: 'whatsapp_rebook_message', value: reb }]));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       reload();
@@ -207,6 +208,19 @@ function MessageTab({ data, reload }) {
         <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
         ${saved && html`<span class="muted small">✓ Salvo</span>`}
         <button class="btn btn-ghost btn-sm" onClick=${() => setRet(DEFAULT_RETURN_MESSAGE)}>Voltar ao texto original</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2 class="card-title">Mensagem para remarcar (desmarcaram e não remarcaram)</h2>
+      <p class="muted small">Usada no quadro “Desmarcaram e não remarcaram”, na tela inicial. Use <strong>[Nome]</strong> para o primeiro nome e
+        <strong>[Data]</strong> para a data da consulta desmarcada.</p>
+      <${AutoText} rows=${6} value=${reb} onInput=${setReb} />
+      <h3 class="calc-step">Como fica</h3>
+      <div class="quote">${fillRebookMessage(reb, 'Maria Silva', todayISO())}</div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn btn-primary" onClick=${save}>💾 Salvar</button>
+        ${saved && html`<span class="muted small">✓ Salvo</span>`}
+        <button class="btn btn-ghost btn-sm" onClick=${() => setReb(DEFAULT_REBOOK_MESSAGE)}>Voltar ao texto original</button>
       </div>
     </section>`;
 }

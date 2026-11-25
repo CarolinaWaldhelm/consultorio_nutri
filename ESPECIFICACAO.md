@@ -52,9 +52,20 @@ Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase
      `[Abrir ficha do paciente →]`. Numa não vinculada: `Vincular a paciente` (guarda o e-mail do convidado e o
      nome do título, coluna `aliases`) ou `É paciente novo: criar cadastro`;
    - na visão Mês, até 3 consultas por dia e "+N"; clicar no dia abre a visão Dia;
-   - consultas canceladas não aparecem. A agenda é relida a cada 10 minutos e no botão ↻;
-   - **cores pela resposta ao lembrete** (com legenda embaixo do calendário): 🟩 verde = confirmou; 🟦 azul = quer
-     remarcar; 🟨 amarelo = lembrete enviado, sem resposta; 🟥 vermelho = não vai; cinza = sem lembrete.
+   - **consultas canceladas continuam no calendário**, em vermelho e com o nome riscado (vêm da "fotografia" da
+     agenda, tabela `calendar_snapshot`); se a mesma consulta foi para outra data, mostra "→ 03/12". A agenda é relida
+     a cada 10 minutos e no botão ↻;
+   - **cores (só cinco, a pedido, para não confundir)**, com legenda embaixo do calendário: cinza = sem lembrete;
+     🟩 verde = confirmou; 🟨 amarelo = lembrete enviado, sem resposta; 🟦 azul = quer remarcar; 🟥 vermelho =
+     cancelada ou disse que não vai. Dois sinais: **⚡ cancelou em cima da hora** (cancelada no próprio dia da consulta
+     ou depois de ter confirmado pelo lembrete) e **📩 pediu pelo lembrete para cancelar** (respondeu "não vou" e a
+     consulta ainda está na agenda: falta cancelar na Nutrium).
+   - **🔄 Desmarcaram e não remarcaram** (logo abaixo do calendário): quem teve consulta cancelada ou respondeu "não
+     vou" pelo lembrete e **não tem nova consulta** (nem feita depois, nem marcada). Mostra a data (com ⚡ / 📩), o último
+     contato e `[📋 Copiar mensagem]` / `[📲 WhatsApp]` com a **mensagem para remarcar** ([Nome], [Data]; editável em
+     Lembretes de consulta → Mensagem, chave `whatsapp_rebook_message`), que anota o contato (`return_msg_at`), e
+     `[Tirar da lista]` (chave `rebook_dismissed`). Sai sozinho ao remarcar, ao ser marcado como perdido ou 30 dias
+     depois da consulta desmarcada.
 3. **🔁 Rotinas** (coluna lateral, acima dos lembretes; tabela `routines`): tarefas que se repetem **todo dia** ou
    **todo mês**, definidas em `[⚙️ Gerenciar]` (texto, frequência e, para as mensais, "a partir do dia" 1–28).
    Ficam na lista até serem ticadas; ticada, a diária volta no dia seguinte e a mensal no mês seguinte (a mensal
