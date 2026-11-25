@@ -1,13 +1,13 @@
-// Página "Lembretes de consulta": enviar lembretes, confirmar comparecimento, estatísticas e mensagem.
+// Página "Lembretes de consulta": enviar lembretes (com as consultas de hoje), estatísticas e mensagem.
 import { html, useState, useEffect, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, nowHM } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, hasEnded } from '../lib/agenda.js';
 import { fillApptMessage, DEFAULT_APPT_MESSAGE, DEFAULT_RETURN_MESSAGE, fillReturnMessage } from '../lib/questionnaires.js';
-import { RESPONSE_LABEL, attendanceOf, attendanceStats, missRanking, periodStart, STATUS_LABEL, CANCEL_REASONS, lateAfterConfirm } from '../lib/appointments.js';
+import { attendanceOf, attendanceStats, missRanking, periodStart } from '../lib/appointments.js';
 import { syncSnapshot, cancelledEvents } from '../lib/snapshot.js';
 import { ErrorBox, Loading, AutoText } from './common.js';
-import { ApptRemindersTab, PatientNote } from './apptreminders.js';
+import { ApptRemindersTab } from './apptreminders.js';
 
 async function loadBase() {
   const [patients, settingsRows] = await Promise.all([
@@ -65,97 +65,19 @@ async function loadPast(from, patients) {
 export function AppointmentsPage({ initialTab = 'enviar' }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(['enviar', 'estatisticas', 'mensagem'].includes(initialTab) ? initialTab : 'enviar');
   const reload = () => loadBase().then(setData).catch(setError);
   useEffect(() => { reload(); }, []);
 
   if (error) return html`<${ErrorBox} error=${error} />`;
   if (!data) return html`<${Loading} />`;
-  const tabs = [['enviar', '📲 Enviar lembretes'], ['comparecimento', '✔ Confirmar comparecimento'], ['estatisticas', '📊 Estatísticas'], ['mensagem', '⚙️ Mensagem']];
+  const tabs = [['enviar', '📲 Enviar lembretes'], ['estatisticas', '📊 Estatísticas'], ['mensagem', '⚙️ Mensagem']];
   return html`
     <div class="page-head"><h1>Lembretes de consulta</h1></div>
     <div class="seg tabs">${tabs.map(([k, l]) => html`<button class=${tab === k ? 'on' : ''} onClick=${() => { setTab(k); reload(); }}>${l}</button>`)}</div>
     ${tab === 'enviar' && html`<${ApptRemindersTab} data=${data} reload=${reload} />`}
-    ${tab === 'comparecimento' && html`<${AttendanceTab} data=${data} />`}
     ${tab === 'estatisticas' && html`<${StatsTab} data=${data} />`}
     ${tab === 'mensagem' && html`<${MessageTab} data=${data} reload=${reload} />`}`;
-}
-
-// ---------------------------------------------------------------- Comparecimento
-
-function AttendanceTab({ data }) {
-  const [days, setDays] = useState('14');
-  const [past, setPast] = useState(null);
-  const [error, setError] = useState(null);
-  const load = () => loadPast(periodStart(days), data.patients).then(setPast).catch((err) => { setError(err); setPast({ items: [] }); });
-  useEffect(() => { setPast(null); load(); }, [days]);
-
-  async function mark(item, status) {
-    try {
-      if (item.attendance.row) await run(supabase.from('appointment_attendance').update({ status, marked_at: new Date().toISOString() }).eq('id', item.attendance.row.id));
-      else await run(supabase.from('appointment_attendance').insert({ patient_id: item.patient.id, event_key: item.key, event_date: item.start, event_time: item.time || null, status }));
-      load();
-    } catch (err) { setError(err); }
-  }
-  async function clear(item) {
-    await run(supabase.from('appointment_attendance').delete().eq('id', item.attendance.row.id));
-    load();
-  }
-
-  if (!past) return html`<${Loading} text="Lendo as consultas…" />`;
-  const linked = past.items.filter((i) => i.patient);
-  const pending = linked.filter((i) => !i.attendance.status);
-  const marked = linked.filter((i) => i.attendance.status);
-  const unlinked = past.items.filter((i) => !i.patient);
-
-  const Resp = (i) => html`<td class="muted small">${i.reminder ? RESPONSE_LABEL[i.reminder.response || null] : 'sem lembrete'}${i.reminder?.response_note ? html`<${PatientNote} text=${i.reminder.response_note} />` : ''}</td>`;
-  const Row = (i) => i.attendance.byLink ? html`
-    <tr>
-      <td>${fmtDate(i.start).slice(0, 5)} <span class=${'muted small' + (i.cancelled ? ' strike' : '')}>${i.time || ''}</span>${i.cancelled ? html` <span class="badge badge-red">🚫 Cancelada</span>` : ''}</td>
-      <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a></td>
-      ${Resp(i)}
-      <td class="muted small">Avisou pelo link: não precisa marcar · ${i.rebooked ? '✔ já marcou de novo' : 'ainda sem nova consulta'}</td>
-    </tr>` : i.cancelled ? html`
-    <tr>
-      <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small strike">${i.time || ''}</span> <span class="badge badge-red">🚫 Cancelada</span></td>
-      <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a>${i.movedTo ? html` <span class="badge badge-blue">remarcada p/ ${fmtDate(i.movedTo).slice(0, 5)}</span>` : ''}</td>
-      ${Resp(i)}
-      <td class="row-actions">
-        ${CANCEL_REASONS.map(([k, l]) => html`<button class=${'btn btn-sm' + (i.attendance.status === k ? ' btn-primary' : '')} onClick=${() => mark(i, k)}>${i.attendance.status === k ? '✓ ' : ''}${l}</button>`)}
-        ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" onClick=${() => clear(i)}>Limpar</button>`}
-        ${lateAfterConfirm(i) && html`<div class="small late-warn">⚠️ Tinha confirmado no lembrete: conta como falta</div>`}
-      </td>
-    </tr>` : html`
-    <tr>
-      <td>${fmtDate(i.start).slice(0, 5)} <span class="muted small">${i.time || ''}</span></td>
-      <td><a href=${'#/paciente/' + i.patient.id}>${i.patient.name}</a></td>
-      ${Resp(i)}
-      <td class="row-actions">
-        ${i.attendance.status === 'veio' && html`<span class="badge badge-green">✔ Veio${i.attendance.auto ? ' (consulta registrada)' : ''}</span>`}
-        ${i.attendance.status === 'faltou' && html`<span class="badge badge-red">✖ Não apareceu</span>`}
-        ${i.attendance.status !== 'veio' && html`<button class="btn btn-sm" onClick=${() => mark(i, 'veio')}>✔ Veio</button>`}
-        ${i.attendance.status !== 'faltou' && html`<button class="btn btn-sm" onClick=${() => mark(i, 'faltou')}>✖ Faltou</button>`}
-        ${i.attendance.row && html`<button class="btn btn-sm btn-ghost" title="Apagar a marcação" onClick=${() => clear(i)}>Limpar</button>`}
-      </td>
-    </tr>`;
-
-  return html`
-    <${ErrorBox} error=${error} />
-    <section class="card">
-      <div class="card-title-row">
-        <h2 class="card-title">A confirmar <span class="muted small">(${pending.length})</span></h2>
-        <div class="seg">${[['7', '7 dias'], ['14', '14 dias'], ['30', '30 dias'], ['90', '90 dias']].map(([k, l]) => html`<button class=${days === k ? 'on' : ''} onClick=${() => setDays(k)}>${l}</button>`)}</div>
-      </div>
-      <p class="muted small" style="margin-top:0">Consultas que já passaram. Quando você usa “Iniciar consulta” na ficha, o comparecimento é marcado sozinho; aqui ficam as que faltam marcar.</p>
-      ${pending.length === 0 ? html`<p class="muted">Tudo marcado. 🎉</p>` : html`
-        <table class="table"><thead><tr><th>Quando</th><th>Paciente</th><th>Confirmação</th><th></th></tr></thead><tbody>${pending.map(Row)}</tbody></table>`}
-    </section>
-    ${marked.length > 0 && html`
-      <section class="card">
-        <h2 class="card-title">Já marcadas <span class="muted small">(${marked.length})</span></h2>
-        <table class="table"><thead><tr><th>Quando</th><th>Paciente</th><th>Confirmação</th><th></th></tr></thead><tbody>${marked.map(Row)}</tbody></table>
-      </section>`}
-    ${unlinked.length > 0 && html`<p class="muted small">⚠️ ${unlinked.length} consulta(s) não vinculada(s) a paciente ficaram de fora (vincule pelo calendário da tela inicial).</p>`}`;
 }
 
 // ---------------------------------------------------------------- Estatísticas
@@ -163,8 +85,18 @@ function AttendanceTab({ data }) {
 function StatsTab({ data }) {
   const [period, setPeriod] = useState('30');
   const [past, setPast] = useState(null);
-  useEffect(() => { setPast(null); loadPast(periodStart(period), data.patients).then(setPast).catch(() => setPast({ items: [] })); }, [period]);
-  const items = useMemo(() => (past ? past.items.filter((i) => i.patient) : []), [past]);
+  // As estatísticas contam só consultas que receberam lembrete, a partir do primeiro lembrete enviado.
+  useEffect(() => {
+    setPast(null);
+    run(supabase.from('appointment_reminders').select('event_date').order('event_date').limit(1))
+      .then((first) => {
+        if (!first.length) return { items: [], first: null };
+        const from = [periodStart(period), first[0].event_date].sort().pop();
+        return loadPast(from, data.patients).then((r) => ({ ...r, first: first[0].event_date }));
+      })
+      .then(setPast).catch(() => setPast({ items: [] }));
+  }, [period]);
+  const items = useMemo(() => (past ? past.items.filter((i) => i.patient && i.reminder) : []), [past]);
   const st = useMemo(() => attendanceStats(items), [items]);
   const ranking = useMemo(() => missRanking(items), [items]);
   const p = (v) => (v == null ? '–' : `${v}%`);
@@ -175,19 +107,20 @@ function StatsTab({ data }) {
         <h2 class="card-title">📊 Confirmação e comparecimento</h2>
         <div class="seg">${[['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['all', 'Desde o início']].map(([k, l]) => html`<button class=${period === k ? 'on' : ''} onClick=${() => setPeriod(k)}>${l}</button>`)}</div>
       </div>
-      ${!past ? html`<${Loading} />` : st.total === 0 ? html`<p class="muted">Nenhuma consulta neste período.</p>` : html`
+      ${past?.first && html`<p class="muted small" style="margin-top:0">Contando só as consultas que receberam lembrete, desde o primeiro lembrete (${fmtDate(past.first)}).</p>`}
+      ${!past ? html`<${Loading} />` : st.total === 0 ? html`<p class="muted">Nenhuma consulta com lembrete neste período.</p>` : html`
         <div class="stats">
           <div class="stat stat-main"><div class="stat-label">Dos que confirmaram, vieram</div><div class="stat-value">${p(st.confirmed.rate)}</div><div class="stat-sub">${st.confirmed.came} de ${st.confirmed.came + st.confirmed.missed}</div></div>
           <div class="stat"><div class="stat-label">Dos que não responderam, vieram</div><div class="stat-value">${p(st.silent.rate)}</div><div class="stat-sub">${st.silent.came} de ${st.silent.came + st.silent.missed}</div></div>
-          <div class="stat"><div class="stat-label">Desmarcaram em cima da hora</div><div class="stat-value">${p(st.lastMinuteRate)}</div><div class="stat-sub">${st.lastMinute} de ${st.total} consulta(s)</div></div>
+          <div class="stat"><div class="stat-label">Desmarcaram em cima da hora</div><div class="stat-value">${p(st.lastMinuteRate)}</div><div class="stat-sub">${st.lastMinute} de ${st.total} lembrete(s)</div></div>
           <div class="stat"><div class="stat-label">Faltas no geral</div><div class="stat-value">${p(st.missRate)}</div><div class="stat-sub">${st.missed} de ${st.known} · responderam o lembrete: ${p(st.answeredRate)}</div></div>
         </div>
 
         <h3 class="calc-step">Como terminou cada grupo</h3>
         <div class="table-wrap"><table class="table outcome-table">
-          <thead><tr><th>Resposta ao lembrete</th><th class="num">Consultas</th><th class="num">Vieram</th><th class="num">Faltaram</th><th class="num">Desmarcaram no dia</th><th class="num">A marcar</th></tr></thead>
+          <thead><tr><th>Resposta ao lembrete</th><th class="num">Consultas</th><th class="num">Vieram</th><th class="num">Faltaram</th><th class="num">Desmarcaram no dia</th><th class="num">Sem marcação</th></tr></thead>
           <tbody>
-            ${[['✅ Confirmaram', st.confirmed], ['⏳ Não responderam', st.silent], ['Sem lembrete enviado', st.noReminder]].filter(([, g]) => g.n).map(([l, g]) => html`
+            ${[['✅ Confirmaram', st.confirmed], ['⏳ Não responderam', st.silent]].filter(([, g]) => g.n).map(([l, g]) => html`
               <tr>
                 <td>${l}</td><td class="num">${g.n}</td>
                 <td class="num">${g.came}${g.rate != null ? html` <span class="muted small">(${g.rate}%)</span>` : ''}</td>
@@ -198,7 +131,7 @@ function StatsTab({ data }) {
           </tbody>
         </table></div>
         <p class="muted small">Quem <strong>confirmou</strong> e depois cancelou ou remarcou conta como <strong>falta</strong>. Quem não respondeu e desmarcou no dia aparece em “Desmarcaram no dia”.
-          ${st.pending ? html` <strong>${st.pending} consulta(s) ainda sem marcação</strong> ficam fora das porcentagens (aba “Confirmar comparecimento”).` : ''}</p>
+          ${st.pending ? html` ${st.pending} consulta(s) ficaram sem “Veio / Faltou” marcado (nem consulta registrada no dia) e ficam fora das porcentagens.` : ''}</p>
 
         ${(st.askedResched.n > 0 || st.saidNo.n > 0) && html`
           <h3 class="calc-step">Avisaram pelo link do lembrete</h3>

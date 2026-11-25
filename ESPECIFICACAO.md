@@ -383,14 +383,15 @@ Outras regras:
 
 ### 4.3.1 Lembretes de consulta (página própria no menu: "Lembretes de consulta")
 
-Separada de "Questionários" (que fica só com o semanal). Quatro abas:
+Separada de "Questionários" (que fica só com o semanal). Três abas (a aba "Confirmar comparecimento" foi
+retirada a pedido: o comparecimento se marca só ao vivo, em "Consultas de hoje"):
 
 1. **📋 Consultas de hoje** (no topo da primeira aba, sempre visível): cada consulta do dia com a resposta do
    paciente (✅ confirmou, 📅 quer remarcar com dias/horários e recado, ❌ não vai, ⏳ sem resposta, ou "sem lembrete
    enviado"), resumo com as contagens e "(já passou)" para as que terminaram. Coluna **"Compareceu?"** com
    `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` para marcar ao vivo (mesma tabela `appointment_attendance`, entra nas
-   estatísticas); "veio" automático se houver consulta registrada no dia. **Veio/Faltou só para quem confirmou, não
-   respondeu ou não recebeu lembrete**: quem respondeu pelo link "quero remarcar" ou "não vou" já fica resolvido
+   estatísticas); "veio" automático se houver consulta registrada no dia. **Veio/Faltou só para quem confirmou ou não
+   respondeu** (sem lembrete: "fora das estatísticas"): quem respondeu pelo link "quero remarcar" ou "não vou" já fica resolvido
    ("pediu para remarcar pelo link", entra nas estatísticas). O recado do paciente aparece cortado (~70 letras) com
    `ver tudo` / `ver menos`, para não estragar a tabela.
    **Consultas canceladas continuam na lista** com a etiqueta **🚫 Cancelada** (horário riscado) e o motivo para
@@ -409,10 +410,8 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    `[Marcar todos]` / `[Desmarcar todos]`, fila de envio pelo WhatsApp. Coluna **Resposta** do paciente
    (✅ confirmou, 📅 quer remarcar, ❌ não vai, ⏳ sem resposta, com o recado se houver). Sem telefone: campo para
    digitar ali mesmo. Não vinculados: aviso para vincular pelo calendário.
-2. **✔ Confirmar comparecimento:** consultas que já passaram (7, 14, 30 ou 90 dias), "A confirmar" e "Já marcadas",
-   botões `[✔ Veio]` / `[✖ Faltou]` / `[Limpar]` (tabela `appointment_attendance`). Se houver consulta registrada
-   no software para o paciente no dia ("Iniciar consulta"), conta **"veio" automaticamente**.
-3. **📊 Estatísticas** (30 dias, 90 dias, desde o início). Quadros: **dos que confirmaram, quantos vieram**; dos que
+2. **📊 Estatísticas** (30 dias, 90 dias, desde o início). **Contam só as consultas que receberam lembrete, a partir
+   do primeiro lembrete enviado** (consultas sem lembrete ficam fora). Quadros: **dos que confirmaram, quantos vieram**; dos que
    não responderam, quantos vieram; **desmarcaram em cima da hora** (avisaram pelo link na véspera + desmarcaram no dia);
    faltas no geral (com a taxa de resposta ao lembrete). Tabela **"Como terminou cada grupo"** (✅ confirmaram,
    ⏳ não responderam, sem lembrete): consultas, vieram, faltaram (com "desmarcou depois de confirmar"), desmarcaram no
@@ -421,7 +420,7 @@ Separada de "Questionários" (que fica só com o semanal). Quatro abas:
    marcada, pela agenda, Nutrium ou software). "Quem mais falta" inclui quem confirmou e depois desmarcou. Consultas sem
    comparecimento marcado ficam fora das porcentagens (e aparecem contadas). Canceladas aparecem também em "Confirmar
    comparecimento" (com os mesmos três motivos); "Não apareceu" entra nas faltas, as outras aparecem só contadas.
-4. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
+3. **⚙️ Mensagem:** texto com **[Nome]**, **[Quando]**, **[Data]**, **[Hora]**, **[Link da consulta]** (videochamada do
    evento) e **[Link de confirmação]** (avisa se o link de confirmação ficar de fora).
 
 **Confirmação pelo paciente:** cada lembrete leva um link único (`…/c.html?t=CÓDIGO`, tabela `appointment_reminders`,

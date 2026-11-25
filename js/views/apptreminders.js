@@ -237,7 +237,7 @@ function TodayCard({ data }) {
     return () => clearInterval(t);
   }, [data]);
 
-  // Comparecimento ao vivo: vai direto para as estatísticas (mesma tabela da aba "Confirmar comparecimento").
+  // Comparecimento ao vivo: vai direto para as estatísticas (que contam só as consultas com lembrete).
   async function mark(ev, status) {
     setErr(null);
     try {
@@ -286,7 +286,7 @@ function TodayCard({ data }) {
                     ${r?.response_note ? html`<${PatientNote} text=${r.response_note} />` : ''}
                   </td>
                   <td class="attend-cell">
-                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : ev.attendance.byLink ? html`
+                    ${!ev.patient ? html`<span class="muted small">vincule para marcar</span>` : !ev.reminder && ev.attendance.status !== 'veio' ? html`<span class="muted small">sem lembrete: fora das estatísticas</span>` : ev.attendance.byLink ? html`
                       <span class="muted small">${ev.cancelled ? '🚫 Cancelada · ' : ''}${ev.attendance.status === 'remarcou' ? 'pediu para remarcar pelo link' : 'avisou pelo link que não vem'}<br />(entra nas estatísticas)</span>` : ev.cancelled ? html`
                       <div class="muted small">Motivo do cancelamento:</div>
                       ${CANCEL_REASONS.map(([k, l]) => html`
