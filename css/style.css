@@ -461,3 +461,8 @@ textarea { resize: vertical; min-height: 44px; }
 .today-card .rebook-actions { margin-top: 0; }
 
 .age-ref { color: var(--primary-dark); white-space: nowrap; }
+
+.chan { display: inline-block; font-size: .8rem; color: var(--muted); margin-right: 8px; white-space: nowrap; }
+.chan-cell { white-space: nowrap; }
+.phone-inline { display: inline-flex; gap: 4px; align-items: center; }
+.phone-inline .phone-input { width: 150px; padding: 4px 8px; font-size: .85rem; }

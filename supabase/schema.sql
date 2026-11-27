@@ -138,6 +138,13 @@ create table if not exists public.questionnaire_sends (
   created_at        timestamptz not null default now()
 );
 create index if not exists questionnaire_sends_patient_idx on public.questionnaire_sends (patient_id, created_at desc);
+-- Por onde a mensagem foi enviada (última vez em cada canal) e por qual link o paciente respondeu
+alter table public.questionnaire_sends add column if not exists nutrium_at timestamptz;
+alter table public.questionnaire_sends add column if not exists whatsapp_at timestamptz;
+alter table public.questionnaire_sends add column if not exists answered_via text;
+alter table public.questionnaire_sends drop constraint if exists questionnaire_sends_answered_via_check;
+alter table public.questionnaire_sends add constraint questionnaire_sends_answered_via_check
+  check (answered_via is null or answered_via in ('nutrium', 'whatsapp'));
 
 create table if not exists public.questionnaire_responses (
   id                uuid primary key default gen_random_uuid(),
@@ -369,7 +376,9 @@ begin
   return jsonb_build_object('status', 'ok', 'first_name', s.first_name, 'title', s.title, 'questions', s.questions);
 end $$;
 
-create or replace function public.submit_questionnaire(p_token text, p_answers jsonb) returns text
+-- p_via: 'n' (link mandado pela Nutrium) ou 'w' (pelo WhatsApp); links antigos não têm.
+drop function if exists public.submit_questionnaire(text, jsonb);
+create or replace function public.submit_questionnaire(p_token text, p_answers jsonb, p_via text default null) returns text
 language plpgsql security definer set search_path = public as $$
 declare
   s record;
@@ -387,14 +396,17 @@ begin
   if s.expired_at is not null then return 'expired'; end if;
   insert into public.questionnaire_responses (send_id, patient_id, questionnaire_id, answers)
     values (s.id, s.patient_id, s.questionnaire_id, p_answers);
-  update public.questionnaire_sends set answered_at = now() where id = s.id;
+  update public.questionnaire_sends
+     set answered_at = now(),
+         answered_via = case p_via when 'n' then 'nutrium' when 'w' then 'whatsapp' else null end
+   where id = s.id;
   return 'ok';
 end $$;
 
 revoke all on function public.get_questionnaire(text) from public;
-revoke all on function public.submit_questionnaire(text, jsonb) from public;
+revoke all on function public.submit_questionnaire(text, jsonb, text) from public;
 grant execute on function public.get_questionnaire(text) to anon, authenticated;
-grant execute on function public.submit_questionnaire(text, jsonb) to anon, authenticated;
+grant execute on function public.submit_questionnaire(text, jsonb, text) to anon, authenticated;
 
 -- ---------- Espaço usado (para acompanhar o limite do plano gratuito) ----------
 create or replace function public.db_usage() returns jsonb

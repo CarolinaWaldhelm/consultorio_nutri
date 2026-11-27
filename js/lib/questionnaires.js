@@ -42,9 +42,14 @@ export function newToken() {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function formLink(token) {
-  return `${location.origin}${location.pathname.replace(/[^/]*$/, '')}q.html?t=${token}`;
+/** Link do questionário. via: 'copy' (Nutrium) ou 'whatsapp' — vai no link para saber por onde a pessoa respondeu. */
+export function formLink(token, via = null) {
+  const c = via === 'copy' || via === 'nutrium' ? '&c=n' : via === 'whatsapp' ? '&c=w' : '';
+  return `${location.origin}${location.pathname.replace(/[^/]*$/, '')}q.html?t=${token}${c}`;
 }
+
+/** Coluna do canal: 'copy' → nutrium_at, 'whatsapp' → whatsapp_at. */
+export const channelColumn = (via) => (via === 'whatsapp' ? 'whatsapp_at' : 'nutrium_at');
 
 /** Telefone → formato do WhatsApp (55 + DDD + número). */
 export function whatsappNumber(phone) {

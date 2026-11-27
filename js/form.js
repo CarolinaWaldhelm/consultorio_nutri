@@ -4,7 +4,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const token = new URLSearchParams(location.search).get('t') || '';
+const params = new URLSearchParams(location.search);
+const token = params.get('t') || '';
+const via = ['n', 'w'].includes(params.get('c')) ? params.get('c') : null; // por onde o link foi mandado
 
 function Done({ icon, title, text }) {
   return html`<div class="form-done"><div class="big">${icon}</div><h1>${title}</h1><p class="muted">${text}</p></div>`;
@@ -33,7 +35,7 @@ function Form() {
     setError('');
     const clean = Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== '' && v != null)
       .map(([k, v]) => [k, typeof v === 'string' ? v.trim().slice(0, 4000) : v]));
-    const { data, error: err } = await supabase.rpc('submit_questionnaire', { p_token: token, p_answers: clean });
+    const { data, error: err } = await supabase.rpc('submit_questionnaire', { p_token: token, p_answers: clean, p_via: via });
     setBusy(false);
     if (err) { setError('Não foi possível enviar agora. Verifique a internet e tente de novo.'); return; }
     setState({ ...state, status: data === 'ok' ? 'thanks' : data });

@@ -4,7 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
-  planSends, consultSoonIds, newToken, formLink, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel, durationText,
+  planSends, consultSoonIds, newToken, formLink, channelColumn, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel, durationText,
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText, usePaged, CopyName, usePeriod } from './common.js';
@@ -92,12 +92,12 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
   // Nos dois casos o envio já fica registrado.
   async function sendOne(p, via = 'whatsapp') {
     const token = newToken();
-    const text = fillMessage(message, p.name, formLink(token));
+    const text = fillMessage(message, p.name, formLink(token, via));
     // Abre a janela / copia já no clique (o navegador bloqueia depois).
     const win = via === 'whatsapp' ? window.open('', '_blank') : null;
     if (via === 'copy') await copyOrShow(text);
     try {
-      const [row] = await run(supabase.from('questionnaire_sends').insert({ patient_id: p.id, questionnaire_id: def.id, token }).select('*'));
+      const [row] = await run(supabase.from('questionnaire_sends').insert({ patient_id: p.id, questionnaire_id: def.id, token, [channelColumn(via)]: new Date().toISOString() }).select('*'));
       // O link anterior, se ainda não respondido, vence.
       await run(supabase.from('questionnaire_sends').update({ expired_at: new Date().toISOString() })
         .eq('patient_id', p.id).is('answered_at', null).is('expired_at', null).neq('id', row.id));
@@ -140,11 +140,12 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
   }
 
   async function remind({ patient, send: s }, via = 'whatsapp') {
-    const text = fillMessage(reminder, patient.name, formLink(s.token));
+    const text = fillMessage(reminder, patient.name, formLink(s.token, via));
     const win = via === 'whatsapp' ? window.open('', '_blank') : null;
     if (via === 'copy') await copyOrShow(text);
     try {
-      await run(supabase.from('questionnaire_sends').update({ resent_at: new Date().toISOString() }).eq('id', s.id));
+      const now = new Date().toISOString();
+      await run(supabase.from('questionnaire_sends').update({ resent_at: now, [channelColumn(via)]: now }).eq('id', s.id));
       setSent((d) => ({ ...d, ['r:' + patient.id]: via }));
       if (via === 'whatsapp') {
         const url = whatsappUrl(patient.phone, text);
@@ -382,7 +383,7 @@ function StatsCard({ data }) {
     </section>`;
 }
 
-const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['vencido', '⚪ Sem resposta']];
+const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['falta_zap', '✉️ Só na Nutrium (falta WhatsApp)'], ['vencido', '⚪ Sem resposta']];
 const WHEN_FILTERS = [['hoje', 'Hoje'], ['7', '7 dias'], ['30', '30 dias'], ['all', 'Tudo']];
 const statusOf = (s) => (s.answered_at ? 'respondido' : s.expired_at ? 'vencido' : 'pendente');
 
@@ -392,21 +393,49 @@ function SentList({ data }) {
   const [status, setStatus] = useState('todos');
   const [when, setWhen] = useState('7');
   const [copied, setCopied] = useState(null);
-  const pById = useMemo(() => new Map(data.patients.map((p) => [p.id, p])), [data]);
+  const [patch, setPatch] = useState({}); // envios atualizados agora (canal), sem recarregar
+  const [phones, setPhones] = useState({}); // telefones digitados agora
+  const [phoneErr, setPhoneErr] = useState(null);
+  const pById = useMemo(() => new Map(data.patients.map((p) => [p.id, { ...p, phone: phones[p.id] ?? p.phone }])), [data, phones]);
   const qById = useMemo(() => new Map(data.questionnaires.map((q) => [q.id, q])), [data]);
   const today = todayISO();
   const message = data.settings.whatsapp_message || DEFAULT_MESSAGE;
   const inWhen = (s) => when === 'all' || (when === 'hoje' ? dateOf(s.sent_at) === today : daysBetween(dateOf(s.sent_at), today) < Number(when));
-  const inPeriod = data.sends.filter(inWhen);
-  const count = (k) => (k === 'todos' ? inPeriod.length : inPeriod.filter((s) => statusOf(s) === k).length);
-  const rows = inPeriod.filter((s) => status === 'todos' || statusOf(s) === status);
+  const sends = data.sends.map((x) => (patch[x.id] ? { ...x, ...patch[x.id] } : x));
+  const inPeriod = sends.filter(inWhen);
+  // Mandado só pela Nutrium e ainda sem WhatsApp (e sem resposta).
+  const onlyNutrium = (x) => statusOf(x) === 'pendente' && x.nutrium_at && !x.whatsapp_at;
+  const matches = (x, k) => (k === 'todos' ? true : k === 'falta_zap' ? onlyNutrium(x) : statusOf(x) === k);
+  const count = (k) => inPeriod.filter((x) => matches(x, k)).length;
+  const rows = inPeriod.filter((x) => matches(x, status));
   const [shown, more] = usePaged(rows, status + when);
 
-  async function copyAgain(s, p) {
-    await copyOrShow(fillMessage(message, p.name, formLink(s.token)));
-    setCopied(s.id);
-    setTimeout(() => setCopied((x) => (x === s.id ? null : x)), 3000);
+  // Mandar de novo o mesmo link (não é envio novo), anotando o canal: ✉️ Nutrium ou 📲 WhatsApp.
+  async function sendAgain(s, p, via) {
+    const text = fillMessage(message, p.name, formLink(s.token, via));
+    if (via === 'whatsapp') window.open(whatsappUrl(p.phone, text), '_blank');
+    else {
+      await copyOrShow(text);
+      setCopied(s.id);
+      setTimeout(() => setCopied((x) => (x === s.id ? null : x)), 3000);
+    }
+    const now = new Date().toISOString();
+    const col = channelColumn(via);
+    setPatch((m) => ({ ...m, [s.id]: { ...(m[s.id] || {}), [col]: now } }));
+    await run(supabase.from('questionnaire_sends').update({ [col]: now }).eq('id', s.id)).catch(() => {});
   }
+  async function savePhone(p) {
+    const v = (phones['new_' + p.id] || '').trim();
+    if (!whatsappNumber(v)) { setPhoneErr(new Error(`Telefone de ${p.name} incompleto: use DDD + número (ex.: 11 98765-4321).`)); return; }
+    setPhoneErr(null);
+    try {
+      await run(supabase.from('patients').update({ phone: v }).eq('id', p.id));
+      setPhones((m) => ({ ...m, [p.id]: v }));
+    } catch (err) { setPhoneErr(err); }
+  }
+  const chan = (x) => html`
+    ${x.nutrium_at ? html`<span class="chan" title="Mandado pela Nutrium">✉️ ${fmtDate(dateOf(x.nutrium_at)).slice(0, 5)}</span>` : ''}
+    ${x.whatsapp_at ? html`<span class="chan" title="Mandado pelo WhatsApp">📲 ${fmtDate(dateOf(x.whatsapp_at)).slice(0, 5)}</span>` : ''}`;
 
   return html`
     <section class="card">
@@ -415,11 +444,12 @@ function SentList({ data }) {
         <div class="seg">${WHEN_FILTERS.map(([k, l]) => html`<button class=${when === k ? 'on' : ''} onClick=${() => setWhen(k)}>${l}</button>`)}</div>
       </div>
       <div class="seg" style="margin-bottom:8px">${STATUS_FILTERS.map(([k, l]) => html`<button class=${status === k ? 'on' : ''} onClick=${() => setStatus(k)}>${l} (${count(k)})</button>`)}</div>
+      <${ErrorBox} error=${phoneErr} />
       ${rows.length === 0 && html`<p class="muted">Nenhum envio com esse filtro.</p>`}
       ${rows.length > 0 && html`
         <div class="table-scroll">
           <table class="table">
-            <thead><tr><th>Paciente</th><th>Enviado em</th><th>Situação</th><th></th></tr></thead>
+            <thead><tr><th>Paciente</th><th>Enviado em</th><th>Por onde</th><th>Situação</th><th></th></tr></thead>
             <tbody>
               ${shown.map((s) => {
                 const p = pById.get(s.patient_id);
@@ -429,17 +459,23 @@ function SentList({ data }) {
                   <tr>
                     <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} />` : '—'}<div class="muted small">${qById.get(s.questionnaire_id)?.name || ''}</div></td>
                     <td>${sent === today ? 'hoje' : fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}</td>
+                    <td class="chan-cell">${chan(s)}</td>
                     <td>
                       ${st === 'respondido'
-                        ? html`<button class="badge badge-green as-link" onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()}) · ver</button>`
+                        ? html`<button class="badge badge-green as-link" onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()})${s.answered_via === 'whatsapp' ? ' pelo 📲 WhatsApp' : s.answered_via === 'nutrium' ? ' pela ✉️ Nutrium' : ''} · ver</button>`
                         : st === 'vencido'
                           ? html`<span class="badge">⚪ Sem resposta (link vencido)</span>`
                           : html`<span class="badge badge-warn">🟡 Pendente${sent === today ? '' : ` (há ${daysBetween(sent, today)} dia(s))`}</span>`}
                     </td>
                     <td class="row-actions">${st === 'pendente' && p && html`
-                      <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link (não conta como novo envio)" onClick=${() => copyAgain(s, p)}>${copied === s.id ? '✓ Copiada' : '📋 Copiar de novo'}</button>
-                      <button class="btn btn-sm btn-ghost" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem e o mesmo link (não conta como novo envio)' : 'Sem telefone no cadastro'}
-                        onClick=${() => window.open(whatsappUrl(p.phone, fillMessage(message, p.name, formLink(s.token))), '_blank')}>📲 WhatsApp</button>`}</td>
+                      <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link, para colar na Nutrium (não conta como novo envio)" onClick=${() => sendAgain(s, p, 'copy')}>${copied === s.id ? '✓ Copiada' : '📋 Copiar de novo'}</button>
+                      ${whatsappNumber(p.phone)
+                        ? html`<button class="btn btn-sm btn-ghost" title="Abre o WhatsApp com a mensagem e o mesmo link (não conta como novo envio)" onClick=${() => sendAgain(s, p, 'whatsapp')}>📲 WhatsApp</button>`
+                        : html`<span class="phone-inline">
+                            <input type="tel" class="phone-input" placeholder="📞 DDD + número" aria-label=${'Telefone de ' + p.name} value=${phones['new_' + p.id] || ''}
+                              onInput=${(e) => setPhones((m) => ({ ...m, ['new_' + p.id]: e.target.value }))} onKeyDown=${(e) => e.key === 'Enter' && savePhone(p)} />
+                            <button class="btn btn-sm" disabled=${!(phones['new_' + p.id] || '').trim()} onClick=${() => savePhone(p)}>Salvar</button>
+                          </span>`}`}</td>
                   </tr>`;
               })}
             </tbody>
