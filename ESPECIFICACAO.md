@@ -31,6 +31,9 @@ Menu principal:
 - **Questionários**
 
 Não existe aba "Gráficos": todos os gráficos ficam dentro da ficha de cada paciente.
+Gráficos com **muitos registros** (mais de 15, ex.: paciente que se pesa todo dia pelo app): cada registro vira um
+pontinho clarinho e, por cima, uma **linha suave com a média de 7 dias** (3 dias antes e 3 depois); o valor do dia
+aparece ao passar o mouse. Legenda: "linha: média de 7 dias · pontinhos: cada registro". Vale na ficha e no PDF.
 
 Login: e-mail e senha da nutricionista, com a conta criada no painel do Supabase. O cadastro de novas contas fica desligado, então só ela entra.
 
