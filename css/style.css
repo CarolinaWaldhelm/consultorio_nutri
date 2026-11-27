@@ -468,3 +468,5 @@ textarea { resize: vertical; min-height: 44px; }
 .phone-inline .phone-input { width: 150px; padding: 4px 8px; font-size: .85rem; }
 
 h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-align: middle; }
+
+.table.labs .lab-group td { background: #f6f8f6; font-weight: 700; color: var(--primary-dark); font-size: .85rem; padding-top: 7px; padding-bottom: 7px; }

@@ -3,13 +3,13 @@
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
-import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt } from '../lib/labs.js';
+import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt, labGroup, labOrder } from '../lib/labs.js';
 import { copyText } from '../lib/prompts.js';
 import { Modal, ErrorBox, AutoText } from './common.js';
 import { MetricChart } from './charts.js';
 
 const fmt = (v) => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-const markerOrder = (k) => { const i = MARKERS.findIndex((m) => m.key === k); return i < 0 ? 999 : i; };
+const markerOrder = labOrder;
 
 const ARROW = { low: '↓', high: '↑' };
 const STATUS_TITLE = { ok: 'Dentro da referência', low: 'Abaixo da referência', high: 'Acima da referência' };
@@ -68,7 +68,9 @@ export function LabsCard({ patientId, sex, birthDate = null, exams, results, onC
           <table class="table labs">
             <thead><tr><th>Exame</th><th class="ref">Referência</th>${shownDates.map((d) => html`<th class="num">${fmtDate(d)}</th>`)}</tr></thead>
             <tbody>
-              ${(allRows ? rows : rows.slice(0, ROWS)).map((r) => html`
+              ${(allRows ? rows : rows.slice(0, ROWS)).map((r, i, list) => html`
+                ${(i === 0 || labGroup(list[i - 1].marker).key !== labGroup(r.marker).key) && html`
+                  <tr class="lab-group"><td colspan=${2 + shownDates.length}>${labGroup(r.marker).label}</td></tr>`}
                 <tr>
                   <td>${r.label} <span class="muted small">${r.unit || ''}</span></td>
                   ${(() => { const ref = referenceFor(r.marker, sex, ageNow); return html`

@@ -75,6 +75,31 @@ export const MARKERS = [
 ];
 export const MARKER = Object.fromEntries(MARKERS.map((m) => [m.key, m]));
 
+/** Grupos de exames, na ordem em que aparecem na ficha. */
+export const LAB_GROUPS = [
+  ['glicemico', 'Perfil glicêmico', ['glicemia', 'hba1c', 'gme', 'insulina', 'homa_ir']],
+  ['lipidico', 'Perfil lipídico', ['colesterol_total', 'hdl', 'ldl', 'vldl', 'nao_hdl', 'triglicerideos']],
+  ['hemograma', 'Hemograma', ['eritrocitos', 'hemoglobina', 'hematocrito', 'vcm', 'hcm', 'chcm', 'rdw', 'leucocitos', 'neutrofilos', 'eosinofilos', 'basofilos', 'linfocitos', 'monocitos', 'plaquetas', 'vpm']],
+  ['ferro_vit', 'Ferro e vitaminas', ['ferritina', 'ferro', 'transferrina', 'vitamina_d', 'vitamina_b12', 'acido_folico']],
+  ['figado', 'Fígado e pâncreas', ['tgo', 'tgp', 'ggt', 'amilase', 'lipase']],
+  ['rins', 'Função renal', ['creatinina', 'ureia', 'acido_urico']],
+  ['tireoide', 'Tireoide e paratireoide', ['tsh', 't4_livre', 'pth']],
+  ['inflamacao', 'Inflamação', ['pcr']],
+  ['eletrolitos', 'Eletrólitos e minerais', ['sodio', 'potassio', 'calcio', 'calcio_ionico', 'magnesio', 'zinco']],
+  ['urina', 'Urina', ['urocultura', 'urina_densidade', 'urina_ph', 'urina_leucocitos', 'urina_hemacias']],
+];
+const GROUP_OF = Object.fromEntries(LAB_GROUPS.flatMap(([g, , keys], gi) => keys.map((k, i) => [k, { g, gi, i }])));
+/** Grupo de um exame ({ key, label }); exames fora da lista ficam em "Outros exames". */
+export function labGroup(marker) {
+  const x = GROUP_OF[marker];
+  return x ? { key: LAB_GROUPS[x.gi][0], label: LAB_GROUPS[x.gi][1] } : { key: 'outros', label: 'Outros exames' };
+}
+/** Ordem para ordenar exames: grupo, depois a posição dentro do grupo. */
+export function labOrder(marker) {
+  const x = GROUP_OF[marker];
+  return x ? x.gi * 100 + x.i : 9999;
+}
+
 /**
  * Valores de referência gerais, compilados de faixas usuais de laboratórios brasileiros e de diretrizes
  * (lipídios: SBC 2017 — alvos desejáveis, e faixas para menores de 20 anos; glicose/HbA1c: SBD/ADA;

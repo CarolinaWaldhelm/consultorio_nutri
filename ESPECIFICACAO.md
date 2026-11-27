@@ -330,6 +330,9 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   "Cálcio" e "Leucócitos (urina tipo I)" não vira o leucócito do sangue. O pedido para a IA traz esses avisos.
 - **Contagens com ponto de milhar** ("6.500 /µL", "250.000 /µL", "50.000 UFC/mL") são lidas como 6500, 250000, 50000
   (só em contagens; "1.019" na densidade continua 1,019).
+- **Exames agrupados** na tabela, com uma linha de título por grupo (`LAB_GROUPS` em `js/lib/labs.js`): Perfil
+  glicêmico · Perfil lipídico · Hemograma · Ferro e vitaminas · Fígado e pâncreas · Função renal · Tireoide e
+  paratireoide · Inflamação · Eletrólitos e minerais · Urina · Outros exames (os fora da lista padrão).
 - A seção pode ser **recolhida** (clique no título). A tabela mostra **10 linhas**, com `[Mostrar tudo]` e
   `[Mostrar só 10 linhas]`.
 - Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),
