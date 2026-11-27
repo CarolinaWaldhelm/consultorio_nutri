@@ -108,6 +108,17 @@ function Report({ data, parts, message, brand }) {
     add('h-combo', h2(C.olive, 'Combinados'), { keepNext: true });
     add('combo', html`<div class="rpt-combo"><div class="rpt-combo-date">Consulta de ${fmtDate(lastCombo.date)}</div>${lastCombo.anamnesis.combinados.trim()}</div>`);
   }
+  // Recomendações ligadas para este paciente na lateral da ficha (sempre entram, sem opção no PDF).
+  const chosenRecs = (data.recs || []).filter((r) => (data.patientRecs || []).some((x) => x.recommendation_id === r.id))
+    .sort((a, b) => (a.category || '~').localeCompare(b.category || '~') || a.title.localeCompare(b.title));
+  if (chosenRecs.length) {
+    add('h-recs', h2(C.blue, 'Recomendações'), { keepNext: true });
+    // Título + parágrafos em blocos separados: um texto longo pode continuar na folha seguinte sem ser cortado.
+    chosenRecs.forEach((r) => {
+      add('rec-t-' + r.id, html`<div class="rpt-rec-title">${r.title}</div>`, { keepNext: true });
+      r.body.trim().split(/\n\s*\n/).forEach((par, k, all) => add('rec-' + r.id + '-' + k, html`<div class=${'rpt-rec-body' + (k === all.length - 1 ? ' last' : '')}>${par.trim()}</div>`));
+    });
+  }
   if (parts.body) {
     add('h-body', h2(C.terra, 'Composição corporal'), { keepNext: true });
     if (tiles.length) add('tiles', html`<div class="rpt-tiles">${tiles.map((t) => html`

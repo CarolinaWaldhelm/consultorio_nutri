@@ -50,6 +50,12 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
     setCopied(r.id);
     setTimeout(() => setCopied((x) => (x === r.id ? null : x)), 2500);
   }
+  // Ativa / Inativa: só as ativas aparecem para escolher na ficha do paciente.
+  async function toggleActive(r) {
+    const active = r.active === false;
+    setItems((l) => l.map((x) => (x.id === r.id ? { ...x, active } : x)));
+    try { await run(supabase.from('recommendations').update({ active }).eq('id', r.id)); } catch (err) { setError(err); load(); }
+  }
   async function remove(r) {
     if (!confirm(`Apagar a ${K.one} "${r.title}"?`)) return;
     try { await run(supabase.from('recommendations').delete().eq('id', r.id)); load(); } catch (err) { setError(err); }
@@ -86,7 +92,7 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
           const newCat = i === 0 || (shown[i - 1].category || '') !== (r.category || '');
           return html`
             ${newCat && html`<div class="rec-cat-head">${r.category || 'Sem categoria'}</div>`}
-            <div class=${'rec-row' + (isOpen ? ' open' : '')} key=${r.id}>
+            <div class=${'rec-row' + (isOpen ? ' open' : '') + (kind === 'recomendacao' && r.active === false ? ' inactive' : '')} key=${r.id}>
               <div class="rec-row-main">
                 <button class="rec-row-title" onClick=${() => setOpen({ ...open, [r.id]: !isOpen })} aria-expanded=${!!isOpen}>
                   <span class="muted">${isOpen ? '▾' : '▸'}</span> ${r.title}
@@ -95,6 +101,9 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
                 ${isOpen && html`<div class="rec-body">${r.body}</div>`}
               </div>
               <span class="row-actions rec-row-actions">
+                ${kind === 'recomendacao' && html`<button class=${'btn btn-sm rec-toggle ' + (r.active === false ? 'off' : 'on')}
+                  title=${r.active === false ? 'Inativa: não aparece para escolher na ficha do paciente. Clique para ativar.' : 'Ativa: aparece para escolher na ficha do paciente. Clique para desativar.'}
+                  onClick=${() => toggleActive(r)}>${r.active === false ? '○ Inativa' : '● Ativa'}</button>`}
                 <button class=${'btn btn-sm ' + (copied === r.id ? 'btn-primary' : '')} onClick=${() => copy(r)}>${copied === r.id ? '✓ Copiado' : '📋 Copiar'}</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => setEditing(r)}>✏️ Editar</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => remove(r)}>Apagar</button>

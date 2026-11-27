@@ -759,6 +759,15 @@ para copiar e colar para o paciente. Tabela `recommendations` (título, categori
   categoria** (botões com a contagem).
 - `[+ Nova recomendação]` abre o editor: título, categoria (sugere as já usadas) e texto.
 - Entra no backup. Nada de dado de paciente: são textos gerais.
+- Botão **`● Ativa` / `○ Inativa`** em cada recomendação (coluna `active`, padrão ativa): só as ativas aparecem para
+  escolher na ficha do paciente (nem toda recomendação é para mandar ao paciente). As inativas ficam esmaecidas.
+- **Na ficha do paciente, lateral esquerda — "💬 Recomendações":** lista das ativas, por categoria, com busca e um
+  **botão liga/desliga** para aquele paciente (tabela `patient_recommendations`). Ex.: paciente diabética e anêmica →
+  liga "Anemia…" e "Diabetes…". Mostra quantas estão ligadas e `copiar ligadas` (título e texto de cada uma). Uma que
+  for desativada depois continua aparecendo para quem já a tinha ligada, marcada "(inativa)". Com a gaveta da consulta
+  aberta, a lateral some para dar espaço; no celular, vai para baixo.
+- **As ligadas entram no PDF** automaticamente (seção "Recomendações", logo depois dos Combinados; sem opção na janela
+  do PDF): título e texto, em parágrafos (texto longo continua na folha seguinte).
 
 ## Condutas (menu de cima: "Condutas")
 

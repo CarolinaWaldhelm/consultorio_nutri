@@ -587,3 +587,34 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .rpt-qgrid td { padding: 6px 3px; }
 .rpt-chip { max-width: 110px; white-space: normal; }
 .rpt-qgrid th:last-child { white-space: normal; text-align: right; line-height: 1.2; }
+
+.rec-toggle.on { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-soft); }
+.rec-toggle.off { color: var(--muted); }
+.rec-row.inactive .rec-row-title, .rec-row.inactive .rec-row-preview { opacity: .55; }
+
+/* Ficha do paciente: recomendações na lateral esquerda */
+.patient-layout { display: grid; grid-template-columns: 260px minmax(0, 1100px); gap: 18px; align-items: start; justify-content: center; }
+.patient-main { min-width: 0; }
+.patient-side { position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding-top: 34px; }
+.patient-side .card { margin-bottom: 0; }
+.prec-search { width: 100%; padding: 6px 10px; font-size: .88rem; margin-bottom: 6px; }
+.prec-count { display: flex; justify-content: space-between; align-items: center; color: var(--muted); margin-bottom: 6px; }
+.prec-cat { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); font-weight: 700; margin: 10px 0 4px; }
+.prec-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: .86rem; line-height: 1.3; }
+.prec-item:hover { background: #f6f8f6; }
+.prec-item.on { color: var(--primary-dark); font-weight: 600; }
+input.switch { appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 30px; height: 17px; border-radius: 999px; background: #d6dbd7; position: relative; cursor: pointer; margin: 1px 0 0; padding: 0; border: 0; transition: background .15s; }
+input.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+input.switch:checked { background: var(--primary); }
+input.switch:checked::after { left: 15px; }
+input.switch:disabled { opacity: .6; }
+@media (max-width: 1000px) {
+  .patient-layout { grid-template-columns: 1fr; }
+  .patient-side { position: static; max-height: none; overflow: visible; padding-top: 0; order: 2; }
+}
+body.drawer-open .patient-layout { grid-template-columns: 1fr; }
+body.drawer-open .patient-side { display: none; }
+
+.rpt-rec-title { font-family: Georgia, serif; font-size: 1rem; color: var(--rv); padding-top: 10px; margin-bottom: 3px; }
+.rpt-rec-body { font-size: .86rem; line-height: 1.55; white-space: pre-wrap; padding-bottom: 6px; }
+.rpt-rec-body.last { padding-bottom: 10px; border-bottom: 1px solid #f0ebe0; }

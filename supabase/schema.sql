@@ -203,6 +203,19 @@ alter table public.recommendations add column if not exists kind text not null d
 alter table public.recommendations drop constraint if exists recommendations_kind_check;
 alter table public.recommendations add constraint recommendations_kind_check check (kind in ('recomendacao', 'conduta'));
 
+-- Recomendação disponível para escolher na ficha do paciente (botão Ativa / Inativa na aba Recomendações)
+alter table public.recommendations add column if not exists active boolean not null default true;
+
+-- Recomendações escolhidas para cada paciente (quadro "Recomendações do paciente" na ficha)
+create table if not exists public.patient_recommendations (
+  id                 uuid primary key default gen_random_uuid(),
+  patient_id         uuid not null references public.patients (id) on delete cascade,
+  recommendation_id  uuid not null references public.recommendations (id) on delete cascade,
+  created_at         timestamptz not null default now(),
+  unique (patient_id, recommendation_id)
+);
+create index if not exists patient_recommendations_patient_idx on public.patient_recommendations (patient_id);
+
 -- ---------- Rotinas (tarefas que se repetem todo dia ou todo mês) ----------
 create table if not exists public.routines (
   id            uuid primary key default gen_random_uuid(),
@@ -514,6 +527,7 @@ alter table public.appointment_reminders enable row level security;
 alter table public.appointment_attendance enable row level security;
 alter table public.calendar_snapshot enable row level security;
 alter table public.recommendations enable row level security;
+alter table public.patient_recommendations enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -533,6 +547,7 @@ drop policy if exists "dona" on public.appointment_reminders;
 drop policy if exists "dona" on public.appointment_attendance;
 drop policy if exists "dona" on public.calendar_snapshot;
 drop policy if exists "dona" on public.recommendations;
+drop policy if exists "dona" on public.patient_recommendations;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -551,12 +566,13 @@ create policy "dona" on public.appointment_reminders for all to authenticated us
 create policy "dona" on public.appointment_attendance for all to authenticated using (true) with check (true);
 create policy "dona" on public.calendar_snapshot    for all to authenticated using (true) with check (true);
 create policy "dona" on public.recommendations      for all to authenticated using (true) with check (true);
+create policy "dona" on public.patient_recommendations for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
   public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
   public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders,
-  public.appointment_attendance, public.calendar_snapshot, public.recommendations to authenticated;
+  public.appointment_attendance, public.calendar_snapshot, public.recommendations, public.patient_recommendations to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

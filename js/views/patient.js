@@ -14,6 +14,7 @@ import { CalcCard } from './calc.js';
 import { QuestionnaireCard } from './patientq.js';
 import { LabsCard } from './labs.js';
 import { ReportModal } from './report.js';
+import { PatientRecs } from './patientrecs.js';
 
 export function PatientPage({ id }) {
   const [data, setData] = useState(null);
@@ -26,7 +27,7 @@ export function PatientPage({ id }) {
 
   async function load() {
     try {
-      const [patient, consultations, appointments, measurements, calculations, settingsRows, responses, sends, questionnaires, labExams, labResults] = await Promise.all([
+      const [patient, consultations, appointments, measurements, calculations, settingsRows, responses, sends, questionnaires, labExams, labResults, recs, patientRecs] = await Promise.all([
         run(supabase.from('patients').select('*').eq('id', id).single()),
         run(supabase.from('consultations').select('*').eq('patient_id', id).order('date', { ascending: false }).order('created_at', { ascending: false })),
         run(supabase.from('nutrium_appointments').select('*').eq('patient_id', id).order('date', { ascending: false })),
@@ -38,9 +39,11 @@ export function PatientPage({ id }) {
         run(supabase.from('questionnaires').select('*')),
         run(supabase.from('lab_exams').select('*').eq('patient_id', id).order('date', { ascending: false })),
         run(supabase.from('lab_results').select('*').eq('patient_id', id).order('date', { ascending: false })),
+        run(supabase.from('recommendations').select('*').eq('kind', 'recomendacao').order('title')).catch(() => []),
+        run(supabase.from('patient_recommendations').select('*').eq('patient_id', id)).catch(() => []),
       ]);
       const settings = Object.fromEntries(settingsRows.map((r) => [r.key, r.value]));
-      setData({ patient, consultations, appointments, measurements, calculations, settings, responses, sends, questionnaires, labExams, labResults });
+      setData({ patient, consultations, appointments, measurements, calculations, settings, responses, sends, questionnaires, labExams, labResults, recs, patientRecs });
     } catch (err) {
       setError(err);
     }
@@ -104,7 +107,12 @@ export function PatientPage({ id }) {
   }));
 
   return html`
-    <div>
+    <div class="patient-layout">
+    <aside class="patient-side">
+      <${PatientRecs} patientId=${id} recs=${data.recs || []} selected=${data.patientRecs || []}
+        onChange=${(patientRecs) => setData((d) => ({ ...d, patientRecs }))} />
+    </aside>
+    <div class="patient-main">
       <a class="back" href="#/">← Pacientes</a>
       <${Header}
         patient=${patient}
@@ -147,6 +155,7 @@ export function PatientPage({ id }) {
       <${History} consultations=${consultations} openId=${openId} onOpen=${setOpenId} />
       <${LabsCard} patientId=${id} patient=${patient} sex=${patient.sex} birthDate=${patient.birth_date} exams=${data.labExams} results=${data.labResults} onChanged=${load} />
       <${NutriumAppointments} past=${pastAppts} future=${futureAppts} />
+    </div>
     </div>
 
     ${open && html`
