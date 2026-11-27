@@ -21,7 +21,7 @@ const fromTs = (ts) => new Date(ts).toISOString().slice(0, 10);
 const fmt = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
 /** points: [{date, value, source}] ordenados por data. */
-export function MetricChart({ label, unit, points }) {
+export function MetricChart({ label, unit, points, color = SERIES }) {
   const canvas = useRef(null);
   const chart = useRef(null);
 
@@ -38,8 +38,8 @@ export function MetricChart({ label, unit, points }) {
         data: {
           datasets: [{
             data,
-            borderColor: SERIES,
-            backgroundColor: SERIES,
+            borderColor: color,
+            backgroundColor: color,
             borderWidth: 2,
             borderCapStyle: 'round',
             borderJoinStyle: 'round',
@@ -88,7 +88,7 @@ export function MetricChart({ label, unit, points }) {
       });
     });
     return () => { alive = false; chart.current?.destroy(); chart.current = null; };
-  }, [points]);
+  }, [points, color]);
 
   const last = points[points.length - 1];
   const first = points[0];

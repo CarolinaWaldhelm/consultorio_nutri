@@ -363,6 +363,16 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 
 ### 3.7.1 Relatório em PDF para o paciente
 
+- **Identidade visual** (a pedido, inspirada na logo: tons claros, verde-oliva, terracota, azul-lavanda, mostarda e
+  creme): cabeçalho com a **logo**, "Relatório de acompanhamento nutricional", nome do paciente em fonte serifada,
+  idade, "acompanhamento desde" e data de emissão; fileira de pontinhos nas cores da logo; mensagem em destaque;
+  **resumo em números** (peso atual, variação de peso, IMC com classificação, variação da cintura); gráficos com bordas
+  suaves; **exames em tabela** agrupada (último resultado e o anterior, verde dentro da referência e terracota ↑↓
+  fora); assinatura no final; **rodapé em todas as páginas** (nome · profissão · CRN · Instagram) e número da página.
+- **Logo e dados do rodapé** ficam em Configurações → "Relatório em PDF: sua identidade" (chaves `report_logo`,
+  `report_name`, `report_title`, `report_crn`, `report_instagram`, `report_contact` em `app_settings`), **não no código**
+  (o repositório é público). A logo é reduzida para 480 px.
+
 - `[🖨️ Relatório em PDF]` na ficha: escolhe as partes (composição corporal, exames, questionários), uma mensagem
   opcional e abre a impressão do navegador ("Salvar como PDF"). A página tem só o relatório, em A4.
 
