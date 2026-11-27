@@ -383,7 +383,7 @@ function StatsCard({ data }) {
     </section>`;
 }
 
-const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['falta_zap', '✉️ Só na Nutrium (falta WhatsApp)'], ['vencido', '⚪ Sem resposta']];
+const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['vencido', '⚪ Sem resposta']];
 const WHEN_FILTERS = [['hoje', 'Hoje'], ['7', '7 dias'], ['30', '30 dias'], ['all', 'Tudo']];
 const statusOf = (s) => (s.answered_at ? 'respondido' : s.expired_at ? 'vencido' : 'pendente');
 
@@ -403,9 +403,7 @@ function SentList({ data }) {
   const inWhen = (s) => when === 'all' || (when === 'hoje' ? dateOf(s.sent_at) === today : daysBetween(dateOf(s.sent_at), today) < Number(when));
   const sends = data.sends.map((x) => (patch[x.id] ? { ...x, ...patch[x.id] } : x));
   const inPeriod = sends.filter(inWhen);
-  // Mandado só pela Nutrium e ainda sem WhatsApp (e sem resposta).
-  const onlyNutrium = (x) => statusOf(x) === 'pendente' && x.nutrium_at && !x.whatsapp_at;
-  const matches = (x, k) => (k === 'todos' ? true : k === 'falta_zap' ? onlyNutrium(x) : statusOf(x) === k);
+  const matches = (x, k) => (k === 'todos' ? true : statusOf(x) === k);
   const count = (k) => inPeriod.filter((x) => matches(x, k)).length;
   const rows = inPeriod.filter((x) => matches(x, status));
   const [shown, more] = usePaged(rows, status + when);
@@ -449,7 +447,7 @@ function SentList({ data }) {
       ${rows.length > 0 && html`
         <div class="table-scroll">
           <table class="table">
-            <thead><tr><th>Paciente</th><th>Enviado em</th><th>Por onde</th><th>Situação</th><th></th></tr></thead>
+            <thead><tr><th>Paciente</th><th>Enviado em</th><th>Situação</th><th></th></tr></thead>
             <tbody>
               ${shown.map((s) => {
                 const p = pById.get(s.patient_id);
@@ -458,11 +456,11 @@ function SentList({ data }) {
                 return html`
                   <tr>
                     <td>${p ? html`<a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} />` : '—'}<div class="muted small">${qById.get(s.questionnaire_id)?.name || ''}</div></td>
-                    <td>${sent === today ? 'hoje' : fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}</td>
-                    <td class="chan-cell">${chan(s)}</td>
+                    <td>${sent === today ? 'hoje' : fmtDate(sent)}${s.resent_at ? html` <span class="muted small">(lembrete ${fmtDate(dateOf(s.resent_at))})</span>` : ''}
+                      <div>${chan(s)}</div></td>
                     <td>
                       ${st === 'respondido'
-                        ? html`<button class="badge badge-green as-link" onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()})${s.answered_via === 'whatsapp' ? ' pelo 📲 WhatsApp' : s.answered_via === 'nutrium' ? ' pela ✉️ Nutrium' : ''} · ver</button>`
+                        ? html`<button class="badge badge-green as-link" title=${s.answered_via === 'whatsapp' ? 'Respondeu pelo link mandado no WhatsApp' : s.answered_via === 'nutrium' ? 'Respondeu pelo link mandado na Nutrium' : ''} onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()})${s.answered_via === 'whatsapp' ? ' · 📲' : s.answered_via === 'nutrium' ? ' · ✉️' : ''} · ver</button>`
                         : st === 'vencido'
                           ? html`<span class="badge">⚪ Sem resposta (link vencido)</span>`
                           : html`<span class="badge badge-warn">🟡 Pendente${sent === today ? '' : ` (há ${daysBetween(sent, today)} dia(s))`}</span>`}

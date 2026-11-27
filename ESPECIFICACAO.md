@@ -411,10 +411,10 @@ Outras regras:
   mais". Respondido abre as respostas; pendente tem `[📋 Copiar de novo]` e `[📲 WhatsApp]` (mesmo link, não contam como novo envio); sem telefone, no
   lugar do WhatsApp aparece um campo **"📞 DDD + número" com `[Salvar]`** (grava no cadastro e o botão aparece).
   **Canal de cada envio:** colunas `nutrium_at` e `whatsapp_at` em `questionnaire_sends` (anotadas no envio, no
-  lembrete e no "de novo"); coluna "Por onde" mostra **✉️ dd/mm** (Nutrium) e **📲 dd/mm** (WhatsApp). O link leva
-  `&c=n` ou `&c=w`, e a resposta grava **por onde o paciente respondeu** (`answered_via`, função
-  `submit_questionnaire(token, respostas, via)`): "Respondido pela ✉️ Nutrium / pelo 📲 WhatsApp". Filtro
-  **"✉️ Só na Nutrium (falta WhatsApp)"**: pendentes mandados pela Nutrium e ainda não pelo WhatsApp.
+  lembrete e no "de novo"). **Sem coluna nem filtro a mais** (a pedido): os ícones ficam embaixo da data, na coluna
+  "Enviado em" — **✉️ dd/mm** (Nutrium) e **📲 dd/mm** (WhatsApp). O link leva `&c=n` ou `&c=w`, e a resposta grava
+  **por onde o paciente respondeu** (`answered_via`, função `submit_questionnaire(token, respostas, via)`): o selo
+  fica "🟢 Respondido (há 1 dia) · 📲" ou "· ✉️".
   Envios feitos na hora já aparecem na lista.
 - Em **"Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
   com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.
