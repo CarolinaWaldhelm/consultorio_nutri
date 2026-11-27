@@ -373,6 +373,11 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   suaves; **exames em tabela** agrupada (último resultado e o anterior, verde dentro da referência e terracota ↑↓
   fora). **Da primeira à penúltima folha:** rodapé simples (uma linha: nome · profissão · CRN · Instagram · contato) e
   o número da página. **Na última folha:** só a assinatura com os pontinhos coloridos, no pé da folha.
+- **Combinados** (opção "Combinados da última consulta"): o campo "Combinados / Conduta" da consulta mais recente que o
+  tenha preenchido, com a data, logo depois da mensagem.
+- **Questionários semanais:** com **uma resposta só**, a resposta completa (cada pergunta e a resposta; escala como
+  "4 (de 0 a 5)"); com **várias**, os gráficos das escalas e, para as perguntas escritas e de escolha, a resposta de
+  **cada data** ("27/10 · texto").
 - Para saber qual é a última folha, **o próprio site monta as folhas A4** (`paginate` em `js/views/report.js`): mede
   cada bloco (cabeçalho, mensagem, resumo, cada fileira de gráficos, cada linha da tabela de exames) e distribui nas
   folhas; títulos não ficam sozinhos no pé da folha; a tabela repete o cabeçalho em cada folha; a última folha não

@@ -102,6 +102,12 @@ function Report({ data, parts, message, brand }) {
     </header>
     ${dots}`);
   if (message) add('msg', html`<div class="rpt-message">${message}</div>`);
+  // Combinados da última consulta (campo "Combinados / Conduta" da anamnese).
+  const lastCombo = [...(data.consultations || [])].sort((a, b) => b.date.localeCompare(a.date)).find((c) => c.anamnesis?.combinados?.trim());
+  if (parts.combinados && lastCombo) {
+    add('h-combo', h2(C.olive, 'Combinados'), { keepNext: true });
+    add('combo', html`<div class="rpt-combo"><div class="rpt-combo-date">Consulta de ${fmtDate(lastCombo.date)}</div>${lastCombo.anamnesis.combinados.trim()}</div>`);
+  }
   if (parts.body) {
     add('h-body', h2(C.terra, 'Composição corporal'), { keepNext: true });
     if (tiles.length) add('tiles', html`<div class="rpt-tiles">${tiles.map((t) => html`
@@ -127,9 +133,33 @@ function Report({ data, parts, message, brand }) {
     });
     add('lab-note', html`<p class="rpt-note"><span class="rpt-val ok">verde</span> dentro da referência · <span class="rpt-val out">terracota ↑↓</span> acima ou abaixo. Referências gerais; vale sempre a do seu laudo.</p>`);
   }
-  if (parts.questions && qs.length > 0) {
+  if (parts.questions && (data.responses || []).length > 0) {
     add('h-q', h2(C.mustard, 'Questionários semanais'), { keepNext: true });
-    chartRows(qs, C.blue, 'qc');
+    const fmtAnswer = (q, v) => (q.type === 'scale' ? html`<strong>${v}</strong> <span class="rpt-muted">(de ${q.min} a ${q.max})</span>` : Array.isArray(v) ? v.join(', ') : String(v));
+    for (const qn of data.questionnaires || []) {
+      const rs = (data.responses || []).filter((r) => r.questionnaire_id === qn.id).sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+      if (!rs.length) continue;
+      const questions = (qn.questions || []).filter((q) => q.label);
+      if (rs.length === 1) {
+        // Uma resposta só: mostra a resposta inteira.
+        const r = rs[0];
+        add('q1-' + qn.id, html`<div class="rpt-q-date">Respondido em ${fmtDate(dateOf(r.submitted_at))}</div>`, { keepNext: true });
+        questions.forEach((q) => {
+          const v = r.answers?.[q.id];
+          if (v == null || v === '') return;
+          add('qa-' + q.id, html`<div class="rpt-qa"><div class="rpt-qa-q">${q.label}</div><div class="rpt-qa-a">${fmtAnswer(q, v)}</div></div>`);
+        });
+      } else {
+        // Várias respostas: gráficos das escalas e as respostas escritas de cada data.
+        chartRows(qs.filter((x) => x.key.startsWith(qn.id)), C.blue, 'qc-' + qn.id);
+        questions.filter((q) => q.type !== 'scale').forEach((q) => {
+          const answered = rs.filter((r) => r.answers?.[q.id] != null && r.answers[q.id] !== '');
+          if (!answered.length) return;
+          add('qt-' + q.id, html`<div class="rpt-qa-q rpt-qa-title">${q.label}</div>`, { keepNext: true });
+          answered.forEach((r) => add('qt-' + q.id + r.id, html`<div class="rpt-qa-line"><span class="rpt-qa-when">${fmtDate(dateOf(r.submitted_at)).slice(0, 5)}</span><span>${fmtAnswer(q, r.answers[q.id])}</span></div>`));
+        });
+      }
+    }
   }
 
   const cols = html`<colgroup><col style="width:46%" /><col style="width:16%" /><col style="width:16%" /><col style="width:22%" /></colgroup>`;
@@ -253,7 +283,8 @@ function printReport(props) {
 }
 
 export function ReportModal({ data, onClose }) {
-  const [parts, setParts] = useState({ body: true, labs: (data.labResults || []).length > 0, questions: (data.responses || []).length > 1 });
+  const hasCombo = (data.consultations || []).some((c) => c.anamnesis?.combinados?.trim());
+  const [parts, setParts] = useState({ combinados: hasCombo, body: true, labs: (data.labResults || []).length > 0, questions: (data.responses || []).length > 0 });
   const [message, setMessage] = useState('');
   const toggle = (k) => setParts({ ...parts, [k]: !parts[k] });
   // Logo e dados do rodapé: lidos na hora (podem ter sido salvos em Configurações depois de abrir a ficha).
@@ -270,9 +301,10 @@ export function ReportModal({ data, onClose }) {
         ? html`<p class="small brand-ok">✓ Logo e rodapé configurados (${brand.report_name}).</p>`
         : html`<p class="alert small">⚠️ ${!brand.report_logo && !brand.report_name ? 'Sua logo e seus dados ainda não foram salvos' : !brand.report_logo ? 'Sua logo ainda não foi salva' : 'Seu nome (rodapé) ainda não foi salvo'}.
             Vá em <a href="#/config" onClick=${onClose}>⚙️ Configurações → Relatório em PDF</a>, envie a logo, preencha os dados e clique em Salvar.</p>`)}
+      <label class="checkbox-line"><input type="checkbox" checked=${parts.combinados} disabled=${!hasCombo} onChange=${() => toggle('combinados')} /> Combinados da última consulta${hasCombo ? '' : ' (nenhum registrado)'}</label>
       <label class="checkbox-line"><input type="checkbox" checked=${parts.body} onChange=${() => toggle('body')} /> Composição corporal (peso, IMC e gráficos)</label>
       <label class="checkbox-line"><input type="checkbox" checked=${parts.labs} onChange=${() => toggle('labs')} /> Exames laboratoriais (tabela com o último resultado e o anterior)</label>
-      <label class="checkbox-line"><input type="checkbox" checked=${parts.questions} onChange=${() => toggle('questions')} /> Questionários semanais (gráficos das escalas)</label>
+      <label class="checkbox-line"><input type="checkbox" checked=${parts.questions} onChange=${() => toggle('questions')} /> Questionários semanais (uma resposta: a resposta completa; várias: gráficos e as respostas escritas de cada data)</label>
       <label class="field" style="margin-top:12px"><span class="field-label">Mensagem para o paciente (opcional)</span>
         <textarea rows="3" value=${message} onInput=${(e) => setMessage(e.target.value)} placeholder="Ex.: Parabéns pela evolução neste mês!"></textarea>
       </label>

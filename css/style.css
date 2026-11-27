@@ -563,3 +563,13 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .rpt, .rpt * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 
 .chart-note { flex-basis: 100%; font-size: .7rem; color: var(--muted); }
+
+.rpt-combo { background: var(--rcream); border-radius: 12px; padding: 12px 16px; white-space: pre-wrap; line-height: 1.55; font-size: .92rem; }
+.rpt-combo-date { font-size: .66rem; text-transform: uppercase; letter-spacing: .12em; color: var(--rmuted); margin-bottom: 6px; }
+.rpt-q-date { font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--rmuted); margin: 2px 0 8px; }
+.rpt-qa { padding: 7px 0; border-bottom: 1px solid #f0ebe0; }
+.rpt-qa-q { font-size: .78rem; color: var(--rv); font-weight: 600; }
+.rpt-qa-a { font-size: .88rem; margin-top: 2px; white-space: pre-wrap; }
+.rpt-qa-title { margin: 12px 0 4px; }
+.rpt-qa-line { display: flex; gap: 10px; font-size: .86rem; padding: 4px 0; border-bottom: 1px solid #f4efe5; white-space: pre-wrap; }
+.rpt-qa-when { color: var(--rmuted); font-size: .74rem; min-width: 38px; padding-top: 1px; }
