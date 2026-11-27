@@ -6,8 +6,6 @@ import { norm } from '../lib/util.js';
 import { copyOrShow } from '../lib/prompts.js';
 import { Modal, Field, ErrorBox, Loading, AutoText } from './common.js';
 
-const PREVIEW_CHARS = 280;
-
 export function RecommendationsPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
@@ -63,30 +61,29 @@ export function RecommendationsPage() {
       </section>`}
     ${items && items.length > 0 && shown.length === 0 && html`<p class="muted">Nada encontrado para “${q}”.</p>`}
 
-    <div class="rec-grid">
-      ${shown.map((r) => {
-        const long = r.body.length > PREVIEW_CHARS;
-        const isOpen = open[r.id];
-        return html`
-          <article class="card rec-card" key=${r.id}>
-            <div class="rec-head">
-              <div>
-                ${r.category && html`<span class="badge">${r.category}</span>`}
-                <h2 class="rec-title">${r.title}</h2>
+    ${shown.length > 0 && html`
+      <section class="card rec-list">
+        ${shown.map((r, i) => {
+          const isOpen = open[r.id];
+          const newCat = i === 0 || (shown[i - 1].category || '') !== (r.category || '');
+          return html`
+            ${newCat && html`<div class="rec-cat-head">${r.category || 'Sem categoria'}</div>`}
+            <div class=${'rec-row' + (isOpen ? ' open' : '')} key=${r.id}>
+              <div class="rec-row-main">
+                <button class="rec-row-title" onClick=${() => setOpen({ ...open, [r.id]: !isOpen })} aria-expanded=${!!isOpen}>
+                  <span class="muted">${isOpen ? '▾' : '▸'}</span> ${r.title}
+                </button>
+                ${!isOpen && html`<div class="rec-row-preview muted small">${r.body.replace(/\s+/g, ' ').slice(0, 160)}${r.body.length > 160 ? '…' : ''}</div>`}
+                ${isOpen && html`<div class="rec-body">${r.body}</div>`}
               </div>
-              <button class=${'btn btn-sm ' + (copied === r.id ? 'btn-primary' : '')} onClick=${() => copy(r)}>${copied === r.id ? '✓ Copiado' : '📋 Copiar'}</button>
-            </div>
-            <div class="rec-body">${isOpen || !long ? r.body : r.body.slice(0, PREVIEW_CHARS).trimEnd() + '…'}</div>
-            <div class="rec-foot">
-              ${long ? html`<button class="link-btn" onClick=${() => setOpen({ ...open, [r.id]: !isOpen })}>${isOpen ? 'ver menos' : 'ver tudo'}</button>` : html`<span></span>`}
-              <span class="row-actions">
+              <span class="row-actions rec-row-actions">
+                <button class=${'btn btn-sm ' + (copied === r.id ? 'btn-primary' : '')} onClick=${() => copy(r)}>${copied === r.id ? '✓ Copiado' : '📋 Copiar'}</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => setEditing(r)}>✏️ Editar</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => remove(r)}>Apagar</button>
               </span>
-            </div>
-          </article>`;
-      })}
-    </div>
+            </div>`;
+        })}
+      </section>`}
 
     ${editing && html`<${RecEditor} rec=${editing} categories=${categories} onClose=${() => setEditing(null)} onSaved=${() => { setEditing(null); load(); }} />`}`;
 }

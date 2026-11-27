@@ -721,8 +721,9 @@ responderam os 2 últimos e Questionários enviados).
 Biblioteca de **textos prontos** que a nutricionista monta (ex.: uso de creatina, como comprar e usar whey protein)
 para copiar e colar para o paciente. Tabela `recommendations` (título, categoria opcional, texto).
 
-- Cada recomendação é um **cartão separado** (não um bloco único de texto): categoria, título, texto (prévia de ~280
-  letras com `ver tudo` / `ver menos`), `[📋 Copiar]` (copia só o texto), `[✏️ Editar]` e `[Apagar]`.
+- **Lista** (não cartões, a pedido), separada por categoria (título de cada categoria): uma linha por recomendação,
+  com o título, a primeira linha do texto e `[📋 Copiar]` (copia só o texto), `[✏️ Editar]` e `[Apagar]`. Clicar no
+  título (▸) abre o texto inteiro ali mesmo (▾ fecha).
 - **Busca** no topo (sem acento e por várias palavras, procura no título, na categoria e no texto) e **filtro por
   categoria** (botões com a contagem).
 - `[+ Nova recomendação]` abre o editor: título, categoria (sugere as já usadas) e texto.
