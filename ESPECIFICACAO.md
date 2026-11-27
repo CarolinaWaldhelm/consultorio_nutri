@@ -408,7 +408,7 @@ Outras regras:
   **🧩 Modelos** e **⚙️ Mensagem e frequência**.
 - **📋 Questionários enviados**: lista de quem já recebeu, com período `[Hoje | 7 dias | 30 dias | Tudo]` (padrão 7 dias)
   e situação `[Todos | 🟢 Respondidos | 🟡 Pendentes | ⚪ Sem resposta]` com as contagens; 15 visíveis e "Mostrar
-  mais". Respondido abre as respostas; pendente tem `[📋 Copiar de novo]` (mesmo link, não conta como novo envio).
+  mais". Respondido abre as respostas; pendente tem `[📋 Copiar de novo]` e `[📲 WhatsApp]` (mesmo link, não contam como novo envio).
   Envios feitos na hora já aparecem na lista.
 - Em **"Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
   com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.

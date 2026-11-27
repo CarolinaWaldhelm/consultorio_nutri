@@ -437,7 +437,9 @@ function SentList({ data }) {
                           : html`<span class="badge badge-warn">🟡 Pendente${sent === today ? '' : ` (há ${daysBetween(sent, today)} dia(s))`}</span>`}
                     </td>
                     <td class="row-actions">${st === 'pendente' && p && html`
-                      <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link (não conta como novo envio)" onClick=${() => copyAgain(s, p)}>${copied === s.id ? '✓ Copiada' : '📋 Copiar de novo'}</button>`}</td>
+                      <button class="btn btn-sm btn-ghost" title="Copia de novo a mensagem com o mesmo link (não conta como novo envio)" onClick=${() => copyAgain(s, p)}>${copied === s.id ? '✓ Copiada' : '📋 Copiar de novo'}</button>
+                      <button class="btn btn-sm btn-ghost" disabled=${!whatsappNumber(p.phone)} title=${whatsappNumber(p.phone) ? 'Abre o WhatsApp com a mensagem e o mesmo link (não conta como novo envio)' : 'Sem telefone no cadastro'}
+                        onClick=${() => window.open(whatsappUrl(p.phone, fillMessage(message, p.name, formLink(s.token))), '_blank')}>📲 WhatsApp</button>`}</td>
                   </tr>`;
               })}
             </tbody>
