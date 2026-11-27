@@ -198,6 +198,11 @@ create table if not exists public.recommendations (
   updated_at  timestamptz not null default now()
 );
 
+-- 'recomendacao' (texto para o paciente) ou 'conduta' (anotação dela: doses de suplementação etc.)
+alter table public.recommendations add column if not exists kind text not null default 'recomendacao';
+alter table public.recommendations drop constraint if exists recommendations_kind_check;
+alter table public.recommendations add constraint recommendations_kind_check check (kind in ('recomendacao', 'conduta'));
+
 -- ---------- Rotinas (tarefas que se repetem todo dia ou todo mês) ----------
 create table if not exists public.routines (
   id            uuid primary key default gen_random_uuid(),

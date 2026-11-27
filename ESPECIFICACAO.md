@@ -707,7 +707,7 @@ leitura de exames, relatório de evolução e quadro de insights.
 ## Menu de cima
 
 "🥗 Consultório Nutri" (leva à tela inicial, com a lista de pacientes) · Lembretes de consulta · Questionários ·
-Recomendações · Importar Nutrium · ⚙️ Configurações. O link "Pacientes" foi retirado (fazia o mesmo que o nome do consultório).
+Recomendações · Condutas · Importar Nutrium · ⚙️ Configurações. O link "Pacientes" foi retirado (fazia o mesmo que o nome do consultório).
 
 ## Copiar o nome do paciente
 
@@ -728,3 +728,10 @@ para copiar e colar para o paciente. Tabela `recommendations` (título, categori
   categoria** (botões com a contagem).
 - `[+ Nova recomendação]` abre o editor: título, categoria (sugere as já usadas) e texto.
 - Entra no backup. Nada de dado de paciente: são textos gerais.
+
+## Condutas (menu de cima: "Condutas")
+
+Mesmo esquema de Recomendações (lista por categoria, busca, filtro, `[📋 Copiar]`, `[✏️ Editar]`, `[Apagar]`), mas
+para **anotações da nutricionista**: condutas de suplementação (doses, forma de uso, duração), protocolos e ajustes.
+Mesma tabela `recommendations`, coluna `kind` = `'conduta'` (as recomendações são `'recomendacao'`, o padrão); cada
+página mostra só o seu tipo.

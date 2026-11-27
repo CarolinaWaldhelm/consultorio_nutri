@@ -17,6 +17,7 @@ function parseRoute(hash) {
   if (parts[0] === 'config') return { name: 'config' };
   if (parts[0] === 'questionarios') return { name: 'questionnaires' };
   if (parts[0] === 'recomendacoes') return { name: 'recommendations' };
+  if (parts[0] === 'condutas') return { name: 'conducts' };
   if (parts[0] === 'lembretes') return { name: 'appointments', tab: parts[1] || null };
   return { name: 'home' };
 }
@@ -41,7 +42,8 @@ function App() {
   else if (route.name === 'import') page = html`<${ImportPage} />`;
   else if (route.name === 'config') page = html`<${SettingsPage} />`;
   else if (route.name === 'questionnaires') page = html`<${QuestionnairesPage} />`;
-  else if (route.name === 'recommendations') page = html`<${RecommendationsPage} />`;
+  else if (route.name === 'recommendations') page = html`<${RecommendationsPage} key="rec" kind="recomendacao" />`;
+  else if (route.name === 'conducts') page = html`<${RecommendationsPage} key="cond" kind="conduta" />`;
   else if (route.name === 'appointments') page = html`<${AppointmentsPage} key=${route.tab || ''} initialTab=${route.tab || 'enviar'} />`;
   else page = html`<${Home} />`;
 
@@ -52,6 +54,7 @@ function App() {
         <a href="#/lembretes" class=${route.name === 'appointments' ? 'active' : ''}>Lembretes de consulta</a>
         <a href="#/questionarios" class=${route.name === 'questionnaires' ? 'active' : ''}>Questionários</a>
         <a href="#/recomendacoes" class=${route.name === 'recommendations' ? 'active' : ''}>Recomendações</a>
+        <a href="#/condutas" class=${route.name === 'conducts' ? 'active' : ''}>Condutas</a>
         <a href="#/importar" class=${route.name === 'import' ? 'active' : ''}>Importar Nutrium</a>
         <a href="#/config" class=${route.name === 'config' ? 'active' : ''}>⚙️ Configurações</a>
       </nav>
