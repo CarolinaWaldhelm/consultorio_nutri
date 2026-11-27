@@ -305,3 +305,13 @@ export function fillNoShowMessage(template, name, isFirst) {
   const first = String(name || '').trim().split(/\s+/)[0] || '';
   return template.replace(/\[(nome|primeiro nome)\]/gi, first).replace(/\[minutos\]/gi, String(isFirst ? WAIT_FIRST_MIN : WAIT_RETURN_MIN));
 }
+
+/**
+ * Situação de um questionário enviado: 'respondido'; 'sem_resposta' (link vencido por um envio novo, ou 7 dias ou
+ * mais sem resposta — mesma regra da taxa de resposta); senão 'pendente'.
+ */
+export function sendStatus(s, today = todayISO()) {
+  if (s.answered_at) return 'respondido';
+  if (s.expired_at || daysBetween(dateOf(s.sent_at), today) >= 7) return 'sem_resposta';
+  return 'pendente';
+}

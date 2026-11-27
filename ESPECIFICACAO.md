@@ -407,7 +407,9 @@ Outras regras:
   📊 Taxa de resposta → 📨 Envios de hoje + 🔔 Lembretes + telefones/pausados → 📋 Questionários enviados),
   **🧩 Modelos** e **⚙️ Mensagem e frequência**.
 - **📋 Questionários enviados**: lista de quem já recebeu, com período `[Hoje | 7 dias | 30 dias | Tudo]` (padrão 7 dias)
-  e situação `[Todos | 🟢 Respondidos | 🟡 Pendentes | ⚪ Sem resposta]` com as contagens; 15 visíveis e "Mostrar
+  e situação `[Todos | 🟢 Respondidos | 🟡 Pendentes | ⚪ Sem resposta]` com as contagens (**Pendente** = enviado há menos
+  de 7 dias e ainda sem resposta; **Sem resposta** = 7 dias ou mais sem resposta, ou link vencido por um envio novo —
+  mesma regra da taxa de resposta); 15 visíveis e "Mostrar
   mais". Respondido abre as respostas; pendente tem `[📋 Copiar de novo]` e `[📲 WhatsApp]` (mesmo link, não contam como novo envio); sem telefone, no
   lugar do WhatsApp aparece um campo **"📞 DDD + número" com `[Salvar]`** (grava no cadastro e o botão aparece).
   **Canal de cada envio:** colunas `nutrium_at` e `whatsapp_at` em `questionnaire_sends` (anotadas no envio, no
@@ -416,6 +418,9 @@ Outras regras:
   **por onde o paciente respondeu** (`answered_via`, função `submit_questionnaire(token, respostas, via)`): o selo
   fica "🟢 Respondido (há 1 dia) · 📲" ou "· ✉️".
   Envios feitos na hora já aparecem na lista.
+- Em **"Envios de hoje"**, coluna **"Último questionário"**: situação do último enviado **desde a última consulta** (a
+  consulta zera): 🟢 Respondido, 🟡 Pendente ou ⚠️ Sem resposta ao anterior (só um aviso; o envio novo continua
+  disponível), com a data; sem nenhum desde a consulta, "primeiro após a consulta".
 - Em **"Envios de hoje"**: **lista de conferência** de quem vai receber, todos já marcados,
   com caixa de seleção individual e os botões `[Marcar todos]` / `[Desmarcar todos]`.
 - `[Enviar para os selecionados (N)]` abre uma fila: "Enviando 1 de N: Maria — [Abrir WhatsApp]". Cada clique

@@ -4,7 +4,7 @@ import { supabase, run } from '../lib/db.js';
 import { fmtDate, daysBetween, todayISO, daysAgoLabel } from '../lib/util.js';
 import { loadAgenda, consultationEvents, matchEvent, windowDays } from '../lib/agenda.js';
 import {
-  planSends, consultSoonIds, newToken, formLink, channelColumn, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel, durationText,
+  planSends, consultSoonIds, newToken, formLink, channelColumn, sendStatus, fillMessage, whatsappUrl, whatsappNumber, dateOf, responseStats, durationLabel, durationText,
   DEFAULT_FREQUENCY, DEFAULT_START_DATE, DEFAULT_MESSAGE, DEFAULT_REMINDER, QUESTION_TYPES,
 } from '../lib/questionnaires.js';
 import { Modal, Field, ErrorBox, Loading, AutoText, usePaged, CopyName, usePeriod } from './common.js';
@@ -201,14 +201,24 @@ function SendsTab({ data, reload, goModels, onSent = () => {} }) {
         </div>
         <table class="table">
           <thead><tr><th style="width:36px"><input type="checkbox" aria-label="Marcar ou desmarcar todos" checked=${allOn} disabled=${!pending.length}
-            onChange=${() => setSelected(allOn ? new Set() : new Set(pending.map((d) => d.patient.id)))} /></th><th>Paciente</th><th>Última consulta</th><th>Motivo</th><th></th></tr></thead>
+            onChange=${() => setSelected(allOn ? new Set() : new Set(pending.map((d) => d.patient.id)))} /></th><th>Paciente</th><th>Última consulta</th><th>Último questionário</th><th></th></tr></thead>
           <tbody>
             ${plan.due.map(({ patient: p }) => html`
               <tr class=${sent[p.id] ? 'row-sent' : ''}>
                 <td><input type="checkbox" aria-label=${'Selecionar ' + p.name} disabled=${!!sent[p.id]} checked=${!!sent[p.id] || selected.has(p.id)} onChange=${() => toggle(p.id)} /></td>
                 <td><a href=${'#/paciente/' + p.id}>${p.name}</a><${CopyName} name=${p.name} /></td>
                 <td>${fmtDate(p.last_consult)} <span class="muted small">(${daysAgoLabel(p.last_consult).toLowerCase()})</span></td>
-                <td class="muted small">${dueBy[p.id]?.fromSend ? `último questionário em ${fmtDate(dueBy[p.id].anchor)}` : 'primeiro após a consulta'}</td>
+                <td>${(() => {
+                  // Só conta o que foi enviado depois da última consulta: a consulta zera a situação.
+                  const last = data.sends.filter((x) => x.patient_id === p.id && dateOf(x.created_at) >= p.last_consult && !(sent[p.id] && x.id === sent[p.id].id))
+                    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+                  if (!last) return html`<span class="muted small">primeiro após a consulta</span>`;
+                  const st = sendStatus(last);
+                  const when = fmtDate(dateOf(last.sent_at)).slice(0, 5);
+                  return st === 'respondido' ? html`<span class="badge badge-green">🟢 Respondido</span> <span class="muted small">(enviado ${when})</span>`
+                    : st === 'pendente' ? html`<span class="badge badge-warn">🟡 Pendente</span> <span class="muted small">(enviado ${when})</span>`
+                    : html`<span class="badge" title="Não respondeu o questionário anterior">⚠️ Sem resposta ao anterior</span> <span class="muted small">(enviado ${when})</span>`;
+                })()}</td>
                 <td class="row-actions">
                   ${sent[p.id]
                     ? html`<span class="badge badge-green">✓ Enviado${sent[p.id].via === 'copy' ? ' (copiado)' : ''}</span><button class="btn btn-sm btn-ghost" onClick=${() => undo(p)}>Desfazer</button>`
@@ -385,7 +395,7 @@ function StatsCard({ data }) {
 
 const STATUS_FILTERS = [['todos', 'Todos'], ['respondido', '🟢 Respondidos'], ['pendente', '🟡 Pendentes'], ['vencido', '⚪ Sem resposta']];
 const WHEN_FILTERS = [['hoje', 'Hoje'], ['7', '7 dias'], ['30', '30 dias'], ['all', 'Tudo']];
-const statusOf = (s) => (s.answered_at ? 'respondido' : s.expired_at ? 'vencido' : 'pendente');
+const statusOf = (s) => (sendStatus(s) === 'sem_resposta' ? 'vencido' : sendStatus(s));
 
 /** Questionários já enviados, com filtro de situação e de período. "📋 Copiar de novo" para os pendentes. */
 function SentList({ data }) {
@@ -462,7 +472,7 @@ function SentList({ data }) {
                       ${st === 'respondido'
                         ? html`<button class="badge badge-green as-link" title=${s.answered_via === 'whatsapp' ? 'Respondeu pelo link mandado no WhatsApp' : s.answered_via === 'nutrium' ? 'Respondeu pelo link mandado na Nutrium' : ''} onClick=${() => setViewing(s)}>🟢 Respondido (${daysAgoLabel(dateOf(s.answered_at)).toLowerCase()})${s.answered_via === 'whatsapp' ? ' · 📲' : s.answered_via === 'nutrium' ? ' · ✉️' : ''} · ver</button>`
                         : st === 'vencido'
-                          ? html`<span class="badge">⚪ Sem resposta (link vencido)</span>`
+                          ? html`<span class="badge">⚪ Sem resposta${s.expired_at ? ' (link vencido)' : ''}</span>`
                           : html`<span class="badge badge-warn">🟡 Pendente${sent === today ? '' : ` (há ${daysBetween(sent, today)} dia(s))`}</span>`}
                     </td>
                     <td class="row-actions">${st === 'pendente' && p && html`
