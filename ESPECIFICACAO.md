@@ -368,8 +368,13 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   idade, "acompanhamento desde" e data de emissão; fileira de pontinhos nas cores da logo; mensagem em destaque;
   **resumo em números** (peso atual, variação de peso, IMC com classificação, variação da cintura); gráficos com bordas
   suaves; **exames em tabela** agrupada (último resultado e o anterior, verde dentro da referência e terracota ↑↓
-  fora); **rodapé simples em todas as folhas** (uma linha: nome · profissão · CRN · Instagram · contato) com o número
-  da página; a **assinatura com os pontinhos coloridos** (nome em destaque e os dados) fica **só no fim**, na última folha.
+  fora). **Da primeira à penúltima folha:** rodapé simples (uma linha: nome · profissão · CRN · Instagram · contato) e
+  o número da página. **Na última folha:** só a assinatura com os pontinhos coloridos, no pé da folha.
+- Para saber qual é a última folha, **o próprio site monta as folhas A4** (`paginate` em `js/views/report.js`): mede
+  cada bloco (cabeçalho, mensagem, resumo, cada fileira de gráficos, cada linha da tabela de exames) e distribui nas
+  folhas; títulos não ficam sozinhos no pé da folha; a tabela repete o cabeçalho em cada folha; a última folha não
+  fica só com a assinatura (puxa ~4 cm de conteúdo da anterior). A impressão usa margem zero (`@page { margin: 0 }`),
+  o que também tira o cabeçalho/rodapé automático do navegador.
 - **Logo e dados do rodapé** ficam em Configurações → "Relatório em PDF: sua identidade" (chaves `report_logo`,
   `report_name`, `report_title`, `report_crn`, `report_instagram`, `report_contact` em `app_settings`), **não no código**
   (o repositório é público). A logo é reduzida para 480 px.

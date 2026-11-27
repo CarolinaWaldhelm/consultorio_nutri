@@ -1,6 +1,6 @@
 // Relatório de evolução para o paciente: monta uma página com os gráficos e abre a janela de impressão
 // ("Salvar como PDF"). A página é desenhada fora da tela para os gráficos terem tamanho certo.
-import { html, render, useState, useEffect } from '../lib/preact.js';
+import { html, render, useState, useEffect, useLayoutEffect, useRef } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, latestOf, classifyBMI, ageFrom } from '../lib/util.js';
 import { METRICS } from '../lib/metrics.js';
@@ -72,82 +72,160 @@ function Report({ data, parts, message, brand }) {
     cint.length >= 2 && { label: 'Cintura', value: `${sign(cint[cint.length - 1].value - cint[0].value)} cm`, sub: `${fmtNum(cint[cint.length - 1].value)} cm hoje` },
   ].filter(Boolean);
   const footer = [brand.report_name, brand.report_title, brand.report_crn && `CRN ${brand.report_crn}`, brand.report_instagram, brand.report_contact].filter(Boolean);
+  const dots = html`<div class="rpt-dots" aria-hidden="true">${[C.terra, C.olive, C.blue, C.mustard, C.red, C.green].map((c) => html`<i style=${'background:' + c}></i>`)}</div>`;
+  const sig = footer.length > 0 ? html`
+    <div class="rpt-sign">
+      ${dots}
+      <div class="rpt-sign-name">${brand.report_name || ''}</div>
+      <div class="rpt-sign-meta">${footer.slice(brand.report_name ? 1 : 0).join(' · ')}</div>
+    </div>` : null;
 
+  // O relatório é montado em blocos; o próprio site distribui os blocos nas folhas A4 (em vez de deixar o
+  // navegador quebrar as páginas). Assim ele sabe qual é a última folha: nas outras vai a linha simples do
+  // rodapé, e na última só a assinatura com os pontinhos.
+  const blocks = [];
+  const add = (key, el, opts = {}) => blocks.push({ key, el, ...opts });
+  const h2 = (color, text) => html`<h2 class="rpt-h2"><i style=${'background:' + color}></i>${text}</h2>`;
+  const chartRows = (list, color, keyPrefix) => {
+    for (let i = 0; i < list.length; i += 2) {
+      add(keyPrefix + i, html`<div class="report-charts">${list.slice(i, i + 2).map((x) => html`<${MetricChart} key=${x.key} label=${x.label} unit=${x.unit || ''} points=${x.points} color=${color} />`)}</div>`);
+    }
+  };
+  add('head', html`
+    <header class="rpt-head">
+      ${brand.report_logo && html`<img class="rpt-logo" src=${brand.report_logo} alt="" />`}
+      <div class="rpt-head-text">
+        <div class="rpt-kicker">Relatório de acompanhamento nutricional</div>
+        <h1 class="rpt-name">${patient.name}</h1>
+        <div class="rpt-meta">${age != null ? `${age} anos · ` : ''}${since ? `Acompanhamento desde ${fmtDate(since)} · ` : ''}Emitido em ${fmtDate(todayISO())}</div>
+      </div>
+    </header>
+    ${dots}`);
+  if (message) add('msg', html`<div class="rpt-message">${message}</div>`);
+  if (parts.body) {
+    add('h-body', h2(C.terra, 'Composição corporal'), { keepNext: true });
+    if (tiles.length) add('tiles', html`<div class="rpt-tiles">${tiles.map((t) => html`
+      <div class="rpt-tile"><div class="rpt-tile-label">${t.label}</div><div class="rpt-tile-value">${t.value}</div><div class="rpt-tile-sub">${t.sub}</div></div>`)}</div>`);
+    if (body.length) chartRows(body.map(({ m, points }) => ({ key: m.key, label: m.label, unit: m.unit, points })), C.green, 'bc');
+    else add('b-none', html`<p class="rpt-muted">Ainda não há medidas suficientes para os gráficos.</p>`);
+  }
+  if (parts.labs && labs.length > 0) {
+    add('h-labs', h2(C.blue, 'Exames laboratoriais'), { keepNext: true });
+    const cell = (x, r) => {
+      if (!r) return html`<span class="rpt-muted">—</span>`;
+      const st = x.status(r);
+      return html`<span class=${'rpt-val' + (st && st !== 'ok' ? ' out' : st === 'ok' ? ' ok' : '')}>${String(r.value).replace('.', ',')}${st === 'high' ? ' ↑' : st === 'low' ? ' ↓' : ''}</span><span class="rpt-date">${fmtDate(r.date).slice(0, 5)}/${r.date.slice(2, 4)}</span>`;
+    };
+    labs.forEach((x, i) => {
+      const prev = i ? labs[i - 1].group : null;
+      const g = x.group;
+      if (!prev || prev.key !== g.key) {
+        if (g.section && (!prev || prev.section !== g.section)) add('sec' + i, html`<tr class="rpt-group"><td colspan="4">${g.section}</td></tr>`, { row: true, keepNext: true });
+        add('grp' + i, html`<tr class=${g.section ? 'rpt-subgroup' : 'rpt-group'}><td colspan="4">${g.label}</td></tr>`, { row: true, keepNext: true });
+      }
+      add('lab' + i, html`<tr><td>${x.label} <span class="rpt-unit">${x.unit || ''}</span></td><td class="num">${cell(x, x.vals[0])}</td><td class="num">${cell(x, x.vals[1])}</td><td class="rpt-ref">${x.ref?.text || '—'}</td></tr>`, { row: true });
+    });
+    add('lab-note', html`<p class="rpt-note"><span class="rpt-val ok">verde</span> dentro da referência · <span class="rpt-val out">terracota ↑↓</span> acima ou abaixo. Referências gerais; vale sempre a do seu laudo.</p>`);
+  }
+  if (parts.questions && qs.length > 0) {
+    add('h-q', h2(C.mustard, 'Questionários semanais'), { keepNext: true });
+    chartRows(qs, C.blue, 'qc');
+  }
+
+  const cols = html`<colgroup><col style="width:46%" /><col style="width:16%" /><col style="width:16%" /><col style="width:22%" /></colgroup>`;
+  const thead = html`<thead><tr><th>Exame</th><th class="num">Resultado</th><th class="num">Anterior</th><th>Referência</th></tr></thead>`;
+  const [pages, setPages] = useState(null);
+  const measure = useRef(null);
+  useLayoutEffect(() => {
+    if (pages || !measure.current) return;
+    const root = measure.current;
+    // Blocos comuns: cada um no seu quadro; linhas de exame: medidas todas dentro de uma tabela só (como saem na folha).
+    const plain = [...root.querySelectorAll(':scope > [data-b]')].map((e) => e.getBoundingClientRect().height);
+    const trs = [...root.querySelectorAll('[data-rows] tbody > tr')].map((e) => e.getBoundingClientRect().height);
+    let pi = 0, ri = 0;
+    const hs = blocks.map((b) => (b.row ? trs[ri++] : plain[pi++]));
+    const theadH = root.querySelector('[data-rows] thead')?.getBoundingClientRect().height || 0;
+    const sigH = root.querySelector('[data-sig]')?.getBoundingClientRect().height || 0;
+    setPages(paginate(blocks, hs, theadH, sigH));
+  });
+
+  if (!pages) {
+    return html`
+      <div class="rpt rpt-measure" ref=${measure}>
+        ${blocks.filter((b) => !b.row).map((b) => html`<div data-b class="rpt-block" key=${b.key}>${b.el}</div>`)}
+        <div data-rows class="rpt-block"><table class="rpt-table">${cols}${thead}<tbody>${blocks.filter((b) => b.row).map((b) => b.el)}</tbody></table></div>
+        <div data-sig class="rpt-block">${sig}</div>
+      </div>`;
+  }
+
+  // Blocos de uma folha: linhas seguidas de exames viram uma tabela só, com o cabeçalho da tabela.
+  const renderBlocks = (idx) => {
+    const out = [];
+    for (let k = 0; k < idx.length; k++) {
+      const b = blocks[idx[k]];
+      if (!b.row) { out.push(html`<div class="rpt-block" key=${b.key}>${b.el}</div>`); continue; }
+      const rows = [];
+      while (k < idx.length && blocks[idx[k]].row) { rows.push(blocks[idx[k]].el); k++; }
+      k--;
+      out.push(html`<div class="rpt-block"><table class="rpt-table">${cols}${thead}<tbody>${rows}</tbody></table></div>`);
+    }
+    return out;
+  };
   return html`
-    <div class="report rpt">
-      <header class="rpt-head">
-        ${brand.report_logo && html`<img class="rpt-logo" src=${brand.report_logo} alt="" />`}
-        <div class="rpt-head-text">
-          <div class="rpt-kicker">Relatório de acompanhamento nutricional</div>
-          <h1 class="rpt-name">${patient.name}</h1>
-          <div class="rpt-meta">
-            ${age != null ? `${age} anos · ` : ''}${since ? `Acompanhamento desde ${fmtDate(since)} · ` : ''}Emitido em ${fmtDate(todayISO())}
-          </div>
-        </div>
-      </header>
-      <div class="rpt-dots" aria-hidden="true">${[C.terra, C.olive, C.blue, C.mustard, C.red, C.green].map((c) => html`<i style=${'background:' + c}></i>`)}</div>
-
-      ${message && html`<div class="rpt-message">${message}</div>`}
-
-      ${parts.body && html`
-        <section class="rpt-section">
-          <h2><i style=${'background:' + C.terra}></i>Composição corporal</h2>
-          ${tiles.length > 0 && html`<div class="rpt-tiles">${tiles.map((t) => html`
-            <div class="rpt-tile"><div class="rpt-tile-label">${t.label}</div><div class="rpt-tile-value">${t.value}</div><div class="rpt-tile-sub">${t.sub}</div></div>`)}</div>`}
-          ${body.length ? html`<div class="report-charts">${body.map(({ m, points }) => html`<${MetricChart} key=${m.key} label=${m.label} unit=${m.unit} points=${points} color=${C.green} />`)}</div>`
-            : html`<p class="rpt-muted">Ainda não há medidas suficientes para os gráficos.</p>`}
-        </section>`}
-
-      ${parts.labs && labs.length > 0 && html`
-        <section class="rpt-section">
-          <h2><i style=${'background:' + C.blue}></i>Exames laboratoriais</h2>
-          <table class="rpt-table">
-            <thead><tr><th>Exame</th><th class="num">Resultado</th><th class="num">Anterior</th><th>Referência</th></tr></thead>
-            <tbody>
-              ${labs.map((x, i) => {
-                const prev = i ? labs[i - 1].group : null;
-                const g = x.group;
-                const head = !prev || prev.key !== g.key;
-                const cell = (r) => { if (!r) return html`<span class="rpt-muted">—</span>`; const st = x.status(r);
-                  return html`<span class=${'rpt-val' + (st && st !== 'ok' ? ' out' : st === 'ok' ? ' ok' : '')}>${String(r.value).replace('.', ',')}${st === 'high' ? ' ↑' : st === 'low' ? ' ↓' : ''}</span><span class="rpt-date">${fmtDate(r.date).slice(0, 5)}/${r.date.slice(2, 4)}</span>`; };
-                return html`
-                  ${head && g.section && (!prev || prev.section !== g.section) && html`<tr class="rpt-group"><td colspan="4">${g.section}</td></tr>`}
-                  ${head && html`<tr class=${g.section ? 'rpt-subgroup' : 'rpt-group'}><td colspan="4">${g.label}</td></tr>`}
-                  <tr><td>${x.label} <span class="rpt-unit">${x.unit || ''}</span></td><td class="num">${cell(x.vals[0])}</td><td class="num">${cell(x.vals[1])}</td><td class="rpt-ref">${x.ref?.text || '—'}</td></tr>`;
-              })}
-            </tbody>
-          </table>
-          <p class="rpt-note"><span class="rpt-val ok">verde</span> dentro da referência · <span class="rpt-val out">terracota ↑↓</span> acima ou abaixo. Referências gerais; vale sempre a do seu laudo.</p>
-        </section>`}
-
-      ${parts.questions && qs.length > 0 && html`
-        <section class="rpt-section">
-          <h2><i style=${'background:' + C.mustard}></i>Questionários semanais</h2>
-          <div class="report-charts">${qs.map((q) => html`<${MetricChart} key=${q.key} label=${q.label} unit="" points=${q.points} color=${C.blue} />`)}</div>
-        </section>`}
-
-      ${footer.length > 0 && html`
-        <div class="rpt-sign">
-          <div class="rpt-dots" aria-hidden="true">${[C.terra, C.olive, C.blue, C.mustard, C.red, C.green].map((c) => html`<i style=${'background:' + c}></i>`)}</div>
-          <div class="rpt-sign-name">${brand.report_name || ''}</div>
-          <div class="rpt-sign-meta">${footer.slice(brand.report_name ? 1 : 0).join(' · ')}</div>
-        </div>`}
+    <div class="rpt">
+      ${pages.map((p, n) => {
+        const last = n === pages.length - 1;
+        return html`
+          <section class="rpt-sheet">
+            <div class="rpt-sheet-body">${renderBlocks(p)}</div>
+            ${last
+              ? sig && html`<div class="rpt-sheet-sign">${sig}</div>`
+              : html`<footer class="rpt-sheet-foot"><span>${footer.join('  ·  ')}</span><span class="rpt-pg">${n + 1}/${pages.length}</span></footer>`}
+          </section>`;
+      })}
     </div>`;
 }
 
-/**
- * Rodapé simples em todas as folhas (nome · profissão · CRN · Instagram · contato) e número da página, nas margens.
- * A assinatura com os pontinhos fica só no fim do relatório (última folha).
- */
-function pageStyle(brand) {
-  const parts = [brand.report_name, brand.report_title, brand.report_crn && `CRN ${brand.report_crn}`, brand.report_instagram, brand.report_contact].filter(Boolean);
-  const text = parts.join('  ·  ').replace(/["\\\n]/g, ' ');
-  // As caixas de cima vazias e as de baixo com o nosso rodapé substituem o cabeçalho/rodapé automático do navegador
-  // (data, título "Consultório Nutri" e endereço da página).
-  return `@page { size: A4; margin: 14mm 13mm 18mm;
-    @top-left { content: ""; } @top-center { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; }
-    @bottom-center { content: "${text}"; font: 7.5pt 'Avenir Next', 'Segoe UI', sans-serif; letter-spacing: .06em; color: #858b7f; }
-    @bottom-right { content: counter(page) "/" counter(pages); font: 7.5pt sans-serif; color: #c4622f; } }`;
+// Folha A4 (mm → px da tela, 96 por polegada): margem de cima 14 mm, rodapé reservado 20 mm.
+const MM = 96 / 25.4;
+const AVAIL = (297 - 14 - 20) * MM;
+const SIG_BOTTOM = 8 * MM; // a assinatura fica 8 mm acima da borda de baixo da última folha
+
+/** Distribui os blocos nas folhas. Devolve [[índices da folha 1], [folha 2], …]. */
+function paginate(blocks, hs, theadH, sigH) {
+  const pages = [[]];
+  let used = 0;
+  const cur = () => pages[pages.length - 1];
+  const prevIsRow = () => { const p = cur(); return p.length > 0 && blocks[p[p.length - 1]].row; };
+  const cost = (i, afterRow) => hs[i] + (blocks[i].row && !afterRow ? theadH : 0);
+  for (let i = 0; i < blocks.length; i++) {
+    let h = cost(i, prevIsRow());
+    // Títulos (de seção, de grupo) não ficam sozinhos no pé da folha: vão juntos até o primeiro bloco de conteúdo.
+    let need = h;
+    for (let j = i; blocks[j].keepNext && j + 1 < blocks.length; j++) need += cost(j + 1, !!blocks[j].row);
+    if (cur().length && used + need > AVAIL) { pages.push([]); used = 0; h = cost(i, false); }
+    cur().push(i);
+    used += h;
+  }
+  // A assinatura ocupa o pé da última folha; se não couber, abre uma folha nova para ela.
+  const sigTop = (297 - 14) * MM - SIG_BOTTOM - sigH;
+  if (sigH && used > sigTop - 10) { pages.push([]); used = 0; }
+  // A última folha não fica só com a assinatura ou com um pedacinho: puxa da folha anterior um pedaço de pelo menos
+  // ~4 cm (por exemplo, as últimas linhas da tabela), junto com os títulos que vêm logo antes dele.
+  if (pages.length > 1 && used < 40 * MM) {
+    const prev = pages[pages.length - 2];
+    const last = cur();
+    let h = used;
+    const take = () => { const i = prev.pop(); last.unshift(i); h += hs[i]; };
+    while (prev.length > 1 && (h < 40 * MM || blocks[prev[prev.length - 1]].keepNext)) take();
+  }
+  return pages;
+}
+
+/** Folha A4 sem margens do navegador: as margens, o rodapé e o número da página são desenhados pelo relatório
+ * (e, sem margem, o navegador também não põe o cabeçalho/rodapé automático com data e título). */
+function pageStyle() {
+  return '@page { size: A4; margin: 0; }';
 }
 
 function printReport(props) {

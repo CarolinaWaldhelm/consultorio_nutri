@@ -541,3 +541,20 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .brand-ok { color: var(--primary-dark); }
 
 .rpt-sign { margin-top: 34px; padding-top: 14px; border-top: 1px solid #efe7d6; }
+
+/* Relatório montado em folhas A4 pelo próprio site (o site decide as quebras e sabe qual é a última folha) */
+.rpt { padding: 0; }
+.rpt-measure { width: 184mm; }
+.rpt-block { display: flow-root; }
+.rpt-h2 { display: flex; align-items: center; gap: 8px; font-family: Georgia, serif; font-weight: 400; font-size: 1.2rem; color: var(--rv); margin: 14px 0 10px; }
+.rpt-h2 i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.rpt .report-charts { margin-bottom: 12px; }
+.rpt-table { table-layout: fixed; }
+.rpt-sheet { width: 210mm; height: 296.5mm; padding: 14mm 13mm 0; box-sizing: border-box; position: relative; overflow: hidden; background: #fff;
+  break-after: page; page-break-after: always; }
+.rpt-sheet:last-child { break-after: auto; page-break-after: auto; }
+.rpt-sheet-foot { position: absolute; left: 13mm; right: 13mm; bottom: 9mm; text-align: center; font-size: 7.5pt; letter-spacing: .06em;
+  color: #858b7f; border-top: 1px solid #efe7d6; padding-top: 5px; }
+.rpt-pg { position: absolute; right: 0; top: 5px; color: #c4622f; }
+.rpt-sheet-sign { position: absolute; left: 13mm; right: 13mm; bottom: 8mm; }
+.rpt-sheet-sign .rpt-sign { margin-top: 0; }
