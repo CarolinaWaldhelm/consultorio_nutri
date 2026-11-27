@@ -558,3 +558,6 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .rpt-pg { position: absolute; right: 0; top: 5px; color: #c4622f; }
 .rpt-sheet-sign { position: absolute; left: 13mm; right: 13mm; bottom: 8mm; }
 .rpt-sheet-sign .rpt-sign { margin-top: 0; }
+
+/* Imprime as cores de fundo (pontinhos, quadros creme, faixas da tabela) mesmo com "Gráficos de plano de fundo" desmarcado */
+.rpt, .rpt * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }

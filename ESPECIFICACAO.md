@@ -375,6 +375,8 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   folhas; títulos não ficam sozinhos no pé da folha; a tabela repete o cabeçalho em cada folha; a última folha não
   fica só com a assinatura (puxa ~4 cm de conteúdo da anterior). A impressão usa margem zero (`@page { margin: 0 }`),
   o que também tira o cabeçalho/rodapé automático do navegador.
+  As cores de fundo (pontinhos, quadros creme, faixas da tabela) saem **mesmo com "Gráficos de plano de fundo"
+  desmarcado** na impressão (`print-color-adjust: exact` em `.rpt`).
 - **Logo e dados do rodapé** ficam em Configurações → "Relatório em PDF: sua identidade" (chaves `report_logo`,
   `report_name`, `report_title`, `report_crn`, `report_instagram`, `report_contact` em `app_settings`), **não no código**
   (o repositório é público). A logo é reduzida para 480 px.
