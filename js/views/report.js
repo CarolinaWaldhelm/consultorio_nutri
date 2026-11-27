@@ -1,6 +1,7 @@
 // Relatório de evolução para o paciente: monta uma página com os gráficos e abre a janela de impressão
 // ("Salvar como PDF"). A página é desenhada fora da tela para os gráficos terem tamanho certo.
-import { html, render, useState } from '../lib/preact.js';
+import { html, render, useState, useEffect } from '../lib/preact.js';
+import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO, latestOf, classifyBMI, ageFrom } from '../lib/util.js';
 import { METRICS } from '../lib/metrics.js';
 import { bmi } from '../lib/energy.js';
@@ -174,10 +175,20 @@ export function ReportModal({ data, onClose }) {
   const [parts, setParts] = useState({ body: true, labs: (data.labResults || []).length > 0, questions: (data.responses || []).length > 1 });
   const [message, setMessage] = useState('');
   const toggle = (k) => setParts({ ...parts, [k]: !parts[k] });
+  // Logo e dados do rodapé: lidos na hora (podem ter sido salvos em Configurações depois de abrir a ficha).
+  const [brand, setBrand] = useState(null);
+  useEffect(() => {
+    run(supabase.from('app_settings').select('*').in('key', ['report_logo', 'report_name', 'report_title', 'report_crn', 'report_instagram', 'report_contact']))
+      .then((rows) => setBrand(Object.fromEntries(rows.map((r) => [r.key, r.value]))))
+      .catch(() => setBrand(data.settings || {}));
+  }, []);
   return html`
     <${Modal} title="Relatório em PDF para o paciente" onClose=${onClose}>
       <p class="muted">Escolha o que entra. Na janela que abrir, escolha <strong>“Salvar como PDF”</strong> como impressora.</p>
-      ${!(data.settings || {}).report_logo && html`<p class="muted small">Dica: envie sua logo e os dados do rodapé em <a href="#/config">Configurações → Relatório em PDF</a>.</p>`}
+      ${brand && (brand.report_logo && brand.report_name
+        ? html`<p class="small brand-ok">✓ Logo e rodapé configurados (${brand.report_name}).</p>`
+        : html`<p class="alert small">⚠️ ${!brand.report_logo && !brand.report_name ? 'Sua logo e seus dados ainda não foram salvos' : !brand.report_logo ? 'Sua logo ainda não foi salva' : 'Seu nome (rodapé) ainda não foi salvo'}.
+            Vá em <a href="#/config" onClick=${onClose}>⚙️ Configurações → Relatório em PDF</a>, envie a logo, preencha os dados e clique em Salvar.</p>`)}
       <label class="checkbox-line"><input type="checkbox" checked=${parts.body} onChange=${() => toggle('body')} /> Composição corporal (peso, IMC e gráficos)</label>
       <label class="checkbox-line"><input type="checkbox" checked=${parts.labs} onChange=${() => toggle('labs')} /> Exames laboratoriais (tabela com o último resultado e o anterior)</label>
       <label class="checkbox-line"><input type="checkbox" checked=${parts.questions} onChange=${() => toggle('questions')} /> Questionários semanais (gráficos das escalas)</label>
@@ -186,7 +197,7 @@ export function ReportModal({ data, onClose }) {
       </label>
       <div class="actions">
         <button class="btn" onClick=${onClose}>Cancelar</button>
-        <button class="btn btn-primary" onClick=${() => { printReport({ data, parts, message: message.trim(), brand: data.settings || {} }); onClose(); }}>🖨️ Gerar PDF</button>
+        <button class="btn btn-primary" disabled=${!brand} onClick=${() => { printReport({ data, parts, message: message.trim(), brand: brand || {} }); onClose(); }}>🖨️ Gerar PDF</button>
       </div>
     <//>`;
 }

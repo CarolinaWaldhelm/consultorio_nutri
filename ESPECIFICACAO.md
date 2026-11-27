@@ -372,6 +372,8 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 - **Logo e dados do rodapé** ficam em Configurações → "Relatório em PDF: sua identidade" (chaves `report_logo`,
   `report_name`, `report_title`, `report_crn`, `report_instagram`, `report_contact` em `app_settings`), **não no código**
   (o repositório é público). A logo é reduzida para 480 px.
+  A janela do relatório lê esses dados na hora (vale mesmo se a ficha já estava aberta) e avisa se faltam:
+  "✓ Logo e rodapé configurados" ou "⚠️ … ainda não foram salvos" com o link para Configurações.
 
 - `[🖨️ Relatório em PDF]` na ficha: escolhe as partes (composição corporal, exames, questionários), uma mensagem
   opcional e abre a impressão do navegador ("Salvar como PDF"). A página tem só o relatório, em A4.

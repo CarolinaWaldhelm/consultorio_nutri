@@ -537,3 +537,5 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .rpt-sign .rpt-dots::after { display: none; }
 .rpt-sign-name { font-family: Georgia, serif; font-size: 1.05rem; color: var(--rv); }
 .rpt-sign-meta { font-size: .72rem; letter-spacing: .1em; color: var(--rmuted); margin-top: 2px; }
+
+.brand-ok { color: var(--primary-dark); }
