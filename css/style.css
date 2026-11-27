@@ -540,12 +540,4 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 
 .brand-ok { color: var(--primary-dark); }
 
-/* Assinatura em todas as folhas do PDF */
-.rpt-page { width: 100%; border-collapse: collapse; }
-.rpt-page > tbody > tr > td, .rpt-page > tfoot > tr > td { padding: 0; }
-.rpt-foot-space { height: 70px; }
-.rpt-fixed-foot { display: none; }
-@media print {
-  .rpt-fixed-foot { display: block; position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding-top: 8px; background: #fff; border-top: 1px solid #efe7d6; }
-  .rpt-fixed-foot .rpt-dots { margin-bottom: 6px; }
-}
+.rpt-sign { margin-top: 34px; padding-top: 14px; border-top: 1px solid #efe7d6; }

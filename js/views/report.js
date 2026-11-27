@@ -75,14 +75,6 @@ function Report({ data, parts, message, brand }) {
 
   return html`
     <div class="report rpt">
-      ${footer.length > 0 && html`
-        <div class="rpt-sign rpt-fixed-foot">
-          <div class="rpt-dots" aria-hidden="true">${[C.terra, C.olive, C.blue, C.mustard, C.red, C.green].map((c) => html`<i style=${'background:' + c}></i>`)}</div>
-          <div class="rpt-sign-name">${brand.report_name || ''}</div>
-          <div class="rpt-sign-meta">${footer.slice(brand.report_name ? 1 : 0).join(' · ')}</div>
-        </div>`}
-      <!-- A tabela repete o espaço do rodapé no fim de cada folha; a assinatura fixa é desenhada nesse espaço. -->
-      <table class="rpt-page"><tbody><tr><td>
       <header class="rpt-head">
         ${brand.report_logo && html`<img class="rpt-logo" src=${brand.report_logo} alt="" />`}
         <div class="rpt-head-text">
@@ -134,18 +126,27 @@ function Report({ data, parts, message, brand }) {
           <div class="report-charts">${qs.map((q) => html`<${MetricChart} key=${q.key} label=${q.label} unit="" points=${q.points} color=${C.blue} />`)}</div>
         </section>`}
 
-      </td></tr></tbody>
-      <tfoot><tr><td><div class=${footer.length ? 'rpt-foot-space' : ''}></div></td></tr></tfoot>
-      </table>
+      ${footer.length > 0 && html`
+        <div class="rpt-sign">
+          <div class="rpt-dots" aria-hidden="true">${[C.terra, C.olive, C.blue, C.mustard, C.red, C.green].map((c) => html`<i style=${'background:' + c}></i>`)}</div>
+          <div class="rpt-sign-name">${brand.report_name || ''}</div>
+          <div class="rpt-sign-meta">${footer.slice(brand.report_name ? 1 : 0).join(' · ')}</div>
+        </div>`}
     </div>`;
 }
 
-/** Margens da folha A4 e número da página (a assinatura do rodapé é desenhada pelo próprio relatório). */
-function pageStyle() {
+/**
+ * Rodapé simples em todas as folhas (nome · profissão · CRN · Instagram · contato) e número da página, nas margens.
+ * A assinatura com os pontinhos fica só no fim do relatório (última folha).
+ */
+function pageStyle(brand) {
+  const parts = [brand.report_name, brand.report_title, brand.report_crn && `CRN ${brand.report_crn}`, brand.report_instagram, brand.report_contact].filter(Boolean);
+  const text = parts.join('  ·  ').replace(/["\\\n]/g, ' ');
   // As caixas de cima vazias e as de baixo com o nosso rodapé substituem o cabeçalho/rodapé automático do navegador
   // (data, título "Consultório Nutri" e endereço da página).
-  return `@page { size: A4; margin: 12mm 13mm 10mm;
+  return `@page { size: A4; margin: 14mm 13mm 18mm;
     @top-left { content: ""; } @top-center { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; }
+    @bottom-center { content: "${text}"; font: 7.5pt 'Avenir Next', 'Segoe UI', sans-serif; letter-spacing: .06em; color: #858b7f; }
     @bottom-right { content: counter(page) "/" counter(pages); font: 7.5pt sans-serif; color: #c4622f; } }`;
 }
 
