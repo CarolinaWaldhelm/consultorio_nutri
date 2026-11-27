@@ -138,7 +138,10 @@ function Report({ data, parts, message, brand }) {
 function pageStyle(brand) {
   const parts = [brand.report_name, brand.report_title, brand.report_crn && `CRN ${brand.report_crn}`, brand.report_instagram, brand.report_contact].filter(Boolean);
   const text = parts.join('  ·  ').replace(/["\\\n]/g, ' ');
+  // As caixas de cima vazias e as de baixo com o nosso rodapé substituem o cabeçalho/rodapé automático do navegador
+  // (data, título "Consultório Nutri" e endereço da página).
   return `@page { size: A4; margin: 14mm 13mm 18mm;
+    @top-left { content: ""; } @top-center { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; }
     @bottom-center { content: "${text}"; font: 7.5pt 'Avenir Next', 'Segoe UI', sans-serif; letter-spacing: .06em; color: #858b7f; }
     @bottom-right { content: counter(page) "/" counter(pages); font: 7.5pt sans-serif; color: #c4622f; } }`;
 }
@@ -148,6 +151,9 @@ function printReport(props) {
   style.id = 'rpt-page-style';
   style.textContent = pageStyle(props.brand || {});
   document.head.appendChild(style);
+  // Nome sugerido do arquivo PDF: "Relatório - Nome do paciente - 27-11-2026".
+  const oldTitle = document.title;
+  document.title = `Relatório - ${props.data.patient.name} - ${fmtDate(todayISO()).replace(/\//g, '-')}`;
   let root = document.getElementById('print-root');
   if (!root) { root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
   render(html`<${Report} ...${props} />`, root);
@@ -156,6 +162,7 @@ function printReport(props) {
     document.body.classList.remove('printing');
     render(null, root);
     style.remove();
+    document.title = oldTitle;
     window.removeEventListener('afterprint', done);
   };
   window.addEventListener('afterprint', done);
