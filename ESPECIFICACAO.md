@@ -376,8 +376,11 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 - **Combinados** (opção "Combinados da última consulta"): o campo "Combinados / Conduta" da consulta mais recente que o
   tenha preenchido, com a data, logo depois da mensagem.
 - **Questionários semanais:** com **uma resposta só**, a resposta completa (cada pergunta e a resposta; escala como
-  "4 (de 0 a 5)"); com **várias**, os gráficos das escalas e, para as perguntas escritas e de escolha, a resposta de
-  **cada data** ("27/10 · texto").
+  "4 (de 0 a 5)"); com **várias**: gráficos de linha das escalas; **quadro da evolução semanal** das perguntas de
+  múltipla escolha (uma linha por pergunta, uma coluna por semana, as 8 mais recentes; a **primeira opção** de cada
+  pergunta é a "dentro do esperado" e aparece como **✓ verde**; as outras aparecem escritas, coloridas; última coluna
+  "Dentro do esperado: 3 de 5"); e as respostas escritas de **cada data** ("27/10 · texto"). Pizza não (decisão:
+  compara mal e não mostra evolução).
 - Para saber qual é a última folha, **o próprio site monta as folhas A4** (`paginate` em `js/views/report.js`): mede
   cada bloco (cabeçalho, mensagem, resumo, cada fileira de gráficos, cada linha da tabela de exames) e distribui nas
   folhas; títulos não ficam sozinhos no pé da folha; a tabela repete o cabeçalho em cada folha; a última folha não

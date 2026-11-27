@@ -150,9 +150,41 @@ function Report({ data, parts, message, brand }) {
           add('qa-' + q.id, html`<div class="rpt-qa"><div class="rpt-qa-q">${q.label}</div><div class="rpt-qa-a">${fmtAnswer(q, v)}</div></div>`);
         });
       } else {
-        // Várias respostas: gráficos das escalas e as respostas escritas de cada data.
+        // Várias respostas: gráficos das escalas, quadro da evolução semanal das perguntas de múltipla escolha e as
+        // respostas escritas de cada data.
         chartRows(qs.filter((x) => x.key.startsWith(qn.id)), C.blue, 'qc-' + qn.id);
-        questions.filter((q) => q.type !== 'scale').forEach((q) => {
+        const choiceQs = questions.filter((q) => q.type === 'choice' && rs.some((r) => r.answers?.[q.id]));
+        if (choiceQs.length) {
+          const cols = rs.slice(-8); // as 8 semanas mais recentes
+          // A primeira opção de cada pergunta é a "dentro do esperado" (verde); as outras, em terracota, lavanda e mostarda.
+          const tones = [C.green, C.terra, C.blue, C.mustard];
+          const short = (t) => { const x = String(t).split(/\s+\/\s+|\s*\(/)[0].trim(); return x.length > 26 ? x.slice(0, 25) + '…' : x; };
+          add('qgrid-' + qn.id, html`
+            <table class="rpt-qgrid">
+              <colgroup><col style="width:24%" />${cols.map(() => html`<col style=${`width:${64 / cols.length}%`} />`)}<col style="width:12%" /></colgroup>
+              <thead><tr><th></th>${cols.map((r) => html`<th>${fmtDate(dateOf(r.submitted_at)).slice(0, 5)}</th>`)}<th class="num">Dentro do esperado</th></tr></thead>
+              <tbody>${choiceQs.map((q) => {
+                const opts = q.options || [];
+                const answered = cols.filter((r) => r.answers?.[q.id]);
+                const good = answered.filter((r) => r.answers[q.id] === opts[0]).length;
+                return html`<tr>
+                  <td class="rpt-qgrid-q">${q.label.replace(/^\d+\.\s*/, '').replace(/:\s*$/, '')}</td>
+                  ${cols.map((r) => {
+                    const v = r.answers?.[q.id];
+                    if (!v) return html`<td class="rpt-muted">—</td>`;
+                    const k = Math.max(0, opts.indexOf(v));
+                    // Dentro do esperado: só um ✓ verde (fica limpo); o que pede atenção vai escrito, colorido.
+                    if (k === 0) return html`<td><span class="rpt-ok" title=${v}>✓</span></td>`;
+                    const tone = tones[k % tones.length];
+                    return html`<td><span class="rpt-chip" style=${`background:${tone}1a;color:${tone};border-color:${tone}66`} title=${v}>${short(v)}</span></td>`;
+                  })}
+                  <td class="num"><strong>${good}</strong> de ${answered.length}</td>
+                </tr>`;
+              })}</tbody>
+            </table>
+            <p class="rpt-note"><span class="rpt-ok sm">✓</span> resposta dentro do esperado · em cores, as respostas que pedem atenção.${rs.length > cols.length ? ` Mostrando as ${cols.length} semanas mais recentes.` : ''}</p>`);
+        }
+        questions.filter((q) => q.type !== 'scale' && q.type !== 'choice').forEach((q) => {
           const answered = rs.filter((r) => r.answers?.[q.id] != null && r.answers[q.id] !== '');
           if (!answered.length) return;
           add('qt-' + q.id, html`<div class="rpt-qa-q rpt-qa-title">${q.label}</div>`, { keepNext: true });
