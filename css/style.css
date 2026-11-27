@@ -470,3 +470,5 @@ textarea { resize: vertical; min-height: 44px; }
 h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-align: middle; }
 
 .table.labs .lab-group td { background: #f6f8f6; font-weight: 700; color: var(--primary-dark); font-size: .85rem; padding-top: 7px; padding-bottom: 7px; }
+
+.table.labs .lab-subgroup td { background: #fbfcfb; font-weight: 600; color: var(--primary-dark); font-size: .8rem; padding: 5px 10px 5px 22px; }

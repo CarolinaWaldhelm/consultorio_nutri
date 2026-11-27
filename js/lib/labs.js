@@ -8,64 +8,99 @@ import { norm } from './util.js';
 // conv: unidade de origem (normalizada) → multiplicador para chegar na unidade padrão.
 // count: contagem (milhar com ponto: "6.500" = 6500).
 export const MARKERS = [
-  // Glicose e insulina
+  // Hemograma — eritrograma (série vermelha)
+  { key: 'eritrocitos', label: 'Hemácias (eritrócitos)', unit: '10^6/µL', aliases: ['eritrocitos', 'hemacias', 'hemacias eritrocitos', 'contagem de eritrocitos', 'contagem de hemacias'] },
+  { key: 'hemoglobina', label: 'Hemoglobina (Hb)', unit: 'g/dL', aliases: ['hemoglobina', 'hb', 'hemoglobina hb'] },
+  { key: 'hematocrito', label: 'Hematócrito (Ht)', unit: '%', aliases: ['hematocrito', 'ht', 'hematocrito ht'] },
+  { key: 'vcm', label: 'VCM', unit: 'fL', aliases: ['vcm', 'volume corpuscular medio', 'vcm volume corpuscular medio'] },
+  { key: 'hcm', label: 'HCM', unit: 'pg', aliases: ['hcm', 'hemoglobina corpuscular media', 'hcm hemoglobina corpuscular media'] },
+  { key: 'chcm', label: 'CHCM', unit: 'g/dL', aliases: ['chcm', 'concentracao de hemoglobina corpuscular media', 'chcm concentracao de hemoglobina corpuscular media'] },
+  { key: 'rdw', label: 'RDW', unit: '%', aliases: ['rdw', 'rdw cv', 'amplitude de distribuicao dos globulos vermelhos'] },
+  // Hemograma — leucograma (série branca)
+  { key: 'leucocitos', label: 'Leucócitos totais', unit: '/µL', count: true, aliases: ['leucocitos', 'leucocitos totais', 'contagem de leucocitos', 'leucograma'] },
+  { key: 'neutrofilos', label: 'Neutrófilos', unit: '/µL', count: true, aliases: ['neutrofilos', 'neutrofilos totais'] },
+  { key: 'segmentados', label: 'Neutrófilos segmentados', unit: '/µL', count: true, aliases: ['segmentados', 'neutrofilos segmentados'] },
+  { key: 'bastoes', label: 'Neutrófilos bastões', unit: '/µL', count: true, aliases: ['bastoes', 'bastonetes', 'neutrofilos bastoes', 'neutrofilos bastonetes'] },
+  { key: 'linfocitos', label: 'Linfócitos', unit: '/µL', count: true, aliases: ['linfocitos', 'linfocitos totais', 'linfocitos tipicos'] },
+  { key: 'monocitos', label: 'Monócitos', unit: '/µL', count: true, aliases: ['monocitos'] },
+  { key: 'eosinofilos', label: 'Eosinófilos', unit: '/µL', count: true, aliases: ['eosinofilos'] },
+  { key: 'basofilos', label: 'Basófilos', unit: '/µL', count: true, aliases: ['basofilos'] },
+  // Hemograma — plaquetograma
+  { key: 'plaquetas', label: 'Plaquetas', unit: '/µL', count: true, aliases: ['plaquetas', 'contagem de plaquetas', 'plaquetometria'] },
+  { key: 'vpm', label: 'VPM', unit: 'fL', aliases: ['vpm', 'volume plaquetario medio', 'vpm volume plaquetario medio'] },
+  // Perfil lipídico
+  { key: 'colesterol_total', label: 'Colesterol total', unit: 'mg/dL', aliases: ['colesterol total', 'colesterol'], conv: { 'mmol/l': 38.67 } },
+  { key: 'hdl', label: 'HDL-colesterol', unit: 'mg/dL', aliases: ['hdl colesterol', 'colesterol hdl', 'hdl c', 'hdl'], conv: { 'mmol/l': 38.67 } },
+  { key: 'ldl', label: 'LDL-colesterol', unit: 'mg/dL', aliases: ['ldl colesterol', 'colesterol ldl', 'ldl c', 'ldl', 'ldl colesterol calculado', 'ldl colesterol dosado'], conv: { 'mmol/l': 38.67 } },
+  { key: 'vldl', label: 'VLDL-colesterol', unit: 'mg/dL', aliases: ['vldl colesterol', 'colesterol vldl', 'vldl c', 'vldl'], conv: { 'mmol/l': 38.67 } },
+  { key: 'nao_hdl', label: 'Não-HDL-colesterol', unit: 'mg/dL', aliases: ['colesterol nao hdl', 'nao hdl', 'nao hdl colesterol'], conv: { 'mmol/l': 38.67 } },
+  { key: 'triglicerideos', label: 'Triglicerídeos', unit: 'mg/dL', aliases: ['triglicerideos', 'triglicerides', 'trigliceridos', 'trigliceridios', 'tg'], conv: { 'mmol/l': 88.57 } },
+  { key: 'apoa1', label: 'Apolipoproteína A1 (ApoA1)', unit: 'mg/dL', aliases: ['apolipoproteina a1', 'apolipoproteina a 1', 'apo a1', 'apo a 1', 'apoa1'], conv: { 'g/l': 100 } },
+  { key: 'apob', label: 'Apolipoproteína B (ApoB)', unit: 'mg/dL', aliases: ['apolipoproteina b', 'apolipoproteina b100', 'apo b', 'apob', 'apo b100'], conv: { 'g/l': 100 } },
+  { key: 'lpa', label: 'Lipoproteína(a) [Lp(a)]', unit: 'mg/dL', aliases: ['lipoproteina a', 'lipoproteina pequeno a', 'lp a', 'lpa'] },
+  // Perfil glicêmico
   { key: 'glicemia', label: 'Glicemia de jejum', unit: 'mg/dL', aliases: ['glicemia de jejum', 'glicose de jejum', 'glicemia jejum', 'glicose jejum', 'glicemia', 'glicose', 'glicose plasmatica', 'glicemia em jejum'], conv: { 'mmol/l': 18.016 } },
   { key: 'hba1c', label: 'Hemoglobina glicada (HbA1c)', unit: '%', aliases: ['hemoglobina glicada', 'hba1c', 'a1c', 'glicohemoglobina', 'hemoglobina glicada hba1c', 'hemoglobina glicosilada'] },
   { key: 'gme', label: 'Glicose média estimada (GME)', unit: 'mg/dL', aliases: ['glicose media estimada', 'glicemia media estimada', 'gme', 'glicose media', 'glicemia media', 'eag'], conv: { 'mmol/l': 18.016 } },
-  { key: 'insulina', label: 'Insulina de jejum', unit: 'µUI/mL', aliases: ['insulina de jejum', 'insulina', 'insulina basal', 'insulina jejum'] },
+  { key: 'insulina', label: 'Insulina basal (de jejum)', unit: 'µUI/mL', aliases: ['insulina de jejum', 'insulina', 'insulina basal', 'insulina jejum', 'insulina basal de jejum'] },
   { key: 'homa_ir', label: 'HOMA-IR', unit: '', aliases: ['homa ir', 'homa', 'indice homa ir', 'homa resistencia'] },
-  // Lipídios
-  { key: 'colesterol_total', label: 'Colesterol total', unit: 'mg/dL', aliases: ['colesterol total', 'colesterol'], conv: { 'mmol/l': 38.67 } },
-  { key: 'hdl', label: 'HDL', unit: 'mg/dL', aliases: ['hdl colesterol', 'colesterol hdl', 'hdl c', 'hdl'], conv: { 'mmol/l': 38.67 } },
-  { key: 'ldl', label: 'LDL', unit: 'mg/dL', aliases: ['ldl colesterol', 'colesterol ldl', 'ldl c', 'ldl'], conv: { 'mmol/l': 38.67 } },
-  { key: 'vldl', label: 'VLDL-colesterol', unit: 'mg/dL', aliases: ['vldl colesterol', 'colesterol vldl', 'vldl c', 'vldl'], conv: { 'mmol/l': 38.67 } },
-  { key: 'nao_hdl', label: 'Colesterol não-HDL', unit: 'mg/dL', aliases: ['colesterol nao hdl', 'nao hdl', 'nao hdl colesterol'], conv: { 'mmol/l': 38.67 } },
-  { key: 'triglicerideos', label: 'Triglicerídeos', unit: 'mg/dL', aliases: ['triglicerideos', 'triglicerides', 'triglicéridos', 'trigliceridios', 'tg'], conv: { 'mmol/l': 88.57 } },
-  // Fígado e pâncreas
+  { key: 'homa_beta', label: 'HOMA-Beta', unit: '%', aliases: ['homa beta', 'homa b', 'indice homa beta', 'homa %b'] },
+  { key: 'peptideo_c', label: 'Peptídeo C', unit: 'ng/mL', aliases: ['peptideo c', 'peptideo c jejum', 'peptideo c basal'] },
+  { key: 'totg', label: 'Glicemia 2 h no TOTG (75 g)', unit: 'mg/dL', aliases: ['totg', 'teste oral de tolerancia a glicose', 'curva glicemica', 'glicemia 120 minutos', 'glicemia 120 min', 'glicose 120 min', 'glicemia 2h', 'glicemia 2 h', 'glicemia apos 2 horas', 'totg 120 min', 'glicemia 2 h no totg', 'glicemia 2 h no totg 75 g'], conv: { 'mmol/l': 18.016 } },
+  { key: 'frutosamina', label: 'Frutosamina', unit: 'µmol/L', aliases: ['frutosamina'] },
+  // Perfil do ferro (cinética do ferro)
+  { key: 'ferro', label: 'Ferro sérico', unit: 'µg/dL', aliases: ['ferro serico', 'ferro'] },
+  { key: 'ferritina', label: 'Ferritina', unit: 'ng/mL', aliases: ['ferritina'] },
+  { key: 'transferrina', label: 'Transferrina', unit: 'mg/dL', aliases: ['transferrina'] },
+  { key: 'tibc', label: 'Capacidade total de ligação do ferro (TIBC/CTLF)', unit: 'µg/dL', aliases: ['capacidade total de ligacao do ferro', 'capacidade total de fixacao do ferro', 'tibc', 'ctlf', 'ctff', 'tibc ctlf'] },
+  { key: 'ist', label: 'Índice de saturação de transferrina (IST)', unit: '%', aliases: ['indice de saturacao de transferrina', 'indice de saturacao da transferrina', 'saturacao de transferrina', 'saturacao da transferrina', 'ist', 'sat transferrina'] },
+  // Vitaminas e minerais
+  { key: 'vitamina_d', label: 'Vitamina D (25-OH)', unit: 'ng/mL', aliases: ['25 hidroxivitamina d', '25 oh vitamina d', 'vitamina d', 'vitamina d 25 oh', '25 oh d', 'vit d', 'vitamina d 25 hidroxi', 'vitamina d 25 hidroxivitamina d'], conv: { 'nmol/l': 1 / 2.496 } },
+  { key: 'vitamina_b12', label: 'Vitamina B12 (cobalamina)', unit: 'pg/mL', aliases: ['vitamina b12', 'b12', 'cobalamina', 'vitamina b12 cobalamina'] },
+  { key: 'acido_folico', label: 'Ácido fólico (B9/folato)', unit: 'ng/mL', aliases: ['acido folico', 'folato', 'vitamina b9', 'acido folico vitamina b9 folato'] },
+  { key: 'vitamina_b1', label: 'Vitamina B1 (tiamina)', unit: 'µg/L', aliases: ['vitamina b1', 'tiamina', 'vitamina b1 tiamina'] },
+  { key: 'vitamina_b6', label: 'Vitamina B6 (piridoxina)', unit: 'µg/L', aliases: ['vitamina b6', 'piridoxina', 'piridoxal fosfato', 'vitamina b6 piridoxina'] },
+  { key: 'vitamina_a', label: 'Vitamina A (retinol)', unit: 'mg/L', aliases: ['vitamina a', 'retinol', 'vitamina a retinol'], conv: { 'µg/dl': 0.01, 'ug/dl': 0.01 } },
+  { key: 'vitamina_e', label: 'Vitamina E (tocoferol)', unit: 'mg/L', aliases: ['vitamina e', 'tocoferol', 'alfa tocoferol', 'vitamina e tocoferol'] },
+  { key: 'vitamina_c', label: 'Vitamina C', unit: 'mg/dL', aliases: ['vitamina c', 'acido ascorbico'] },
+  { key: 'zinco', label: 'Zinco', unit: 'µg/dL', aliases: ['zinco'] },
+  { key: 'magnesio', label: 'Magnésio', unit: 'mg/dL', aliases: ['magnesio'] },
+  { key: 'selenio', label: 'Selênio', unit: 'µg/L', aliases: ['selenio'] },
+  { key: 'calcio', label: 'Cálcio total', unit: 'mg/dL', aliases: ['calcio total', 'calcio'] },
+  { key: 'calcio_ionico', label: 'Cálcio iônico', unit: 'mmol/L', aliases: ['calcio ionico', 'calcio ionizado', 'calcio lonizado', 'calcio livre'] },
+  { key: 'pth', label: 'Paratormônio (PTH)', unit: 'pg/mL', aliases: ['paratormonio', 'pth', 'pth intacto', 'paratormonio pth', 'paratormonio pth molecula intacta', 'pth molecula intacta', 'paratormonio molecula intacta'] },
+  // Fígado e vias biliares (hepatograma)
   { key: 'tgo', label: 'TGO (AST)', unit: 'U/L', aliases: ['tgo', 'ast', 'tgo ast', 'ast tgo', 'aspartato aminotransferase'] },
   { key: 'tgp', label: 'TGP (ALT)', unit: 'U/L', aliases: ['tgp', 'alt', 'tgp alt', 'alt tgp', 'alanina aminotransferase'] },
-  { key: 'ggt', label: 'Gama GT', unit: 'U/L', aliases: ['gama gt', 'gamaglutamiltransferase', 'gama glutamil transferase', 'ggt'] },
+  { key: 'ggt', label: 'Gama-GT (GGT)', unit: 'U/L', aliases: ['gama gt', 'gamaglutamiltransferase', 'gama glutamil transferase', 'ggt', 'gama gt ggt'] },
+  { key: 'fosfatase_alcalina', label: 'Fosfatase alcalina (FA)', unit: 'U/L', aliases: ['fosfatase alcalina', 'fa', 'fal', 'fosfatase alcalina fa'] },
+  { key: 'bilirrubina_total', label: 'Bilirrubina total', unit: 'mg/dL', aliases: ['bilirrubina total', 'bilirrubinas totais', 'bt'] },
+  { key: 'bilirrubina_direta', label: 'Bilirrubina direta', unit: 'mg/dL', aliases: ['bilirrubina direta', 'bd'] },
+  { key: 'bilirrubina_indireta', label: 'Bilirrubina indireta', unit: 'mg/dL', aliases: ['bilirrubina indireta', 'bi'] },
+  { key: 'albumina', label: 'Albumina', unit: 'g/dL', aliases: ['albumina', 'albumina serica'], conv: { 'g/l': 0.1 } },
+  { key: 'tap', label: 'Tempo de protrombina (atividade)', unit: '%', aliases: ['tempo de protrombina', 'tap', 'atividade de protrombina', 'tempo de protrombina atividade', 'tp atividade', 'tap atividade'] },
+  { key: 'rni', label: 'RNI (INR)', unit: '', aliases: ['rni', 'inr', 'rni inr', 'inr rni'] },
+  // Pâncreas (função exócrina)
   { key: 'amilase', label: 'Amilase', unit: 'U/L', aliases: ['amilase', 'amilase total'] },
   { key: 'lipase', label: 'Lipase', unit: 'U/L', aliases: ['lipase'] },
-  // Rins
-  { key: 'creatinina', label: 'Creatinina', unit: 'mg/dL', aliases: ['creatinina', 'creatinina serica'] },
+  // Função renal
   { key: 'ureia', label: 'Ureia', unit: 'mg/dL', aliases: ['ureia', 'ureia serica'] },
+  { key: 'creatinina', label: 'Creatinina', unit: 'mg/dL', aliases: ['creatinina', 'creatinina serica'] },
+  { key: 'tfg', label: 'TFG estimada', unit: 'mL/min/1,73m²', aliases: ['taxa de filtracao glomerular', 'taxa de filtracao glomerular estimada', 'tfg', 'tfge', 'tfg estimada', 'egfr', 'ritmo de filtracao glomerular', 'clearance estimado'] },
   { key: 'acido_urico', label: 'Ácido úrico', unit: 'mg/dL', aliases: ['acido urico'] },
-  // Tireoide e paratireoide
-  { key: 'tsh', label: 'TSH', unit: 'µUI/mL', aliases: ['tsh', 'tsh ultrassensivel', 'hormonio tireoestimulante'] },
-  { key: 't4_livre', label: 'T4 livre', unit: 'ng/dL', aliases: ['t4 livre', 't4l', 'tiroxina livre'] },
-  { key: 'pth', label: 'Paratormônio (PTH)', unit: 'pg/mL', aliases: ['paratormonio', 'pth', 'pth intacto', 'paratormonio pth', 'paratormonio pth molecula intacta', 'pth molecula intacta', 'paratormonio molecula intacta'] },
-  // Hemograma
-  { key: 'eritrocitos', label: 'Eritrócitos', unit: '10^6/µL', aliases: ['eritrocitos', 'hemacias', 'contagem de eritrocitos', 'contagem de hemacias'] },
-  { key: 'hemoglobina', label: 'Hemoglobina', unit: 'g/dL', aliases: ['hemoglobina'] },
-  { key: 'hematocrito', label: 'Hematócrito', unit: '%', aliases: ['hematocrito'] },
-  { key: 'vcm', label: 'VCM', unit: 'fL', aliases: ['vcm', 'volume corpuscular medio'] },
-  { key: 'hcm', label: 'HCM', unit: 'pg', aliases: ['hcm', 'hemoglobina corpuscular media'] },
-  { key: 'chcm', label: 'CHCM', unit: 'g/dL', aliases: ['chcm', 'concentracao de hemoglobina corpuscular media'] },
-  { key: 'rdw', label: 'RDW', unit: '%', aliases: ['rdw', 'rdw cv'] },
-  { key: 'leucocitos', label: 'Leucócitos', unit: '/µL', count: true, aliases: ['leucocitos', 'leucocitos totais', 'contagem de leucocitos', 'leucograma'] },
-  { key: 'neutrofilos', label: 'Neutrófilos', unit: '/µL', count: true, aliases: ['neutrofilos', 'neutrofilos totais', 'segmentados'] },
-  { key: 'eosinofilos', label: 'Eosinófilos', unit: '/µL', count: true, aliases: ['eosinofilos'] },
-  { key: 'basofilos', label: 'Basófilos', unit: '/µL', count: true, aliases: ['basofilos'] },
-  { key: 'linfocitos', label: 'Linfócitos', unit: '/µL', count: true, aliases: ['linfocitos', 'linfocitos totais', 'linfocitos tipicos'] },
-  { key: 'monocitos', label: 'Monócitos', unit: '/µL', count: true, aliases: ['monocitos'] },
-  { key: 'plaquetas', label: 'Plaquetas', unit: '/µL', count: true, aliases: ['plaquetas', 'contagem de plaquetas', 'plaquetometria'] },
-  { key: 'vpm', label: 'VPM', unit: 'fL', aliases: ['vpm', 'volume plaquetario medio'] },
-  // Ferro e vitaminas
-  { key: 'ferritina', label: 'Ferritina', unit: 'ng/mL', aliases: ['ferritina'] },
-  { key: 'ferro', label: 'Ferro sérico', unit: 'µg/dL', aliases: ['ferro serico', 'ferro'] },
-  { key: 'transferrina', label: 'Transferrina', unit: 'mg/dL', aliases: ['transferrina'] },
-  { key: 'vitamina_d', label: 'Vitamina D (25-OH)', unit: 'ng/mL', aliases: ['25 hidroxivitamina d', '25 oh vitamina d', 'vitamina d', 'vitamina d 25 oh', '25 oh d', 'vit d', 'vitamina d 25 hidroxi'], conv: { 'nmol/l': 1 / 2.496 } },
-  { key: 'vitamina_b12', label: 'Vitamina B12', unit: 'pg/mL', aliases: ['vitamina b12', 'b12', 'cobalamina'] },
-  { key: 'acido_folico', label: 'Ácido fólico', unit: 'ng/mL', aliases: ['acido folico', 'folato'] },
-  { key: 'pcr', label: 'Proteína C reativa', unit: 'mg/L', aliases: ['proteina c reativa ultrassensivel', 'proteina c reativa', 'pcr us', 'pcr'], conv: { 'mg/dl': 10 } },
-  // Eletrólitos e minerais
   { key: 'sodio', label: 'Sódio', unit: 'mEq/L', aliases: ['sodio'] },
   { key: 'potassio', label: 'Potássio', unit: 'mEq/L', aliases: ['potassio'] },
-  { key: 'calcio', label: 'Cálcio', unit: 'mg/dL', aliases: ['calcio total', 'calcio'] },
-  { key: 'calcio_ionico', label: 'Cálcio iônico', unit: 'mmol/L', aliases: ['calcio ionico', 'calcio ionizado', 'calcio lonizado', 'calcio livre'] },
-  { key: 'magnesio', label: 'Magnésio', unit: 'mg/dL', aliases: ['magnesio'] },
-  { key: 'zinco', label: 'Zinco', unit: 'µg/dL', aliases: ['zinco'] },
+  // Perfil tireoidiano
+  { key: 'tsh', label: 'TSH', unit: 'µUI/mL', aliases: ['tsh', 'tsh ultrassensivel', 'hormonio tireoestimulante'] },
+  { key: 't4_livre', label: 'T4 livre', unit: 'ng/dL', aliases: ['t4 livre', 't4l', 'tiroxina livre'] },
+  { key: 't3_livre', label: 'T3 livre', unit: 'pg/mL', aliases: ['t3 livre', 't3l', 'triiodotironina livre'] },
+  { key: 'anti_tpo', label: 'Anti-TPO', unit: 'UI/mL', aliases: ['anti tpo', 'antitpo', 'anticorpo anti tpo', 'anticorpos anti tpo', 'anti tireoperoxidase', 'anticorpo anti tireoperoxidase', 'anticorpos anti tireoperoxidase'] },
+  { key: 'anti_tg', label: 'Anti-tireoglobulina', unit: 'UI/mL', aliases: ['anti tireoglobulina', 'antitireoglobulina', 'anti tg', 'anticorpo anti tireoglobulina', 'anticorpos anti tireoglobulina'] },
+  // Marcadores inflamatórios e musculares
+  { key: 'pcr', label: 'PCR ultrassensível (PCR-us)', unit: 'mg/L', aliases: ['proteina c reativa ultrassensivel', 'proteina c reativa', 'pcr us', 'pcr', 'pcr ultrassensivel'], conv: { 'mg/dl': 10 } },
+  { key: 'vhs', label: 'VHS', unit: 'mm/h', aliases: ['vhs', 'velocidade de hemossedimentacao', 'hemossedimentacao', 'velocidade de sedimentacao'] },
+  { key: 'cpk', label: 'CPK (creatinofosfoquinase)', unit: 'U/L', aliases: ['cpk', 'ck', 'ck total', 'cpk total', 'creatinofosfoquinase', 'creatinoquinase', 'creatina quinase', 'creatinofosfoquinase cpk'] },
+  { key: 'homocisteina', label: 'Homocisteína', unit: 'µmol/L', aliases: ['homocisteina'] },
   // Urina
   { key: 'urocultura', label: 'Urocultura (contagem de colônias)', unit: 'UFC/mL', count: true, aliases: ['urocultura', 'contagem de colonias', 'urocultura contagem de colonias'] },
   { key: 'urina_densidade', label: 'Densidade urinária', unit: '', aliases: ['densidade', 'densidade urinaria', 'densidade urina'] },
@@ -75,24 +110,31 @@ export const MARKERS = [
 ];
 export const MARKER = Object.fromEntries(MARKERS.map((m) => [m.key, m]));
 
-/** Grupos de exames, na ordem em que aparecem na ficha. */
+/**
+ * Grupos de exames, na ordem em que aparecem na ficha: [chave, nome, exames, seção (opcional)].
+ * Os três do hemograma ficam sob a mesma seção "Hemograma".
+ */
+const HEMO = 'Hemograma (série vermelha, branca e plaquetas)';
 export const LAB_GROUPS = [
-  ['glicemico', 'Perfil glicêmico', ['glicemia', 'hba1c', 'gme', 'insulina', 'homa_ir']],
-  ['lipidico', 'Perfil lipídico', ['colesterol_total', 'hdl', 'ldl', 'vldl', 'nao_hdl', 'triglicerideos']],
-  ['hemograma', 'Hemograma', ['eritrocitos', 'hemoglobina', 'hematocrito', 'vcm', 'hcm', 'chcm', 'rdw', 'leucocitos', 'neutrofilos', 'eosinofilos', 'basofilos', 'linfocitos', 'monocitos', 'plaquetas', 'vpm']],
-  ['ferro_vit', 'Ferro e vitaminas', ['ferritina', 'ferro', 'transferrina', 'vitamina_d', 'vitamina_b12', 'acido_folico']],
-  ['figado', 'Fígado e pâncreas', ['tgo', 'tgp', 'ggt', 'amilase', 'lipase']],
-  ['rins', 'Função renal', ['creatinina', 'ureia', 'acido_urico']],
-  ['tireoide', 'Tireoide e paratireoide', ['tsh', 't4_livre', 'pth']],
-  ['inflamacao', 'Inflamação', ['pcr']],
-  ['eletrolitos', 'Eletrólitos e minerais', ['sodio', 'potassio', 'calcio', 'calcio_ionico', 'magnesio', 'zinco']],
+  ['eritrograma', 'Eritrograma (série vermelha)', ['eritrocitos', 'hemoglobina', 'hematocrito', 'vcm', 'hcm', 'chcm', 'rdw'], HEMO],
+  ['leucograma', 'Leucograma (série branca)', ['leucocitos', 'neutrofilos', 'segmentados', 'bastoes', 'linfocitos', 'monocitos', 'eosinofilos', 'basofilos'], HEMO],
+  ['plaquetograma', 'Plaquetograma', ['plaquetas', 'vpm'], HEMO],
+  ['lipidico', 'Perfil lipídico', ['colesterol_total', 'hdl', 'ldl', 'vldl', 'nao_hdl', 'triglicerideos', 'apoa1', 'apob', 'lpa']],
+  ['glicemico', 'Perfil glicêmico', ['glicemia', 'hba1c', 'gme', 'insulina', 'homa_ir', 'homa_beta', 'peptideo_c', 'totg', 'frutosamina']],
+  ['ferro', 'Perfil do ferro (cinética do ferro)', ['ferro', 'ferritina', 'transferrina', 'tibc', 'ist']],
+  ['vitaminas', 'Vitaminas e minerais', ['vitamina_d', 'vitamina_b12', 'acido_folico', 'vitamina_b1', 'vitamina_b6', 'vitamina_a', 'vitamina_e', 'vitamina_c', 'zinco', 'magnesio', 'selenio', 'calcio', 'calcio_ionico', 'pth']],
+  ['figado', 'Fígado e vias biliares (hepatograma)', ['tgo', 'tgp', 'ggt', 'fosfatase_alcalina', 'bilirrubina_total', 'bilirrubina_direta', 'bilirrubina_indireta', 'albumina', 'tap', 'rni']],
+  ['pancreas', 'Pâncreas (função exócrina)', ['amilase', 'lipase']],
+  ['rins', 'Função renal', ['ureia', 'creatinina', 'tfg', 'acido_urico', 'sodio', 'potassio']],
+  ['tireoide', 'Perfil tireoidiano', ['tsh', 't4_livre', 't3_livre', 'anti_tpo', 'anti_tg']],
+  ['inflamacao', 'Marcadores inflamatórios e musculares', ['pcr', 'vhs', 'cpk', 'homocisteina']],
   ['urina', 'Urina', ['urocultura', 'urina_densidade', 'urina_ph', 'urina_leucocitos', 'urina_hemacias']],
 ];
 const GROUP_OF = Object.fromEntries(LAB_GROUPS.flatMap(([g, , keys], gi) => keys.map((k, i) => [k, { g, gi, i }])));
 /** Grupo de um exame ({ key, label }); exames fora da lista ficam em "Outros exames". */
 export function labGroup(marker) {
   const x = GROUP_OF[marker];
-  return x ? { key: LAB_GROUPS[x.gi][0], label: LAB_GROUPS[x.gi][1] } : { key: 'outros', label: 'Outros exames' };
+  return x ? { key: LAB_GROUPS[x.gi][0], label: LAB_GROUPS[x.gi][1], section: LAB_GROUPS[x.gi][3] || null } : { key: 'outros', label: 'Outros exames', section: null };
 }
 /** Ordem para ordenar exames: grupo, depois a posição dentro do grupo. */
 export function labOrder(marker) {
@@ -113,6 +155,37 @@ export const REFERENCES = {
   gme: { max: 114, note: 'Calculada a partir da HbA1c (GME = 28,7 × HbA1c − 46,7). Não é a glicemia de jejum.' },
   insulina: { min: 2.6, max: 24.9, note: 'Faixa varia bastante com o método do laboratório.' },
   homa_ir: { max: 2.7, note: 'Pontos de corte variam (2,7 é o mais usado no Brasil).' },
+  apoa1: { F: { min: 108, max: 225 }, M: { min: 104, max: 202 } },
+  apob: { max: 100, note: 'Alvo menor em risco cardiovascular alto (ex.: abaixo de 80–90 mg/dL).' },
+  lpa: { max: 30, note: 'Acima de 50 mg/dL (≈125 nmol/L) indica risco cardiovascular aumentado (EAS/SBC). Resultado em nmol/L não se converte direto para mg/dL.' },
+  homa_beta: { note: 'Estimativa da função da célula beta; cerca de 100% é o esperado. Interpretar junto com o HOMA-IR.' },
+  peptideo_c: { min: 1.1, max: 4.4, note: 'Em jejum. Varia com o método.' },
+  totg: { max: 139, note: 'Glicemia 2 h após 75 g: 140 a 199 = intolerância à glicose; 200 ou mais = diabetes (SBD/ADA).' },
+  frutosamina: { min: 205, max: 285, note: 'Reflete a glicemia das últimas 2 a 3 semanas.' },
+  tibc: { min: 250, max: 450 },
+  ist: { F: { min: 15, max: 50 }, M: { min: 20, max: 50 }, note: 'Abaixo de 20% sugere ferro insuficiente para a produção de hemácias; acima de 45–50%, investigar sobrecarga.' },
+  vitamina_b1: { min: 28, max: 85, note: 'Varia muito com o método (sangue total ou plasma). Confira a faixa do laudo.' },
+  vitamina_b6: { min: 5, max: 50, note: 'Varia muito com o método. Confira a faixa do laudo.' },
+  vitamina_a: { min: 0.3, max: 0.8 },
+  vitamina_e: { min: 5, max: 20 },
+  vitamina_c: { min: 0.4, max: 2.0 },
+  selenio: { min: 46, max: 143 },
+  fosfatase_alcalina: { F: { min: 35, max: 104 }, M: { min: 40, max: 129 }, ages: [{ max: 17, ref: { max: 500 }, label: 'até 17 anos (crescimento)' }], note: 'Em crianças e adolescentes é bem mais alta por causa do crescimento ósseo.' },
+  bilirrubina_total: { min: 0.2, max: 1.2 },
+  bilirrubina_direta: { max: 0.3 },
+  bilirrubina_indireta: { max: 0.9 },
+  albumina: { min: 3.5, max: 5.2 },
+  tap: { min: 70 },
+  rni: { min: 0.8, max: 1.2, note: 'Em quem usa anticoagulante, o alvo é outro (definido pelo médico).' },
+  tfg: { min: 90, note: '60 a 89: redução leve; 45 a 59: leve a moderada; abaixo de 60 por 3 meses = doença renal crônica (KDIGO).' },
+  t3_livre: { min: 2.0, max: 4.4 },
+  anti_tpo: { max: 34, note: 'Faixa varia muito com o método. Positivo sugere tireoidite autoimune (Hashimoto).' },
+  anti_tg: { max: 115, note: 'Faixa varia muito com o método (alguns usam até 4 UI/mL). Confira a faixa do laudo.' },
+  vhs: { F: { max: 20 }, M: { max: 15 }, ages: [{ min: 50, ref: { F: { max: 30 }, M: { max: 20 } }, label: '50 anos ou mais' }] },
+  cpk: { F: { min: 26, max: 192 }, M: { min: 39, max: 308 }, note: 'Sobe depois de exercício intenso (até alguns dias).' },
+  homocisteina: { min: 5, max: 15, note: 'Acima de 15 µmol/L: avaliar B12, folato e B6.' },
+  segmentados: { min: 1600, max: 7000 },
+  bastoes: { max: 500 },
   colesterol_total: { max: 189, ages: [{ max: 19, ref: { max: 169 }, label: 'até 19 anos' }] },
   hdl: { min: 40, ages: [{ max: 19, ref: { min: 45 }, label: 'até 19 anos' }] },
   ldl: { max: 129, note: 'A meta de LDL depende do risco cardiovascular.', ages: [{ max: 19, ref: { max: 109 }, label: 'até 19 anos' }] },
@@ -189,13 +262,14 @@ export function referenceFor(marker, sex, age = null) {
     if (sex === 'F' || sex === 'M') return { ...ref[sex], note: base.note, ageLabel, text: rangeText(ref[sex]) };
     return { text: `M ${rangeText(ref.F)} · H ${rangeText(ref.M)}`, note: base.note, ageLabel, bySex: true };
   }
+  if (ref.min == null && ref.max == null) return { note: base.note, ageLabel, text: '—', noRange: true };
   return { min: ref.min, max: ref.max, note: base.note, ageLabel, text: rangeText(ref) };
 }
 
 /** 'ok' | 'low' | 'high' | null (sem referência, sem sexo definido ou unidade diferente da padrão). */
 export function referenceStatus(marker, value, unit, sex, age = null) {
   const ref = referenceFor(marker, sex, age);
-  if (!ref || ref.bySex) return null;
+  if (!ref || ref.bySex || ref.noRange) return null;
   const def = MARKER[marker];
   if (def && unit && def.unit && normUnit(unit) !== normUnit(def.unit)) return null;
   const v = Number(value);

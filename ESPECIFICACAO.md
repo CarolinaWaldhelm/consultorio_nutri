@@ -316,14 +316,19 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   resposta ("Nome: valor unidade", "Data: DD/MM/AAAA") → **revisão** (corrige, apaga, acrescenta) → salvar.
 - **O arquivo do laudo não é guardado** (decisão da nutricionista). Fica guardada a resposta da IA (coluna `notes`),
   com o botão "Ver resposta da IA".
-- Lista padrão de **~55 biomarcadores** com unidade padrão: glicose (glicemia de jejum, HbA1c, **glicose média estimada**,
-  insulina, HOMA-IR), lipídios (total, HDL, LDL, **VLDL**, não-HDL, triglicerídeos), fígado e pâncreas (TGO, TGP, GGT,
-  **amilase, lipase**), rins (creatinina, ureia, ácido úrico), tireoide (TSH, T4L) e **PTH**, **hemograma completo**
-  (eritrócitos, hemoglobina, hematócrito, VCM, HCM, CHCM, RDW, leucócitos, neutrófilos, eosinófilos, basófilos,
-  linfócitos, monócitos, plaquetas, VPM), ferro (ferritina, ferro, **transferrina**), vitaminas (D, B12, ácido fólico),
-  PCR, eletrólitos (sódio, potássio, cálcio, **cálcio iônico**, magnésio, zinco) e **urina** (urocultura, densidade, pH,
-  leucócitos na urina, hemácias na urina). Conversões automáticas conhecidas (mmol/L → mg/dL em glicose, colesterol e
-  triglicerídeos; nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR). Exames fora da lista ficam com o nome do laudo.
+- Lista padrão de **~85 biomarcadores**, organizada nos grupos que a nutricionista definiu (`LAB_GROUPS`):
+  **Hemograma** (série vermelha, branca e plaquetas) com 3 subgrupos — Eritrograma (hemácias, Hb, Ht, VCM, HCM, CHCM,
+  RDW), Leucograma (leucócitos totais, neutrófilos, segmentados, bastões, linfócitos, monócitos, eosinófilos,
+  basófilos) e Plaquetograma (plaquetas, VPM); **Perfil lipídico** (CT, HDL, LDL, VLDL, não-HDL, TG; complementares
+  ApoA1, ApoB, Lp(a)); **Perfil glicêmico** (glicemia de jejum, HbA1c, GME, insulina basal, HOMA-IR, HOMA-Beta,
+  peptídeo C, glicemia 2 h no TOTG, frutosamina); **Perfil do ferro** (ferro, ferritina, transferrina, TIBC/CTLF, IST);
+  **Vitaminas e minerais** (D, B12, folato, B1, B6, A, E, C, zinco, magnésio, selênio, cálcio total e iônico, PTH);
+  **Fígado e vias biliares** (TGO, TGP, GGT, FA, bilirrubinas total/direta/indireta, albumina, TAP, RNI); **Pâncreas**
+  (amilase, lipase); **Função renal** (ureia, creatinina, TFG estimada, ácido úrico, sódio, potássio); **Perfil
+  tireoidiano** (TSH, T4L, T3L, anti-TPO, anti-tireoglobulina); **Marcadores inflamatórios e musculares** (PCR-us, VHS,
+  CPK, homocisteína); **Urina**; e **Outros exames** (fora da lista, com o nome do laudo). Conversões automáticas
+  conhecidas (mmol/L → mg/dL em glicose e lipídios; nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR; g/L → mg/dL em
+  ApoA1/ApoB; g/L → g/dL na albumina; µg/dL → mg/L na vitamina A).
 - **Leitura dos nomes sem confusão:** o nome do laudo precisa ser **igual** a um nome conhecido (sem acento, maiúsculas,
   parênteses e hífens; também vale o nome sem o trecho entre parênteses). Nunca "começa com": assim "Glicose média
   estimada" não vira "Glicemia de jejum", "VLDL-colesterol" não vira "Colesterol total", "Cálcio iônico" não vira
@@ -333,9 +338,8 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
 - **`[💡 Insights dos exames]`** ao lado do título (modo B, sem dados pessoais: código, sexo e idade): copia um pedido
   para a IA com os exames agrupados, até 3 coletas de cada, a referência e ↑/↓; pede resumo, leitura por grupo e em
   conjunto, evolução, relação com a nutrição, condutas com força da evidência e fonte, e quando encaminhar ao médico.
-- **Exames agrupados** na tabela, com uma linha de título por grupo (`LAB_GROUPS` em `js/lib/labs.js`): Perfil
-  glicêmico · Perfil lipídico · Hemograma · Ferro e vitaminas · Fígado e pâncreas · Função renal · Tireoide e
-  paratireoide · Inflamação · Eletrólitos e minerais · Urina · Outros exames (os fora da lista padrão).
+- **Exames agrupados** na tabela, na ordem acima, com uma linha de título por grupo (e a seção "Hemograma" com os
+  títulos menores Eritrograma / Leucograma / Plaquetograma). O pedido de insights segue os mesmos grupos.
 - A seção pode ser **recolhida** (clique no título). A tabela mostra **10 linhas**, com `[Mostrar tudo]` e
   `[Mostrar só 10 linhas]`.
 - Tabela com um biomarcador por linha e as datas de coleta **em ordem cronológica** nas colunas (as 6 mais recentes),

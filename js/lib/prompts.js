@@ -121,7 +121,8 @@ export function labsInsightPrompt(patient, labResults) {
   const lines = [];
   let group = null;
   for (const x of [...by.values()].sort((a, b) => labOrder(a.marker) - labOrder(b.marker) || a.label.localeCompare(b.label))) {
-    const g = labGroup(x.marker).label;
+    const lg = labGroup(x.marker);
+    const g = lg.section ? `${lg.section} — ${lg.label}` : lg.label;
     if (g !== group) { lines.push('', `## ${g}`); group = g; }
     const ref = referenceFor(x.marker, sex, ageNow);
     lines.push(`- ${x.label}${ref ? ` [ref.: ${ref.text}]` : ''}: ${x.values.join(' | ')}`);

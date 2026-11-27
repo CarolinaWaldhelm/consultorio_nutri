@@ -80,8 +80,14 @@ export function LabsCard({ patientId, patient = null, sex, birthDate = null, exa
             <thead><tr><th>Exame</th><th class="ref">Referência</th>${shownDates.map((d) => html`<th class="num">${fmtDate(d)}</th>`)}</tr></thead>
             <tbody>
               ${(allRows ? rows : rows.slice(0, ROWS)).map((r, i, list) => html`
-                ${(i === 0 || labGroup(list[i - 1].marker).key !== labGroup(r.marker).key) && html`
-                  <tr class="lab-group"><td colspan=${2 + shownDates.length}>${labGroup(r.marker).label}</td></tr>`}
+                ${(() => {
+                  const g = labGroup(r.marker), prev = i ? labGroup(list[i - 1].marker) : null;
+                  if (prev && prev.key === g.key) return '';
+                  const cols = 2 + shownDates.length;
+                  return html`
+                    ${g.section && (!prev || prev.section !== g.section) && html`<tr class="lab-group"><td colspan=${cols}>${g.section}</td></tr>`}
+                    <tr class=${g.section ? 'lab-subgroup' : 'lab-group'}><td colspan=${cols}>${g.label}</td></tr>`;
+                })()}
                 <tr>
                   <td>${r.label} <span class="muted small">${r.unit || ''}</span></td>
                   ${(() => { const ref = referenceFor(r.marker, sex, ageNow); return html`
