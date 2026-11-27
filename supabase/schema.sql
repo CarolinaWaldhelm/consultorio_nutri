@@ -188,6 +188,16 @@ create table if not exists public.todos (
   created_at  timestamptz not null default now()
 );
 
+-- ---------- Recomendações (textos prontos para copiar e mandar ao paciente) ----------
+create table if not exists public.recommendations (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null check (length(title) between 1 and 200),
+  category    text check (category is null or length(category) <= 80),
+  body        text not null check (length(body) between 1 and 20000),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
 -- ---------- Rotinas (tarefas que se repetem todo dia ou todo mês) ----------
 create table if not exists public.routines (
   id            uuid primary key default gen_random_uuid(),
@@ -498,6 +508,7 @@ alter table public.routines enable row level security;
 alter table public.appointment_reminders enable row level security;
 alter table public.appointment_attendance enable row level security;
 alter table public.calendar_snapshot enable row level security;
+alter table public.recommendations enable row level security;
 
 drop policy if exists "dona" on public.patients;
 drop policy if exists "dona" on public.consultations;
@@ -516,6 +527,7 @@ drop policy if exists "dona" on public.routines;
 drop policy if exists "dona" on public.appointment_reminders;
 drop policy if exists "dona" on public.appointment_attendance;
 drop policy if exists "dona" on public.calendar_snapshot;
+drop policy if exists "dona" on public.recommendations;
 create policy "dona" on public.patients             for all to authenticated using (true) with check (true);
 create policy "dona" on public.consultations        for all to authenticated using (true) with check (true);
 create policy "dona" on public.nutrium_appointments for all to authenticated using (true) with check (true);
@@ -533,12 +545,13 @@ create policy "dona" on public.routines             for all to authenticated usi
 create policy "dona" on public.appointment_reminders for all to authenticated using (true) with check (true);
 create policy "dona" on public.appointment_attendance for all to authenticated using (true) with check (true);
 create policy "dona" on public.calendar_snapshot    for all to authenticated using (true) with check (true);
+create policy "dona" on public.recommendations      for all to authenticated using (true) with check (true);
 
 grant select, insert, update, delete on public.patients, public.consultations,
   public.nutrium_appointments, public.measurements, public.ai_notes,
   public.calculations, public.app_settings,
   public.questionnaires, public.questionnaire_sends, public.questionnaire_responses,
   public.lab_exams, public.lab_results, public.todos, public.routines, public.appointment_reminders,
-  public.appointment_attendance, public.calendar_snapshot to authenticated;
+  public.appointment_attendance, public.calendar_snapshot, public.recommendations to authenticated;
 grant select on public.patient_overview to authenticated;
 grant usage on all sequences in schema public to authenticated;

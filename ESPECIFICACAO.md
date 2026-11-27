@@ -707,7 +707,7 @@ leitura de exames, relatório de evolução e quadro de insights.
 ## Menu de cima
 
 "🥗 Consultório Nutri" (leva à tela inicial, com a lista de pacientes) · Lembretes de consulta · Questionários ·
-Importar Nutrium · ⚙️ Configurações. O link "Pacientes" foi retirado (fazia o mesmo que o nome do consultório).
+Recomendações · Importar Nutrium · ⚙️ Configurações. O link "Pacientes" foi retirado (fazia o mesmo que o nome do consultório).
 
 ## Copiar o nome do paciente
 
@@ -715,3 +715,15 @@ Ao lado do nome do paciente, um botãozinho **⧉** copia o nome (mostra "✓ co
 sem digitar. Aparece em: **título da ficha do paciente**, **janelinha do paciente no calendário**, Sem retorno há mais de 50 dias (e Pacientes perdidos), Lembretes de consulta (lista de envio,
 já enviados, sem telefone e Consultas de hoje) e Questionários (envios de hoje, lembretes, sem telefone, não
 responderam os 2 últimos e Questionários enviados).
+
+## Recomendações (menu de cima: "Recomendações")
+
+Biblioteca de **textos prontos** que a nutricionista monta (ex.: uso de creatina, como comprar e usar whey protein)
+para copiar e colar para o paciente. Tabela `recommendations` (título, categoria opcional, texto).
+
+- Cada recomendação é um **cartão separado** (não um bloco único de texto): categoria, título, texto (prévia de ~280
+  letras com `ver tudo` / `ver menos`), `[📋 Copiar]` (copia só o texto), `[✏️ Editar]` e `[Apagar]`.
+- **Busca** no topo (sem acento e por várias palavras, procura no título, na categoria e no texto) e **filtro por
+  categoria** (botões com a contagem).
+- `[+ Nova recomendação]` abre o editor: título, categoria (sugere as já usadas) e texto.
+- Entra no backup. Nada de dado de paciente: são textos gerais.
