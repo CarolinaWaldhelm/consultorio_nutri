@@ -765,8 +765,9 @@ para copiar e colar para o paciente. Tabela `recommendations` (título, categori
 - **Na ficha do paciente, lateral esquerda (afastada 48 px da área central) — "💬 Recomendações":** lista das ativas, por categoria, com busca e um
   **botão liga/desliga** para aquele paciente (tabela `patient_recommendations`). Ex.: paciente diabética e anêmica →
   liga "Anemia…" e "Diabetes…". Mostra quantas estão ligadas e `copiar ligadas` (título e texto de cada uma). Uma que
-  for desativada depois continua aparecendo para quem já a tinha ligada, marcada "(inativa)". Com a gaveta da consulta
-  aberta, a lateral some para dar espaço; no celular, vai para baixo.
+  for desativada depois continua aparecendo para quem já a tinha ligada, marcada "(inativa)". **Com o painel da consulta
+  aberto, a lateral continua visível** (220 px, letra um pouco menor) e a página usa a largura toda; só em telas
+  estreitas (até 1150 px) ela some. No celular, vai para baixo.
 - **As ligadas entram no PDF** automaticamente (seção "Recomendações", logo depois dos Combinados; sem opção na janela
   do PDF): título e texto, em parágrafos (texto longo continua na folha seguinte).
 
@@ -776,3 +777,8 @@ Mesmo esquema de Recomendações (lista por categoria, busca, filtro, `[📋 Cop
 para **anotações da nutricionista**: condutas de suplementação (doses, forma de uso, duração), protocolos e ajustes.
 Mesma tabela `recommendations`, coluna `kind` = `'conduta'` (as recomendações são `'recomendacao'`, o padrão); cada
 página mostra só o seu tipo.
+
+## Tamanho da letra
+
+Letra base do site em **14 px** (antes 15) e painel da consulta com 430 px (antes 460), para caber a lateral de
+recomendações, a ficha e o painel ao mesmo tempo (a nutricionista usa o navegador em 80%).

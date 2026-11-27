@@ -13,12 +13,12 @@
   --blue-soft: #e8f0fb;
   --blue: #2b5cab;
   --radius: 12px;
-  --drawer-w: 460px;
+  --drawer-w: 430px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--text);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); font-size: 15px; line-height: 1.45; }
+body { margin: 0; background: var(--bg); font-size: 14px; line-height: 1.45; }
 h1 { font-size: 1.6rem; margin: 0; }
 h2 { font-size: 1.1rem; margin: 0; }
 a { color: var(--primary); }
@@ -160,7 +160,7 @@ textarea { resize: vertical; min-height: 44px; }
 .drawer-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 /* Com o painel aberto, a página inteira abre espaço à direita (em vez de espremer os cartões). */
 @media (min-width: 1000px) {
-  body.drawer-open main.container { padding-right: calc(var(--drawer-w) + 24px); max-width: calc(1100px + var(--drawer-w)); }
+  body.drawer-open main.container { padding-right: calc(var(--drawer-w) + 24px); max-width: none; }
 }
 .card { container-type: inline-size; }
 
@@ -612,8 +612,13 @@ input.switch:disabled { opacity: .6; }
   .patient-layout { grid-template-columns: 1fr; }
   .patient-side { position: static; max-height: none; overflow: visible; padding-top: 0; order: 2; }
 }
-body.drawer-open .patient-layout { grid-template-columns: 1fr; }
-body.drawer-open .patient-side { display: none; }
+/* Com o painel da consulta (gaveta da direita) aberto, a lateral de recomendações continua visível, mais estreita. */
+body.drawer-open .patient-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 24px; justify-content: stretch; }
+body.drawer-open .prec-item { font-size: .82rem; }
+@media (max-width: 1150px) {
+  body.drawer-open .patient-layout { grid-template-columns: 1fr; }
+  body.drawer-open .patient-side { display: none; }
+}
 
 .rpt-rec-title { font-family: Georgia, serif; font-size: 1rem; color: var(--rv); padding-top: 10px; margin-bottom: 3px; }
 .rpt-rec-body { font-size: .86rem; line-height: 1.55; white-space: pre-wrap; padding-bottom: 6px; }
