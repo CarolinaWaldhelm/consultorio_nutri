@@ -3,7 +3,7 @@ import { html, useState, useEffect } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, ageFrom, daysAgoLabel, OBJECTIVE_LABEL, patientCode } from '../lib/util.js';
 import { responseStats } from '../lib/questionnaires.js';
-import { Modal, Loading, go } from './common.js';
+import { Modal, Loading, go, CopyName } from './common.js';
 
 const clip = (t, n = 400) => (t && t.length > n ? t.slice(0, n).trimEnd() + '…' : t);
 
@@ -47,7 +47,7 @@ export function PatientPeek({ event, onClose }) {
   }
 
   return html`
-    <${Modal} title=${p.name} onClose=${onClose}>
+    <${Modal} title=${p.name} titleExtra=${html`<${CopyName} name=${p.name} />`} onClose=${onClose}>
       <p class="muted" style="margin-top:0">
         ${patientCode(p.code)}${age != null ? ` · ${age} anos` : ''} · consulta ${timeText}
         ${!p.last_consult && html` <span class="cal-badge">1ª consulta</span>`}

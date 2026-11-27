@@ -16,7 +16,7 @@ export function Modal(props) {
   return null;
 }
 
-function ModalBox({ title, onClose, children, wide }) {
+function ModalBox({ title, titleExtra = null, onClose, children, wide }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -26,7 +26,7 @@ function ModalBox({ title, onClose, children, wide }) {
     <div class="modal-backdrop" onClick=${(e) => e.target === e.currentTarget && onClose()}>
       <div class=${'modal' + (wide ? ' modal-wide' : '')} role="dialog" aria-modal="true" aria-label=${title}>
         <header class="modal-head">
-          <h2>${title}</h2>
+          <h2>${title}${titleExtra}</h2>
           <button class="icon-btn" onClick=${onClose} aria-label="Fechar">✕</button>
         </header>
         <div class="modal-body">${children}</div>

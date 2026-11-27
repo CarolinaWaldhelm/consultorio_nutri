@@ -699,6 +699,6 @@ Importar Nutrium · ⚙️ Configurações. O link "Pacientes" foi retirado (faz
 ## Copiar o nome do paciente
 
 Ao lado do nome do paciente, um botãozinho **⧉** copia o nome (mostra "✓ copiado"), para colar na busca da Nutrium
-sem digitar. Aparece em: Sem retorno há mais de 50 dias (e Pacientes perdidos), Lembretes de consulta (lista de envio,
+sem digitar. Aparece em: **título da ficha do paciente**, **janelinha do paciente no calendário**, Sem retorno há mais de 50 dias (e Pacientes perdidos), Lembretes de consulta (lista de envio,
 já enviados, sem telefone e Consultas de hoje) e Questionários (envios de hoje, lembretes, sem telefone, não
 responderam os 2 últimos e Questionários enviados).

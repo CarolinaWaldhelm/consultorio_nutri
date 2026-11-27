@@ -466,3 +466,5 @@ textarea { resize: vertical; min-height: 44px; }
 .chan-cell { white-space: nowrap; }
 .phone-inline { display: inline-flex; gap: 4px; align-items: center; }
 .phone-inline .phone-input { width: 150px; padding: 4px 8px; font-size: .85rem; }
+
+h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-align: middle; }

@@ -4,7 +4,7 @@ import {
   fmtDate, daysAgoLabel, ageFrom, todayISO, patientCode, latestOf, classifyBMI, norm, onlyDigits,
   SEX_LABEL, SOURCE_LABEL, OBJECTIVE_LABEL, unique,
 } from '../lib/util.js';
-import { Modal, Field, ErrorBox, Loading, go } from './common.js';
+import { Modal, Field, ErrorBox, Loading, go, CopyName } from './common.js';
 import { AnamnesisDrawer, FIELDS, TYPE_LABEL } from './anamnesis.js';
 import { SummaryCard } from './summary.js';
 import { dayNotesText, datesWithNotes } from '../lib/daynotes.js';
@@ -200,7 +200,7 @@ function Header({ patient, lastConsult, nextAppt, hasConsultations, onStart, onP
   return html`
     <section class="card patient-head">
       <div class="patient-id">
-        <h1>${patient.name}</h1>
+        <h1>${patient.name}<${CopyName} name=${patient.name} /></h1>
         <div class="muted">
           ${patientCode(patient.code)}
           ${age != null && html` · ${age} anos`}
