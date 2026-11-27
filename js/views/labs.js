@@ -3,7 +3,7 @@
 import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
-import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt, labGroup, labOrder } from '../lib/labs.js';
+import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt, labGroup, labOrder, markerOf } from '../lib/labs.js';
 import { copyText, labsInsightPrompt } from '../lib/prompts.js';
 import { Modal, ErrorBox, AutoText } from './common.js';
 import { MetricChart } from './charts.js';
@@ -45,8 +45,9 @@ export function LabsCard({ patientId, patient = null, sex, birthDate = null, exa
   const rows = useMemo(() => {
     const m = new Map();
     for (const r of results) {
-      if (!m.has(r.marker)) m.set(r.marker, { marker: r.marker, label: r.label, unit: r.unit, byDate: {} });
-      m.get(r.marker).byDate[r.date] = r;
+      const k = markerOf(r);
+      if (!m.has(k)) m.set(k, { marker: k, label: k === r.marker ? r.label : MARKER[k].label, unit: r.unit, byDate: {} });
+      m.get(k).byDate[r.date] = r;
     }
     return [...m.values()].sort((a, b) => markerOrder(a.marker) - markerOrder(b.marker) || a.label.localeCompare(b.label));
   }, [results]);

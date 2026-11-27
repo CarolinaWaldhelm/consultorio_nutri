@@ -2,7 +2,7 @@
 // Nunca incluem nome, e-mail, telefone ou CPF: o paciente aparece só pelo código, sexo e idade.
 import { fmtDate, ageFrom, patientCode, SEX_LABEL, OBJECTIVE_LABEL, todayISO } from './util.js';
 import { FIELDS, TYPE_LABEL } from '../views/anamnesis.js';
-import { referenceStatus, referenceFor, ageAt, labGroup, labOrder } from './labs.js';
+import { referenceStatus, referenceFor, ageAt, labGroup, labOrder, markerOf, MARKER } from './labs.js';
 
 function patientLine(patient) {
   const age = ageFrom(patient.birth_date);
@@ -95,8 +95,8 @@ function labsText(labResults, sex, birthDate = null) {
   const by = new Map();
   const flag = { low: ' (abaixo da ref.)', high: ' (acima da ref.)', ok: '' };
   for (const r of [...labResults].sort((a, b) => b.date.localeCompare(a.date))) {
-    if (!by.has(r.label)) by.set(r.label, { marker: r.marker, values: [] });
-    const st = referenceStatus(r.marker, r.value, r.unit, sex, ageAt(birthDate, r.date));
+    if (!by.has(r.label)) by.set(r.label, { marker: markerOf(r), values: [] });
+    const st = referenceStatus(markerOf(r), r.value, r.unit, sex, ageAt(birthDate, r.date));
     if (by.get(r.label).values.length < 3) by.get(r.label).values.push(`${fmtDate(r.date)}: ${String(r.value).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}${st ? flag[st] : ''}`);
   }
   return ['EXAMES LABORATORIAIS (até 3 resultados mais recentes de cada; referência geral, ajustada por sexo e idade, entre colchetes):',
@@ -113,9 +113,10 @@ export function labsInsightPrompt(patient, labResults) {
   const flag = { low: ' ↓ abaixo', high: ' ↑ acima', ok: '' };
   const by = new Map();
   for (const r of [...labResults].sort((a, b) => b.date.localeCompare(a.date))) {
-    if (!by.has(r.marker)) by.set(r.marker, { marker: r.marker, label: r.label, values: [] });
-    const st = referenceStatus(r.marker, r.value, r.unit, sex, ageAt(patient.birth_date, r.date));
-    const x = by.get(r.marker);
+    const k = markerOf(r);
+    if (!by.has(k)) by.set(k, { marker: k, label: k === r.marker ? r.label : MARKER[k].label, values: [] });
+    const st = referenceStatus(k, r.value, r.unit, sex, ageAt(patient.birth_date, r.date));
+    const x = by.get(k);
     if (x.values.length < 3) x.values.push(`${fmtDate(r.date)}: ${String(r.value).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}${st ? flag[st] : ''}`);
   }
   const lines = [];

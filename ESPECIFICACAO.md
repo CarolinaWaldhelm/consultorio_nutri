@@ -325,7 +325,7 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   **Vitaminas e minerais** (D, B12, folato, B1, B6, A, E, C, zinco, magnésio, selênio, cálcio total e iônico, PTH);
   **Fígado e vias biliares** (TGO, TGP, GGT, FA, bilirrubinas total/direta/indireta, albumina, TAP, RNI); **Pâncreas**
   (amilase, lipase); **Função renal** (ureia, creatinina, TFG estimada, ácido úrico, sódio, potássio); **Perfil
-  tireoidiano** (TSH, T4L, T3L, anti-TPO, anti-tireoglobulina); **Marcadores inflamatórios e musculares** (PCR-us, VHS,
+  tireoidiano** (TSH, T4L, T3L, T3 total, anti-TPO, anti-tireoglobulina); **Marcadores inflamatórios e musculares** (PCR-us, VHS,
   CPK, homocisteína); **Urina**; e **Outros exames** (fora da lista, com o nome do laudo). Conversões automáticas
   conhecidas (mmol/L → mg/dL em glicose e lipídios; nmol/L → ng/mL na vitamina D; mg/dL → mg/L na PCR; g/L → mg/dL em
   ApoA1/ApoB; g/L → g/dL na albumina; µg/dL → mg/L na vitamina A).
@@ -333,6 +333,9 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   parênteses e hífens; também vale o nome sem o trecho entre parênteses). Nunca "começa com": assim "Glicose média
   estimada" não vira "Glicemia de jejum", "VLDL-colesterol" não vira "Colesterol total", "Cálcio iônico" não vira
   "Cálcio" e "Leucócitos (urina tipo I)" não vira o leucócito do sangue. O pedido para a IA traz esses avisos.
+- **Exames já salvos em "Outros exames"** (nome que a lista ainda não conhecia) passam para o grupo certo sozinhos
+  quando o nome entra na lista (`markerOf` em `js/lib/labs.js`), sem registrar de novo. Ex.: "Saturação de ferro",
+  "Saturação da transferrina" → IST (Perfil do ferro); "T3" → T3 total e "FT3" → T3 livre (Perfil tireoidiano).
 - **Contagens com ponto de milhar** ("6.500 /µL", "250.000 /µL", "50.000 UFC/mL") são lidas como 6500, 250000, 50000
   (só em contagens; "1.019" na densidade continua 1,019).
 - **`[💡 Insights dos exames]`** ao lado do título (modo B, sem dados pessoais: código, sexo e idade): copia um pedido

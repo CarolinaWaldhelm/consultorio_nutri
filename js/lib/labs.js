@@ -53,7 +53,7 @@ export const MARKERS = [
   { key: 'ferritina', label: 'Ferritina', unit: 'ng/mL', aliases: ['ferritina'] },
   { key: 'transferrina', label: 'Transferrina', unit: 'mg/dL', aliases: ['transferrina'] },
   { key: 'tibc', label: 'Capacidade total de ligação do ferro (TIBC/CTLF)', unit: 'µg/dL', aliases: ['capacidade total de ligacao do ferro', 'capacidade total de fixacao do ferro', 'tibc', 'ctlf', 'ctff', 'tibc ctlf'] },
-  { key: 'ist', label: 'Índice de saturação de transferrina (IST)', unit: '%', aliases: ['indice de saturacao de transferrina', 'indice de saturacao da transferrina', 'saturacao de transferrina', 'saturacao da transferrina', 'ist', 'sat transferrina'] },
+  { key: 'ist', label: 'Índice de saturação de transferrina (IST)', unit: '%', aliases: ['indice de saturacao de transferrina', 'indice de saturacao da transferrina', 'saturacao de transferrina', 'saturacao da transferrina', 'saturacao transferrina', 'ist', 'sat transferrina', 'sat da transferrina', 'saturacao de ferro', 'saturacao do ferro', 'indice de saturacao do ferro', 'indice de saturacao', 'percentual de saturacao da transferrina', 'saturacao de transferrina ist', 'transferrina saturacao', 'tsat'] },
   // Vitaminas e minerais
   { key: 'vitamina_d', label: 'Vitamina D (25-OH)', unit: 'ng/mL', aliases: ['25 hidroxivitamina d', '25 oh vitamina d', 'vitamina d', 'vitamina d 25 oh', '25 oh d', 'vit d', 'vitamina d 25 hidroxi', 'vitamina d 25 hidroxivitamina d'], conv: { 'nmol/l': 1 / 2.496 } },
   { key: 'vitamina_b12', label: 'Vitamina B12 (cobalamina)', unit: 'pg/mL', aliases: ['vitamina b12', 'b12', 'cobalamina', 'vitamina b12 cobalamina'] },
@@ -93,7 +93,8 @@ export const MARKERS = [
   // Perfil tireoidiano
   { key: 'tsh', label: 'TSH', unit: 'µUI/mL', aliases: ['tsh', 'tsh ultrassensivel', 'hormonio tireoestimulante'] },
   { key: 't4_livre', label: 'T4 livre', unit: 'ng/dL', aliases: ['t4 livre', 't4l', 'tiroxina livre'] },
-  { key: 't3_livre', label: 'T3 livre', unit: 'pg/mL', aliases: ['t3 livre', 't3l', 'triiodotironina livre'] },
+  { key: 't3_livre', label: 'T3 livre', unit: 'pg/mL', aliases: ['t3 livre', 't3l', 'triiodotironina livre', 't3 livre t3l', 'ft3'] },
+  { key: 't3_total', label: 'T3 total', unit: 'ng/dL', aliases: ['t3', 't3 total', 'triiodotironina', 'triiodotironina total', 't3 total triiodotironina'] },
   { key: 'anti_tpo', label: 'Anti-TPO', unit: 'UI/mL', aliases: ['anti tpo', 'antitpo', 'anticorpo anti tpo', 'anticorpos anti tpo', 'anti tireoperoxidase', 'anticorpo anti tireoperoxidase', 'anticorpos anti tireoperoxidase'] },
   { key: 'anti_tg', label: 'Anti-tireoglobulina', unit: 'UI/mL', aliases: ['anti tireoglobulina', 'antitireoglobulina', 'anti tg', 'anticorpo anti tireoglobulina', 'anticorpos anti tireoglobulina'] },
   // Marcadores inflamatórios e musculares
@@ -126,7 +127,7 @@ export const LAB_GROUPS = [
   ['figado', 'Fígado e vias biliares (hepatograma)', ['tgo', 'tgp', 'ggt', 'fosfatase_alcalina', 'bilirrubina_total', 'bilirrubina_direta', 'bilirrubina_indireta', 'albumina', 'tap', 'rni']],
   ['pancreas', 'Pâncreas (função exócrina)', ['amilase', 'lipase']],
   ['rins', 'Função renal', ['ureia', 'creatinina', 'tfg', 'acido_urico', 'sodio', 'potassio']],
-  ['tireoide', 'Perfil tireoidiano', ['tsh', 't4_livre', 't3_livre', 'anti_tpo', 'anti_tg']],
+  ['tireoide', 'Perfil tireoidiano', ['tsh', 't4_livre', 't3_livre', 't3_total', 'anti_tpo', 'anti_tg']],
   ['inflamacao', 'Marcadores inflamatórios e musculares', ['pcr', 'vhs', 'cpk', 'homocisteina']],
   ['urina', 'Urina', ['urocultura', 'urina_densidade', 'urina_ph', 'urina_leucocitos', 'urina_hemacias']],
 ];
@@ -179,6 +180,7 @@ export const REFERENCES = {
   rni: { min: 0.8, max: 1.2, note: 'Em quem usa anticoagulante, o alvo é outro (definido pelo médico).' },
   tfg: { min: 90, note: '60 a 89: redução leve; 45 a 59: leve a moderada; abaixo de 60 por 3 meses = doença renal crônica (KDIGO).' },
   t3_livre: { min: 2.0, max: 4.4 },
+  t3_total: { min: 80, max: 200 },
   anti_tpo: { max: 34, note: 'Faixa varia muito com o método. Positivo sugere tireoidite autoimune (Hashimoto).' },
   anti_tg: { max: 115, note: 'Faixa varia muito com o método (alguns usam até 4 UI/mL). Confira a faixa do laudo.' },
   vhs: { F: { max: 20 }, M: { max: 15 }, ages: [{ min: 50, ref: { F: { max: 30 }, M: { max: 20 } }, label: '50 anos ou mais' }] },
@@ -290,6 +292,15 @@ export function findMarker(name) {
   const full = normName(name);
   const noParens = normName(String(name).replace(/\([^)]*\)/g, ' '));
   return BY_ALIAS.get(full) || BY_ALIAS.get(noParens) || null;
+}
+
+/**
+ * Chave efetiva de um resultado salvo: os que ficaram como "outro_…" (nome que a lista ainda não conhecia) passam a
+ * ser reconhecidos quando o nome entra na lista — sem precisar registrar o exame de novo.
+ */
+export function markerOf(r) {
+  if (r.marker && !r.marker.startsWith('outro_')) return r.marker;
+  return findMarker(r.label)?.key || r.marker;
 }
 
 export function keyForLabel(label) {
