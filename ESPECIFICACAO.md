@@ -330,6 +330,9 @@ responde com o nível e a justificativa, e a nutricionista clica no nível na te
   "Cálcio" e "Leucócitos (urina tipo I)" não vira o leucócito do sangue. O pedido para a IA traz esses avisos.
 - **Contagens com ponto de milhar** ("6.500 /µL", "250.000 /µL", "50.000 UFC/mL") são lidas como 6500, 250000, 50000
   (só em contagens; "1.019" na densidade continua 1,019).
+- **`[💡 Insights dos exames]`** ao lado do título (modo B, sem dados pessoais: código, sexo e idade): copia um pedido
+  para a IA com os exames agrupados, até 3 coletas de cada, a referência e ↑/↓; pede resumo, leitura por grupo e em
+  conjunto, evolução, relação com a nutrição, condutas com força da evidência e fonte, e quando encaminhar ao médico.
 - **Exames agrupados** na tabela, com uma linha de título por grupo (`LAB_GROUPS` em `js/lib/labs.js`): Perfil
   glicêmico · Perfil lipídico · Hemograma · Ferro e vitaminas · Fígado e pâncreas · Função renal · Tireoide e
   paratireoide · Inflamação · Eletrólitos e minerais · Urina · Outros exames (os fora da lista padrão).

@@ -2,7 +2,7 @@
 // Nunca incluem nome, e-mail, telefone ou CPF: o paciente aparece só pelo código, sexo e idade.
 import { fmtDate, ageFrom, patientCode, SEX_LABEL, OBJECTIVE_LABEL, todayISO } from './util.js';
 import { FIELDS, TYPE_LABEL } from '../views/anamnesis.js';
-import { referenceStatus, referenceFor, ageAt } from './labs.js';
+import { referenceStatus, referenceFor, ageAt, labGroup, labOrder } from './labs.js';
 
 function patientLine(patient) {
   const age = ageFrom(patient.birth_date);
@@ -101,6 +101,51 @@ function labsText(labResults, sex, birthDate = null) {
   }
   return ['EXAMES LABORATORIAIS (até 3 resultados mais recentes de cada; referência geral, ajustada por sexo e idade, entre colchetes):',
     ...[...by].map(([l, x]) => `${l}${referenceFor(x.marker, sex, ageNow) ? ` [${referenceFor(x.marker, sex, ageNow).text}]` : ''}: ${x.values.join(' | ')}`)].join('\n');
+}
+
+/**
+ * Insights só dos exames (botão ao lado de "Exames laboratoriais"): leitura integrada dos resultados, agrupados
+ * (perfil glicêmico, lipídico, hemograma…), com até 3 coletas de cada para ver a evolução. Sem dados pessoais.
+ */
+export function labsInsightPrompt(patient, labResults) {
+  const sex = patient.sex;
+  const ageNow = ageAt(patient.birth_date, todayISO());
+  const flag = { low: ' ↓ abaixo', high: ' ↑ acima', ok: '' };
+  const by = new Map();
+  for (const r of [...labResults].sort((a, b) => b.date.localeCompare(a.date))) {
+    if (!by.has(r.marker)) by.set(r.marker, { marker: r.marker, label: r.label, values: [] });
+    const st = referenceStatus(r.marker, r.value, r.unit, sex, ageAt(patient.birth_date, r.date));
+    const x = by.get(r.marker);
+    if (x.values.length < 3) x.values.push(`${fmtDate(r.date)}: ${String(r.value).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}${st ? flag[st] : ''}`);
+  }
+  const lines = [];
+  let group = null;
+  for (const x of [...by.values()].sort((a, b) => labOrder(a.marker) - labOrder(b.marker) || a.label.localeCompare(b.label))) {
+    const g = labGroup(x.marker).label;
+    if (g !== group) { lines.push('', `## ${g}`); group = g; }
+    const ref = referenceFor(x.marker, sex, ageNow);
+    lines.push(`- ${x.label}${ref ? ` [ref.: ${ref.text}]` : ''}: ${x.values.join(' | ')}`);
+  }
+  return `Você é assistente de uma nutricionista clínica. Analise os EXAMES LABORATORIAIS do paciente abaixo e monte, em português,
+um QUADRO DE INSIGHTS DOS EXAMES para apoiar a decisão dela:
+
+1. **Resumo em 3 linhas**: o que chama mais atenção no conjunto.
+2. **Por grupo** (perfil glicêmico, lipídico, hemograma, ferro e vitaminas etc.): o que está alterado ou no limite,
+   a **evolução** entre as coletas (melhorou, piorou, estável) e a **interpretação em conjunto** (ex.: VCM baixo +
+   ferritina, HbA1c + glicemia + insulina/HOMA, PTH + vitamina D + cálcio).
+3. **Relação com a nutrição**: o que a alimentação, o peso ou a suplementação podem estar influenciando.
+4. **Condutas nutricionais sugeridas**, em tópicos curtos, com a **força da evidência** (diretriz, metanálise, ensaio
+   clínico, consenso) e a **fonte com link** (PubMed, SciELO, diretrizes SBD, SBC, ABESO, SBEM, ADA, ESPEN, OMS).
+5. **Quando encaminhar ao médico** e **exames que valeria pedir ou repetir**, com o prazo.
+
+Regras: as referências entre colchetes são gerais (ajustadas por sexo e idade); se o laudo tiver outra, vale a do laudo.
+Use apenas fontes reais e verificáveis; se não tiver certeza de um link, escreva "buscar no PubMed: <termos>".
+Não faça diagnóstico nem prescrição fechada: são sugestões para a nutricionista avaliar.
+
+PACIENTE: ${patientLine(patient)}
+DATA DE HOJE: ${fmtDate(todayISO())}
+
+EXAMES (até 3 coletas mais recentes de cada; ↑/↓ = fora da referência):${lines.join('\n')}`;
 }
 
 /** Quadro de insights: condutas baseadas em evidência para o perfil do paciente. */

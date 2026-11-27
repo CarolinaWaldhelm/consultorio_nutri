@@ -4,7 +4,7 @@ import { html, useState, useMemo } from '../lib/preact.js';
 import { supabase, run } from '../lib/db.js';
 import { fmtDate, todayISO } from '../lib/util.js';
 import { MARKERS, MARKER, parseLabText, labPrompt, keyForLabel, findMarker, referenceFor, referenceStatus, ageAt, labGroup, labOrder } from '../lib/labs.js';
-import { copyText } from '../lib/prompts.js';
+import { copyText, labsInsightPrompt } from '../lib/prompts.js';
 import { Modal, ErrorBox, AutoText } from './common.js';
 import { MetricChart } from './charts.js';
 
@@ -20,7 +20,13 @@ export function LabValue({ marker, value, unit, sex, age = null }) {
   return html`<span class=${'lab-val' + (st ? ' lab-' + (st === 'ok' ? 'ok' : 'out') : '')} title=${st ? STATUS_TITLE[st] : ''}>${fmt(value)}${st && st !== 'ok' ? ' ' + ARROW[st] : ''}</span>`;
 }
 
-export function LabsCard({ patientId, sex, birthDate = null, exams, results, onChanged }) {
+export function LabsCard({ patientId, patient = null, sex, birthDate = null, exams, results, onChanged }) {
+  const [insightCopied, setInsightCopied] = useState(null);
+  async function copyInsight() {
+    const text = labsInsightPrompt(patient || { sex, birth_date: birthDate }, results);
+    if (await copyText(text)) { setInsightCopied('ok'); setTimeout(() => setInsightCopied(null), 3000); }
+    else setInsightCopied(text);
+  }
   // Referências por idade: idade do paciente em cada coleta (e hoje, para a coluna de referência).
   const ageOn = (d) => ageAt(birthDate, d);
   const ageNow = ageAt(birthDate, todayISO());
@@ -59,8 +65,13 @@ export function LabsCard({ patientId, sex, birthDate = null, exams, results, onC
         <button class="card-title collapse-title" aria-expanded=${open} onClick=${() => setOpen(!open)}>
           ${open ? '▾' : '▸'} 🧪 Exames laboratoriais <span class="muted small">${exams.length ? `(${exams.length} exame${exams.length > 1 ? 's' : ''})` : ''}</span>
         </button>
-        <button class="btn btn-primary btn-sm" onClick=${() => setAdding(true)}>📄 Registrar exame</button>
+        <span class="row-actions">
+          ${results.length > 0 && html`<button class="btn btn-sm" title="Copia o pedido de insights dos exames (sem nome) para colar na sua IA" onClick=${copyInsight}>${insightCopied === 'ok' ? '✓ Copiado! Cole na IA' : '💡 Insights dos exames'}</button>`}
+          <button class="btn btn-primary btn-sm" onClick=${() => setAdding(true)}>📄 Registrar exame</button>
+        </span>
       </div>
+      ${insightCopied && insightCopied !== 'ok' && html`<p class="muted small">Não consegui copiar sozinho. Copie o texto abaixo (Ctrl+A, Ctrl+C):</p>
+        <textarea rows="6" readonly value=${insightCopied} onFocus=${(e) => e.target.select()}></textarea>`}
       ${open && html`
       ${!exams.length && html`<p class="muted">Nenhum exame registrado.</p>`}
       ${rows.length > 0 && html`
