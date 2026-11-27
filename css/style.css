@@ -593,7 +593,7 @@ h1 .copy-name, h2 .copy-name { font-size: .8rem; font-weight: 400; vertical-alig
 .rec-row.inactive .rec-row-title, .rec-row.inactive .rec-row-preview { opacity: .55; }
 
 /* Ficha do paciente: recomendações na lateral esquerda */
-.patient-layout { display: grid; grid-template-columns: 260px minmax(0, 1100px); gap: 18px; align-items: start; justify-content: center; }
+.patient-layout { display: grid; grid-template-columns: 260px minmax(0, 1100px); gap: 48px; align-items: start; justify-content: center; }
 .patient-main { min-width: 0; }
 .patient-side { position: sticky; top: 76px; max-height: calc(100vh - 90px); overflow-y: auto; padding-top: 34px; }
 .patient-side .card { margin-bottom: 0; }
@@ -618,3 +618,6 @@ body.drawer-open .patient-side { display: none; }
 .rpt-rec-title { font-family: Georgia, serif; font-size: 1rem; color: var(--rv); padding-top: 10px; margin-bottom: 3px; }
 .rpt-rec-body { font-size: .86rem; line-height: 1.55; white-space: pre-wrap; padding-bottom: 6px; }
 .rpt-rec-body.last { padding-bottom: 10px; border-bottom: 1px solid #f0ebe0; }
+
+.rec-switch { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--primary-dark); cursor: pointer; margin-right: 4px; min-width: 78px; }
+.rec-switch.off { color: var(--muted); }

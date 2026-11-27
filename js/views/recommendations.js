@@ -23,6 +23,9 @@ const KINDS = {
   },
 };
 
+// Aviso quando o banco ainda não tem a coluna "active" (falta rodar o supabase/schema.sql de novo).
+const SCHEMA_MSG = 'Para o botão Ativa/Inativa funcionar, falta rodar o arquivo do Supabase de novo: copie todo o supabase/schema.sql do GitHub, cole no SQL Editor do Supabase e clique em Run. Depois aperte Ctrl + Shift + R.';
+
 export function RecommendationsPage({ kind = 'recomendacao' }) {
   const K = KINDS[kind];
   const [items, setItems] = useState(null);
@@ -54,7 +57,11 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
   async function toggleActive(r) {
     const active = r.active === false;
     setItems((l) => l.map((x) => (x.id === r.id ? { ...x, active } : x)));
-    try { await run(supabase.from('recommendations').update({ active }).eq('id', r.id)); } catch (err) { setError(err); load(); }
+    try { await run(supabase.from('recommendations').update({ active }).eq('id', r.id)); }
+    catch (err) {
+      setError(/active/.test(err?.message || '') ? new Error(SCHEMA_MSG) : err);
+      load();
+    }
   }
   async function remove(r) {
     if (!confirm(`Apagar a ${K.one} "${r.title}"?`)) return;
@@ -68,6 +75,7 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
       <button class="btn btn-primary" onClick=${() => setEditing({})}>${K.newLabel}</button>
     </div>
     <${ErrorBox} error=${error} />
+    ${kind === 'recomendacao' && items && items.length > 0 && !('active' in items[0]) && html`<div class="alert">⚠️ ${SCHEMA_MSG}</div>`}
     <section class="card rec-toolbar">
       <input type="search" class="rec-search" placeholder=${K.search} value=${q} onInput=${(e) => setQ(e.target.value)} aria-label=${'Buscar ' + K.one} />
       ${categories.length > 0 && html`
@@ -101,9 +109,11 @@ export function RecommendationsPage({ kind = 'recomendacao' }) {
                 ${isOpen && html`<div class="rec-body">${r.body}</div>`}
               </div>
               <span class="row-actions rec-row-actions">
-                ${kind === 'recomendacao' && html`<button class=${'btn btn-sm rec-toggle ' + (r.active === false ? 'off' : 'on')}
-                  title=${r.active === false ? 'Inativa: não aparece para escolher na ficha do paciente. Clique para ativar.' : 'Ativa: aparece para escolher na ficha do paciente. Clique para desativar.'}
-                  onClick=${() => toggleActive(r)}>${r.active === false ? '○ Inativa' : '● Ativa'}</button>`}
+                ${kind === 'recomendacao' && html`<label class=${'rec-switch' + (r.active === false ? ' off' : '')}
+                  title=${r.active === false ? 'Inativa: não aparece para escolher na ficha do paciente.' : 'Ativa: aparece para escolher na ficha do paciente.'}>
+                  <input type="checkbox" class="switch" checked=${r.active !== false} onChange=${() => toggleActive(r)} />
+                  <span>${r.active === false ? 'Inativa' : 'Ativa'}</span>
+                </label>`}
                 <button class=${'btn btn-sm ' + (copied === r.id ? 'btn-primary' : '')} onClick=${() => copy(r)}>${copied === r.id ? '✓ Copiado' : '📋 Copiar'}</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => setEditing(r)}>✏️ Editar</button>
                 <button class="btn btn-sm btn-ghost" onClick=${() => remove(r)}>Apagar</button>
