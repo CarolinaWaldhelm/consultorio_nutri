@@ -18,7 +18,10 @@
   color: var(--text);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); font-size: 14px; line-height: 1.45; }
+/* Tamanho geral da letra: títulos, números e botões (em rem) seguem a raiz; o PDF volta ao tamanho normal ao imprimir. */
+html { font-size: 14px; }
+html:has(body.printing) { font-size: 16px; }
+body { margin: 0; background: var(--bg); font-size: 13.5px; line-height: 1.45; }
 h1 { font-size: 1.6rem; margin: 0; }
 h2 { font-size: 1.1rem; margin: 0; }
 a { color: var(--primary); }

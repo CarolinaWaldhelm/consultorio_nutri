@@ -311,8 +311,9 @@ function printReport(props) {
   document.title = `Relatório - ${props.data.patient.name} - ${fmtDate(todayISO()).replace(/\//g, '-')}`;
   let root = document.getElementById('print-root');
   if (!root) { root = document.createElement('div'); root.id = 'print-root'; document.body.appendChild(root); }
-  render(html`<${Report} ...${props} />`, root);
+  // A classe vem antes de montar o relatório: as folhas são medidas já com o tamanho de letra do PDF.
   document.body.classList.add('printing');
+  render(html`<${Report} ...${props} />`, root);
   const done = () => {
     document.body.classList.remove('printing');
     render(null, root);

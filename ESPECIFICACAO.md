@@ -780,5 +780,6 @@ página mostra só o seu tipo.
 
 ## Tamanho da letra
 
-Letra base do site em **14 px** (antes 15) e painel da consulta com 430 px (antes 460), para caber a lateral de
-recomendações, a ficha e o painel ao mesmo tempo (a nutricionista usa o navegador em 80%).
+Letra menor no site todo (a pedido): raiz `html { font-size: 14px }` (títulos, números e botões em rem diminuem
+juntos, ~12%) e texto corrido em 13,5 px; painel da consulta com 430 px. O **PDF não muda**: ao imprimir, a raiz volta
+a 16 px (`html:has(body.printing)`), e as folhas são medidas já nesse tamanho.
